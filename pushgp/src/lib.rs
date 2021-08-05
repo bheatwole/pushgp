@@ -1,7 +1,12 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+mod code;
+mod configuration;
+mod context;
+mod instruction;
+mod instruction_type;
+mod util;
+
+pub use code::Code;
+pub use configuration::Configuration;
+pub use context::Context;
+pub use instruction::Instruction;
+pub use instruction_type::InstructionType;

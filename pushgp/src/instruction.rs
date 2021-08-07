@@ -1,6 +1,7 @@
 use crate::InstructionType;
+use std::fmt::Display;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Display, Eq, Hash, PartialEq)]
 pub enum Instruction {
     // Pushes the logical AND of the top two BOOLEANs.
     BoolAnd,
@@ -212,5 +213,15 @@ impl Instruction {
             Instruction::CodeYank => vec![InstructionType::Code, InstructionType::Int],
             Instruction::CodeYankdup => vec![InstructionType::Code, InstructionType::Int],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Instruction;
+
+    #[test]
+    fn instruction_display() {
+        assert_eq!("CODENTH", format!("{}", Instruction::CodeNth));
     }
 }

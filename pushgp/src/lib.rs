@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate pushgp_macros;
+
 mod code;
 mod configuration;
 mod context;

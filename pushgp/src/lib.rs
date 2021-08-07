@@ -6,6 +6,7 @@ mod configuration;
 mod context;
 mod instruction;
 mod instruction_type;
+mod parse;
 mod util;
 
 pub use code::Code;

@@ -1,4 +1,7 @@
 use crate::Instruction;
+use base64::*;
+use byte_slice_cast::*;
+use std::fmt::{Display, Formatter, Result};
 
 // Code is the basic building block of a PushGP program. It's the translation between human readable and machine
 // readable strings.
@@ -54,5 +57,53 @@ impl Code {
             }
             _ => 1,
         }
+    }
+}
+
+impl Display for Code {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match &self {
+            Code::List(x) => {
+                write!(f, "(")?;
+                for c in x.iter() {
+                    write!(f, " {}", c)?;
+                }
+                write!(f, " )")
+            }
+            Code::LiteralBool(v) => write!(f, "{}", if *v { "TRUE" } else { "FALSE" }),
+            Code::LiteralFloat(v) => write!(f, "{}", v),
+            Code::LiteralInteger(v) => write!(f, "{}", v),
+            Code::LiteralName(v) => {
+                let slice: [u64; 1] = [*v];
+                let b64 = encode(slice.as_byte_slice());
+                write!(f, "{}", b64)
+            }
+            Code::Instruction(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Code, Instruction};
+
+    #[test]
+    fn code_display() {
+        let code = Code::List(vec![]);
+        assert_eq!("( )", format!("{}", code));
+
+        let code = Code::List(vec![
+            Code::List(vec![
+                Code::LiteralBool(true),
+                Code::LiteralFloat(0.012345),
+                Code::LiteralInteger(-12784),
+                Code::LiteralName(9000),
+            ]),
+            Code::Instruction(Instruction::BoolAnd),
+        ]);
+        assert_eq!(
+            "( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )",
+            format!("{}", code)
+        );
     }
 }

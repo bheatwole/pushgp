@@ -16,3 +16,43 @@ pub enum Code {
     // Code can be an instruction
     Instruction(Instruction),
 }
+
+impl Code {
+    pub fn is_list(&self) -> bool {
+        match &self {
+            Code::List(_) => true,
+            _ => false,
+        }
+    }
+    pub fn is_atom(&self) -> bool {
+        !self.is_list()
+    }
+
+    pub fn take_list(self) -> Option<Vec<Code>> {
+        match self {
+            Code::List(list) => Some(list),
+            _ => None,
+        }
+    }
+
+    pub fn to_list(&self) -> Code {
+        match &self {
+            Code::List(x) => Code::List(x.clone()),
+            Code::LiteralBool(b) => Code::List(vec![Code::LiteralBool(*b)]),
+            Code::LiteralFloat(f) => Code::List(vec![Code::LiteralFloat(*f)]),
+            Code::LiteralInteger(i) => Code::List(vec![Code::LiteralInteger(*i)]),
+            Code::LiteralName(n) => Code::List(vec![Code::LiteralName(*n)]),
+            Code::Instruction(inst) => Code::List(vec![Code::Instruction(*inst)]),
+        }
+    }
+
+    pub fn points(&self) -> i64 {
+        match &self {
+            Code::List(x) => {
+                let sub_points: i64 = x.iter().map(|c| c.points()).sum();
+                1 + sub_points
+            }
+            _ => 1,
+        }
+    }
+}

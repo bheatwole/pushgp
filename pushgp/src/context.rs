@@ -147,11 +147,68 @@ impl Context {
                     self.bool_stack.push(b);
                 }
             }
-            Instruction::CodeAppend => {}
-            Instruction::CodeAtom => {}
-            Instruction::CodeCar => {}
-            Instruction::CodeCdr => {}
-            Instruction::CodeCons => {}
+            Instruction::CodeAppend => {
+                if self.code_stack.len() >= 2 {
+                    let to_append = self.code_stack.pop().unwrap().to_list();
+                    let append_to = self.code_stack.pop().unwrap().to_list();
+                    let combined = match (append_to, to_append) {
+                        (Code::List(mut dst), Code::List(src)) => {
+                            dst.extend_from_slice(&src[..]);
+                            Code::List(dst)
+                        }
+                        _ => panic!("should never get here"),
+                    };
+                    self.code_stack.push(combined);
+                }
+            }
+            Instruction::CodeAtom => {
+                if self.code_stack.len() >= 1 {
+                    let c = self.code_stack.last().unwrap();
+                    self.bool_stack.push(!c.is_list());
+                }
+            }
+            Instruction::CodeCar => {
+                if self.code_stack.len() >= 1 {
+                    let c = self.code_stack.pop().unwrap();
+                    self.code_stack.push(match c {
+                        Code::List(list) => {
+                            if list.len() > 0 {
+                                list[0].clone()
+                            } else {
+                                Code::List(vec![])
+                            }
+                        }
+                        x => x.clone(),
+                    });
+                }
+            }
+            Instruction::CodeCdr => {
+                if self.code_stack.len() >= 1 {
+                    let c = self.code_stack.pop().unwrap();
+                    self.code_stack.push(match c {
+                        Code::List(mut list) => {
+                            if list.len() > 0 {
+                                list.remove(0);
+                            }
+                            Code::List(list)
+                        }
+                        _ => Code::List(vec![]),
+                    })
+                }
+            }
+            Instruction::CodeCons => {
+                if self.code_stack.len() >= 2 {
+                    let top = self.code_stack.pop().unwrap();
+                    let c = self.code_stack.pop().unwrap();
+                    self.code_stack.push(match top {
+                        Code::List(mut list) => {
+                            list.insert(0, c);
+                            Code::List(list)
+                        }
+                        x => Code::List(vec![c, x]),
+                    })
+                }
+            }
             Instruction::CodeContainer => {}
             Instruction::CodeContains => {}
             Instruction::CodeDefine => {}
@@ -596,5 +653,163 @@ mod tests {
         assert_eq!(vec![false, true, false, false, true], context.bool_stack);
         assert_eq!(0, context.exec_stack.len());
         assert_eq!(0, context.int_stack.len());
+    }
+
+    #[test]
+    fn code_append() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![
+                Code::List(vec![Code::LiteralInteger(1)]),
+                Code::List(vec![Code::LiteralInteger(2)]),
+            ],
+            exec_stack: vec![Code::Instruction(Instruction::CodeAppend)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(
+            vec![Code::List(vec![
+                Code::LiteralInteger(1),
+                Code::LiteralInteger(2)
+            ])],
+            context.code_stack
+        );
+    }
+
+    #[test]
+    fn code_atom() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::LiteralInteger(-12)],
+            exec_stack: vec![Code::Instruction(Instruction::CodeAtom)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(vec![true], context.bool_stack);
+        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::List(vec![])],
+            exec_stack: vec![Code::Instruction(Instruction::CodeAtom)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(vec![false], context.bool_stack);
+        assert_eq!(vec![Code::List(vec![])], context.code_stack);
+    }
+
+    #[test]
+    fn code_car() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::LiteralInteger(-12)],
+            exec_stack: vec![Code::Instruction(Instruction::CodeCar)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::List(vec![
+                Code::LiteralInteger(-12),
+                Code::LiteralInteger(2),
+            ])],
+            exec_stack: vec![Code::Instruction(Instruction::CodeCar)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
+    }
+
+    #[test]
+    fn code_cdr() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::LiteralInteger(-12)],
+            exec_stack: vec![Code::Instruction(Instruction::CodeCdr)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(vec![Code::List(vec![])], context.code_stack);
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::List(vec![
+                Code::LiteralInteger(-12),
+                Code::LiteralInteger(2),
+            ])],
+            exec_stack: vec![Code::Instruction(Instruction::CodeCdr)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(
+            vec![Code::List(vec![Code::LiteralInteger(2)])],
+            context.code_stack
+        );
+    }
+
+    #[test]
+    fn code_cons() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![Code::LiteralInteger(-12), Code::LiteralBool(true)],
+            exec_stack: vec![Code::Instruction(Instruction::CodeCons)],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        assert_eq!(Some(1), context.next());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(
+            vec![Code::List(vec![
+                Code::LiteralInteger(-12),
+                Code::LiteralBool(true),
+            ])],
+            context.code_stack
+        );
     }
 }

@@ -41,17 +41,30 @@ pub enum Instruction {
     // Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
     // The index is taken from the INTEGER stack
     BoolYankDup,
-    // Pushes the result of appending the top two pieces of code. If one of the pieces of code is a single instruction or literal (that is, something not surrounded by parentheses) then it is surrounded by parentheses first.
+    // Pushes the result of appending the top two pieces of code. If one of the pieces of code is a single instruction
+    // or literal (that is, something not surrounded by parentheses) then it is surrounded by parentheses first.
     CodeAppend,
-    // Pushes TRUE onto the BOOLEAN stack if the top piece of code is a single instruction or a literal, and FALSE otherwise (that is, if it is something surrounded by parentheses).
+    // Pushes TRUE onto the BOOLEAN stack if the top piece of code is a single instruction or a literal, and FALSE
+    // otherwise (that is, if it is something surrounded by parentheses).
     CodeAtom,
-    // Pushes the first item of the list on top of the CODE stack. For example, if the top piece of code is "( A B )" then this pushes "A" (after popping the argument). If the code on top of the stack is not a list then this has no effect. The name derives from the similar Lisp function; a more generic name would be "FIRST".
+    // Pushes the first item of the list on top of the CODE stack. For example, if the top piece of code is "( A B )"
+    // then this pushes "A" (after popping the argument). If the code on top of the stack is not a list then this has
+    // no effect. The name derives from the similar Lisp function; a more generic name would be "FIRST".
     CodeCar,
-    // Pushes a version of the list from the top of the CODE stack without its first element. For example, if the top piece of code is "( A B )" then this pushes "( B )" (after popping the argument). If the code on top of the stack is not a list then this pushes the empty list ("( )"). The name derives from the similar Lisp function; a more generic name would be "REST".
+    // Pushes a version of the list from the top of the CODE stack without its first element. For example, if the top
+    // piece of code is "( A B )" then this pushes "( B )" (after popping the argument). If the code on top of the stack
+    // is not a list then this pushes the empty list ("( )"). The name derives from the similar Lisp function; a more
+    // generic name would be "REST".
     CodeCdr,
-    // Pushes the result of "consing" (in the Lisp sense) the second stack item onto the first stack item (which is coerced to a list if necessary). For example, if the top piece of code is "( A B )" and the second piece of code is "X" then this pushes "( X A B )" (after popping the argument).
+    // Pushes the result of "consing" (in the Lisp sense) the second stack item onto the first stack item (which is
+    // coerced to a list if necessary). For example, if the top piece of code is "( A B )" and the second piece of code
+    // is "X" then this pushes "( X A B )" (after popping the argument).
     CodeCons,
-    // Pushes the "container" of the second CODE stack item within the first CODE stack item onto the CODE stack. If second item contains the first anywhere (i.e. in any nested list) then the container is the smallest sub-list that contains but is not equal to the first instance. For example, if the top piece of code is "( B ( C ( A ) ) ( D ( A ) ) )" and the second piece of code is "( A )" then this pushes ( C ( A ) ). Pushes an empty list if there is no such container.
+    // Pushes the "container" of the second CODE stack item within the first CODE stack item onto the CODE stack. If
+    // second item contains the first anywhere (i.e. in any nested list) then the container is the smallest sub-list
+    // that contains but is not equal to the first instance. For example, if the top piece of code is
+    // "( B ( C ( A ) ) ( D ( A ) ) )" and the second piece of code is "( A )" then this pushes ( C ( A ) ). Pushes an
+    // empty list if there is no such container.
     CodeContainer,
     // Pushes TRUE on the BOOLEAN stack if the second CODE stack item contains the first CODE stack item anywhere (e.g. in a sub-list).
     CodeContains,

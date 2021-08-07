@@ -106,4 +106,18 @@ mod tests {
             format!("{}", code)
         );
     }
+
+    #[test]
+    fn code_points() {
+        let code = Code::List(vec![
+            Code::List(vec![
+                Code::LiteralBool(true),
+                Code::LiteralFloat(0.012345),
+                Code::LiteralInteger(-12784),
+                Code::LiteralName(9000),
+            ]),
+            Code::Instruction(Instruction::BoolAnd),
+        ]);
+        assert_eq!(7, code.points());
+    }
 }

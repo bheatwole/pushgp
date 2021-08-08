@@ -1,7 +1,12 @@
-use crate::InstructionType;
+use crate::{Code, InstructionType};
+use nom::{branch::alt, bytes::complete::tag, character::complete::space0, IResult};
 use std::fmt::Display;
 
-#[derive(Clone, Copy, Debug, Display, Eq, Hash, PartialEq)]
+trait NomTag {
+    fn nom_tag(input: &str) -> IResult<&str, Instruction>;
+}
+
+#[derive(Clone, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
 pub enum Instruction {
     // Pushes the logical AND of the top two BOOLEANs.
     BoolAnd,
@@ -214,6 +219,11 @@ impl Instruction {
             Instruction::CodeYankdup => vec![InstructionType::Code, InstructionType::Int],
         }
     }
+}
+
+pub fn parse_code_instruction(input: &str) -> IResult<&str, Code> {
+    let (input, inst) = Instruction::nom_tag(input)?;
+    Ok((input, Code::Instruction(inst)))
 }
 
 #[cfg(test)]

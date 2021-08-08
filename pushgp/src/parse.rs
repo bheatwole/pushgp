@@ -1,5 +1,5 @@
 use crate::instruction::parse_code_instruction;
-use crate::{Code, Instruction};
+use crate::Code;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -10,8 +10,8 @@ use nom::{
     IResult,
 };
 
-pub fn parse_code(input: &str) -> IResult<&str, Code> {
-    parse_one_code(input)
+pub fn parse_code(input: &str) -> Code {
+    parse_one_code(input).unwrap().1
 }
 
 fn parse_one_code(input: &str) -> IResult<&str, Code> {
@@ -254,9 +254,7 @@ mod tests {
             Code::Instruction(Instruction::BoolAnd),
         ]);
         assert_eq!(
-            parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )")
-                .unwrap()
-                .1,
+            parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )"),
             expected
         );
     }

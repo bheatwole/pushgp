@@ -21,6 +21,10 @@ pub enum Code {
 }
 
 impl Code {
+    pub fn new(src: &str) -> Code {
+        crate::parse::parse_code(src)
+    }
+
     pub fn is_list(&self) -> bool {
         match &self {
             Code::List(_) => true,

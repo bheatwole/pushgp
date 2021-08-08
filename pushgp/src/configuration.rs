@@ -1,6 +1,7 @@
 use crate::{Instruction, InstructionType};
 use fnv::FnvHashSet;
 
+#[derive(Debug, PartialEq)]
 pub struct Configuration {
     allowed_instructions: FnvHashSet<Instruction>,
 }

@@ -2,6 +2,7 @@ use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
 use rand::{thread_rng, RngCore};
 
+#[derive(Debug, PartialEq)]
 pub struct Context {
     bool_stack: Vec<bool>,
     code_stack: Vec<Code>,
@@ -21,7 +22,7 @@ impl Iterator for Context {
         if let Some(code) = self.exec_stack.pop() {
             match code {
                 Code::List(mut list) => {
-                    // Push the code in reverse order to the first item of the list is the top of stack
+                    // Push the code in reverse order so the first item of the list is the top of stack
                     while let Some(item) = list.pop() {
                         self.exec_stack.push(item);
                     }

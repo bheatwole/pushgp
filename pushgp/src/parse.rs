@@ -86,7 +86,7 @@ fn parse_code_float(input: &str) -> IResult<&str, Code> {
     // Parse it
     match float_string.parse::<f64>() {
         Ok(float_value) => Ok((input, Code::LiteralFloat(float_value))),
-        Err(e) => Err(nom::Err::Error(nom::error::make_error(
+        Err(_) => Err(nom::Err::Error(nom::error::make_error(
             input,
             nom::error::ErrorKind::Verify,
         ))),
@@ -117,7 +117,7 @@ fn parse_code_integer(input: &str) -> IResult<&str, Code> {
     // Parse it
     match digits.parse::<i64>() {
         Ok(int_value) => Ok((input, Code::LiteralInteger(int_value))),
-        Err(e) => Err(nom::Err::Error(nom::error::make_error(
+        Err(_) => Err(nom::Err::Error(nom::error::make_error(
             input,
             nom::error::ErrorKind::Verify,
         ))),
@@ -140,12 +140,17 @@ fn parse_code_name(input: &str) -> IResult<&str, Code> {
         )));
     }
 
-    // Otherwise, re-assemble and decode. Pad the end with '=' to make even multiple of four
+    // Otherwise, re-assemble and decode. Pad the end with '=' to make even multiple of four. We can only have '==' at
+    // the end or we get an invalid decode error. So if we have three missing bytes, the first missing byte needs to be
+    // 'A' which translates to a byte of 0x00.
     while base64_string.len() % 4 > 0 {
-        base64_string.push('=');
+        if 1 == base64_string.len() % 4 {
+            base64_string.push('A');
+        } else {
+            base64_string.push('=');
+        }
     }
     let base_64_input: String = base64_string.into_iter().collect();
-
     match base64::decode(base_64_input) {
         Ok(u8_vec) => {
             let mut u8_array = [0u8; 8];
@@ -220,6 +225,9 @@ mod tests {
         let expected = Code::LiteralName(15993332992822435283);
         assert_eq!(parse_code_name("01234567890=").unwrap().1, expected);
         assert!(parse_code_name("01234567890").is_err());
+
+        let expected = Code::LiteralName(269275136);
+        assert_eq!(parse_code("ANAME"), expected);
     }
 
     #[test]

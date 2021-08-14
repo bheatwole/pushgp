@@ -1,13 +1,14 @@
 use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
 use rand::{thread_rng, RngCore};
+use rust_decimal::Decimal;
 
 #[derive(Debug, PartialEq)]
 pub struct Context {
     bool_stack: Vec<bool>,
     code_stack: Vec<Code>,
     exec_stack: Vec<Code>,
-    float_stack: Vec<f64>,
+    float_stack: Vec<Decimal>,
     int_stack: Vec<i64>,
     name_stack: Vec<u64>,
     defined_names: FnvHashMap<u64, Code>,
@@ -78,8 +79,8 @@ impl Context {
             }
             Instruction::BoolFromFloat => {
                 if self.float_stack.len() >= 1 {
-                    let &f = self.float_stack.last().unwrap();
-                    self.bool_stack.push(f != 0.0);
+                    let f = self.float_stack.pop().unwrap();
+                    self.bool_stack.push(!f.is_zero());
                 }
             }
             Instruction::BoolFromInt => {

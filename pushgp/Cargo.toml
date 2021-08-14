@@ -12,3 +12,4 @@ fnv = "1.0.7"
 nom = "6.2.1"
 pushgp-macros = { path = "../pushgp-macros" }
 rand = "0.8"
+rust_decimal = "1.15"

@@ -9,6 +9,7 @@ use nom::{
     multi::{many0, many1},
     IResult,
 };
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub fn parse_code(input: &str) -> Code {
     parse_one_code(input).unwrap().1
@@ -85,7 +86,10 @@ fn parse_code_float(input: &str) -> IResult<&str, Code> {
 
     // Parse it
     match float_string.parse::<f64>() {
-        Ok(float_value) => Ok((input, Code::LiteralFloat(float_value))),
+        Ok(float_value) => Ok((
+            input,
+            Code::LiteralFloat(Decimal::from_f64(float_value).unwrap()),
+        )),
         Err(_) => Err(nom::Err::Error(nom::error::make_error(
             input,
             nom::error::ErrorKind::Verify,
@@ -182,6 +186,7 @@ mod tests {
         parse_code_name,
     };
     use crate::{Code, Instruction};
+    use rust_decimal::Decimal;
 
     #[test]
     fn parse_bool() {
@@ -191,13 +196,13 @@ mod tests {
 
     #[test]
     fn parse_float() {
-        let expected = Code::LiteralFloat(1.234);
+        let expected = Code::LiteralFloat(Decimal::new(1234, 3));
         assert_eq!(parse_code_float("1.234").unwrap().1, expected);
 
-        let expected = Code::LiteralFloat(12300.0);
+        let expected = Code::LiteralFloat(Decimal::new(12300, 0));
         assert_eq!(parse_code_float("123.0E2").unwrap().1, expected);
 
-        let expected = Code::LiteralFloat(1.23);
+        let expected = Code::LiteralFloat(Decimal::new(123, 2));
         assert_eq!(parse_code_float("123.0E-2").unwrap().1, expected);
 
         assert!(parse_code_float("1234").is_err());
@@ -255,7 +260,7 @@ mod tests {
         let expected = Code::List(vec![
             Code::List(vec![
                 Code::LiteralBool(true),
-                Code::LiteralFloat(0.012345),
+                Code::LiteralFloat(Decimal::new(12345, 6)),
                 Code::LiteralInteger(-12784),
                 Code::LiteralName(9000),
             ]),

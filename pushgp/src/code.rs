@@ -1,18 +1,19 @@
 use crate::Instruction;
 use base64::*;
 use byte_slice_cast::*;
+use rust_decimal::Decimal;
 use std::fmt::{Display, Formatter, Result};
 
 // Code is the basic building block of a PushGP program. It's the translation between human readable and machine
 // readable strings.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Code {
     // A list is just a list containing other code (which can be lists) and may also be empty (len() == 0)
     List(Vec<Code>),
 
     // Code can be literal values
     LiteralBool(bool),
-    LiteralFloat(f64),
+    LiteralFloat(Decimal),
     LiteralInteger(i64),
     LiteralName(u64),
 
@@ -90,6 +91,7 @@ impl Display for Code {
 #[cfg(test)]
 mod tests {
     use crate::{Code, Instruction};
+    use rust_decimal::Decimal;
 
     #[test]
     fn code_display() {
@@ -99,7 +101,7 @@ mod tests {
         let code = Code::List(vec![
             Code::List(vec![
                 Code::LiteralBool(true),
-                Code::LiteralFloat(0.012345),
+                Code::LiteralFloat(Decimal::new(12345, 6)),
                 Code::LiteralInteger(-12784),
                 Code::LiteralName(9000),
             ]),
@@ -116,7 +118,7 @@ mod tests {
         let code = Code::List(vec![
             Code::List(vec![
                 Code::LiteralBool(true),
-                Code::LiteralFloat(0.012345),
+                Code::LiteralFloat(Decimal::new(12345, 6)),
                 Code::LiteralInteger(-12784),
                 Code::LiteralName(9000),
             ]),

@@ -1,6 +1,7 @@
 use crate::Instruction;
 use base64::*;
 use byte_slice_cast::*;
+use fnv::FnvHashMap;
 use rust_decimal::Decimal;
 use std::fmt::{Display, Formatter, Result};
 
@@ -34,6 +35,68 @@ impl Code {
     }
     pub fn is_atom(&self) -> bool {
         !self.is_list()
+    }
+
+    pub fn contains(&self, look_for: &Code) -> bool {
+        if self == look_for {
+            return true;
+        }
+        match &self {
+            Code::List(list) => {
+                for i in list {
+                    if i.contains(look_for) {
+                        return true;
+                    }
+                }
+                false
+            }
+            x => *x == look_for,
+        }
+    }
+
+    pub fn container(&self, look_for: &Code) -> Option<Code> {
+        match &self {
+            Code::List(list) => {
+                for i in list {
+                    if i == look_for {
+                        return Some(Code::List(list.clone()));
+                    }
+                }
+                for i in list {
+                    if let Some(code) = i.container(&look_for) {
+                        return Some(code);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
+    pub fn discrepancy_items(&self) -> FnvHashMap<Code, i64> {
+        let mut items = FnvHashMap::default();
+
+        match &self {
+            Code::List(list) => {
+                for i in list {
+                    if i.is_list() {
+                        let counter = items.entry(i.clone()).or_insert(0);
+                        *counter += 1;
+                    }
+                    for (key, count) in i.discrepancy_items() {
+                        let counter = items.entry(key).or_insert(0);
+                        *counter += count;
+                    }
+                }
+            }
+            &atom => {
+                let counter = items.entry(atom.clone()).or_insert(0);
+                *counter += 1;
+            }
+        }
+
+        items
     }
 
     pub fn take_list(self) -> Option<Vec<Code>> {
@@ -125,5 +188,18 @@ mod tests {
             Code::Instruction(Instruction::BoolAnd),
         ]);
         assert_eq!(7, code.points());
+    }
+
+    #[test]
+    fn code_discrepancy_items() {
+        // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
+        let code = Code::new("( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
+        let items = code.discrepancy_items();
+        assert_eq!(1, *items.get(&Code::new("ANAME")).unwrap());
+        assert_eq!(1, *items.get(&Code::new("( 3 ( 1 ) )")).unwrap());
+        assert_eq!(1, *items.get(&Code::new("3")).unwrap());
+        assert_eq!(2, *items.get(&Code::new("( 1 )")).unwrap());
+        assert_eq!(3, *items.get(&Code::new("1")).unwrap());
+        assert_eq!(5, items.len());
     }
 }

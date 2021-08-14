@@ -31,7 +31,10 @@ impl Iterator for Context {
                 Code::LiteralBool(v) => self.bool_stack.push(v),
                 Code::LiteralFloat(v) => self.float_stack.push(v),
                 Code::LiteralInteger(v) => self.int_stack.push(v),
-                Code::LiteralName(v) => self.name_stack.push(v),
+                Code::LiteralName(v) => match self.defined_names.get(&v) {
+                    None => self.name_stack.push(v),
+                    Some(code) => self.exec_stack.push(code.clone()),
+                },
                 Code::Instruction(inst) => self.execute_instruction(inst),
             }
 
@@ -45,12 +48,23 @@ impl Iterator for Context {
 }
 
 impl Context {
+    pub fn run(&mut self, max: usize) -> usize {
+        let mut total_count = 0;
+        while let Some(count) = self.next() {
+            total_count += count;
+            if total_count >= max {
+                break;
+            }
+        }
+        total_count
+    }
+
     fn execute_instruction(&mut self, instruction: Instruction) {
         match instruction {
             Instruction::BoolAnd => {
                 if self.bool_stack.len() >= 2 {
-                    let &a = self.bool_stack.get(self.bool_stack.len() - 1).unwrap();
-                    let &b = self.bool_stack.get(self.bool_stack.len() - 2).unwrap();
+                    let a = self.bool_stack.pop().unwrap();
+                    let b = self.bool_stack.pop().unwrap();
                     self.bool_stack.push(a && b);
                 }
             }
@@ -69,8 +83,8 @@ impl Context {
             }
             Instruction::BoolEqual => {
                 if self.bool_stack.len() >= 2 {
-                    let &a = self.bool_stack.get(self.bool_stack.len() - 1).unwrap();
-                    let &b = self.bool_stack.get(self.bool_stack.len() - 2).unwrap();
+                    let a = self.bool_stack.pop().unwrap();
+                    let b = self.bool_stack.pop().unwrap();
                     self.bool_stack.push(a == b);
                 }
             }
@@ -85,20 +99,20 @@ impl Context {
             }
             Instruction::BoolFromInt => {
                 if self.int_stack.len() >= 1 {
-                    let &i = self.int_stack.last().unwrap();
+                    let i = self.int_stack.pop().unwrap();
                     self.bool_stack.push(i != 0);
                 }
             }
             Instruction::BoolNot => {
                 if self.bool_stack.len() >= 1 {
-                    let &b = self.bool_stack.last().unwrap();
+                    let b = self.bool_stack.pop().unwrap();
                     self.bool_stack.push(!b);
                 }
             }
             Instruction::BoolOr => {
                 if self.bool_stack.len() >= 2 {
-                    let &a = self.bool_stack.get(self.bool_stack.len() - 1).unwrap();
-                    let &b = self.bool_stack.get(self.bool_stack.len() - 2).unwrap();
+                    let a = self.bool_stack.pop().unwrap();
+                    let b = self.bool_stack.pop().unwrap();
                     self.bool_stack.push(a || b);
                 }
             }
@@ -211,11 +225,64 @@ impl Context {
                     })
                 }
             }
-            Instruction::CodeContainer => {}
-            Instruction::CodeContains => {}
-            Instruction::CodeDefine => {}
-            Instruction::CodeDefinition => {}
-            Instruction::CodeDiscrepancy => {}
+            Instruction::CodeContainer => {
+                if self.code_stack.len() >= 2 {
+                    let look_for = self.code_stack.pop().unwrap();
+                    let look_in = self.code_stack.pop().unwrap();
+                    if let Some(code) = look_in.container(&look_for) {
+                        self.code_stack.push(code);
+                    }
+                }
+            }
+            Instruction::CodeContains => {
+                if self.code_stack.len() >= 2 {
+                    let look_for = self.code_stack.pop().unwrap();
+                    let look_in = self.code_stack.pop().unwrap();
+                    self.bool_stack.push(look_in.contains(&look_for));
+                }
+            }
+            Instruction::CodeDefine => {
+                if self.code_stack.len() >= 1 && self.name_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    let n = self.name_stack.pop().unwrap();
+                    self.defined_names.insert(n, code);
+                }
+            }
+            Instruction::CodeDefinition => {
+                if self.name_stack.len() >= 1 {
+                    let name = self.name_stack.pop().unwrap();
+                    if let Some(code) = self.defined_names.get(&name) {
+                        self.code_stack.push(code.clone());
+                    }
+                }
+            }
+            Instruction::CodeDiscrepancy => {
+                if self.code_stack.len() >= 2 {
+                    let a = self.code_stack.pop().unwrap();
+                    let b = self.code_stack.pop().unwrap();
+
+                    // Determine all the unique code items along with the count that each appears
+                    let a_items = a.discrepancy_items();
+                    let b_items = b.discrepancy_items();
+
+                    // Count up all the difference from a to b
+                    let mut discrepancy = 0;
+                    for (key, &a_count) in a_items.iter() {
+                        let b_count = *b_items.get(&key).unwrap_or(&0);
+                        discrepancy += (a_count - b_count).abs();
+                    }
+
+                    // Count up the difference from b to a for only the keys we didn't use already
+                    for (key, &b_count) in b_items.iter() {
+                        if a_items.get(&key).is_none() {
+                            discrepancy += b_count;
+                        }
+                    }
+
+                    // Push that value
+                    self.int_stack.push(discrepancy);
+                }
+            }
             Instruction::CodeDo => {}
             Instruction::CodeDoN => {}
             Instruction::CodeDoNCount => {}
@@ -241,7 +308,11 @@ impl Context {
             Instruction::CodeNull => {}
             Instruction::CodePop => {}
             Instruction::CodePosition => {}
-            Instruction::CodeQuote => {}
+            Instruction::CodeQuote => {
+                if self.exec_stack.len() >= 1 {
+                    self.code_stack.push(self.exec_stack.pop().unwrap());
+                }
+            }
             Instruction::CodeRand => {}
             Instruction::CodeRot => {}
             Instruction::CodeShove => {}
@@ -260,223 +331,69 @@ mod tests {
     use crate::{Code, Configuration, Context, Instruction};
     use fnv::FnvHashMap;
 
-    #[test]
-    fn bool_and() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolAnd)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_define() {
-        let mut context = Context {
-            bool_stack: vec![true],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolDefine)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![1234],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.bool_stack.len());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.name_stack.len());
-        assert_eq!(1, context.defined_names.len());
-        assert_eq!(
-            Code::LiteralBool(true),
-            *context.defined_names.get(&1234).unwrap()
-        );
-    }
-
-    #[test]
-    fn bool_dup() {
-        let mut context = Context {
-            bool_stack: vec![true],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolDup)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![1234],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_equal() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolEqual)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_flush() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolFlush)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.bool_stack.len());
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_from_float() {
+    fn load_and_run(src: &str) -> Context {
         let mut context = Context {
             bool_stack: vec![],
             code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolFromFloat)],
-            float_stack: vec![0.0],
+            exec_stack: vec![Code::new(src)],
+            float_stack: vec![],
             int_stack: vec![],
             name_stack: vec![],
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![0.0], context.float_stack);
-
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolFromFloat)],
-            float_stack: vec![0.1],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![0.1], context.float_stack);
+        context.run(9999999);
+        context
     }
 
-    #[test]
-    fn bool_from_int() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolFromInt)],
-            float_stack: vec![],
-            int_stack: vec![0],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![0], context.int_stack);
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolFromInt)],
-            float_stack: vec![],
-            int_stack: vec![-1],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![-1], context.int_stack);
+    macro_rules! context_tests {
+        ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (input, expected) = $value;
+                let mut input_run = load_and_run(input);
+                let expected_run = load_and_run(expected);
+                // Clear the defined names so that the comparison will work
+                input_run.defined_names.clear();
+                assert_eq!(input_run, expected_run);
+            }
+        )*
+        }
     }
 
-    #[test]
-    fn bool_not() {
-        let mut context = Context {
-            bool_stack: vec![true],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolNot)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_or() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolOr)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_pop() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolPop)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
+    context_tests! {
+        test_bool_and: ("( TRUE FALSE BOOLAND )", "( FALSE )"),
+        test_bool_define: ("( KMu7 TRUE BOOLDEFINE KMu7 )", "( TRUE )"),
+        test_bool_dup: ("( TRUE BOOLDUP )", "( TRUE TRUE )"),
+        test_bool_equal: ("( TRUE FALSE BOOLEQUAL )", "( FALSE )"),
+        test_bool_flush: ("( TRUE FALSE BOOLFLUSH )", "( )"),
+        test_bool_fromfloat: ("( 0.0 0.00001 BOOLFROMFLOAT BOOLFROMFLOAT )", "( TRUE FALSE )"),
+        test_bool_fromint: ("( 0 1 BOOLFROMINT BOOLFROMINT )", "( TRUE FALSE )"),
+        test_bool_not: ("( TRUE BOOLNOT )", "( FALSE )"),
+        test_bool_or: ("( TRUE FALSE BOOLOR )", "( TRUE )"),
+        test_bool_pop: ("( TRUE FALSE BOOLPOP )", "( TRUE )"),
+        test_bool_rot: ("( TRUE FALSE FALSE BOOLROT )", "( FALSE FALSE TRUE )"),
+        test_bool_shove: ("( TRUE TRUE FALSE 2 BOOLSHOVE )", "( FALSE TRUE TRUE )"),
+        test_bool_shove_zero: ("( TRUE TRUE FALSE 0 BOOLSHOVE )", "( TRUE TRUE FALSE )"),
+        test_bool_shove_wrap: ("( TRUE TRUE FALSE 3 BOOLSHOVE )", "( TRUE TRUE FALSE )"),
+        test_bool_stack_depth: ("( TRUE FALSE BOOLSTACKDEPTH )", "( TRUE FALSE 2 )"),
+        test_bool_swap: ("( FALSE TRUE FALSE BOOLSWAP )", "( FALSE FALSE TRUE )"),
+        test_bool_yank: ("( FALSE TRUE FALSE FALSE 2 BOOLYANK )", "( FALSE FALSE FALSE TRUE )"),
+        test_bool_yank_dup: ("( FALSE TRUE FALSE FALSE 2 BOOLYANKDUP )", "( FALSE TRUE FALSE FALSE TRUE )"),
+        test_code_append: ("( CODEQUOTE 1 CODEQUOTE 2 CODEAPPEND )", "( CODEQUOTE ( 1 2 ) )"),
+        test_code_atom_true: ("( CODEQUOTE -12 CODEATOM )", "( CODEQUOTE -12 TRUE )"),
+        test_code_atom_false: ("( CODEQUOTE ( ) CODEATOM )", "( CODEQUOTE ( ) FALSE )"),
+        test_code_car: ("( CODEQUOTE ( -12 2 ) CODECAR )", "( CODEQUOTE -12 )"),
+        test_code_cdr: ("( CODEQUOTE ( -12 2 ) CODECDR )", "( CODEQUOTE ( 2 ) )"),
+        test_code_cons: ("( CODEQUOTE TRUE CODEQUOTE ( 1 2 ) CODECONS )", "( CODEQUOTE ( TRUE 1 2 ) )"),
+        test_code_container: ("( CODEQUOTE ( 2 ( 3 ( 1 ) ) ( 4 ( 1 ) ) ) CODEQUOTE ( 1 ) CODECONTAINER )", "( CODEQUOTE ( 3 ( 1 ) ) )"),
+        test_code_contains_true: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE 3 CODECONTAINS )", "( TRUE )"),
+        test_code_contains_false: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE 1 CODECONTAINS )", "( FALSE )"),
+        test_code_contains_list: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE ( 2 ) CODECONTAINS )", "( TRUE )"),
+        test_code_definition: ("( CODEQUOTE TRUE ANAME ANAME CODEDEFINE CODEDEFINITION )", "( CODEQUOTE TRUE )"),
+        test_code_discrepancy_zero: ("( CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEDISCREPANCY )", "( 0 )"),
+        test_code_discrepancy_multi: ("( CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEQUOTE 1 CODEDISCREPANCY )", "( 7 )"),
     }
 
     #[test]
@@ -498,320 +415,10 @@ mod tests {
     }
 
     #[test]
-    fn bool_rot() {
-        let mut context = Context {
-            bool_stack: vec![true, false, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolRot)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false, false, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_shove() {
-        let mut context = Context {
-            bool_stack: vec![true, false, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolShove)],
-            float_stack: vec![],
-            int_stack: vec![2],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false, true, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-
-        let mut context = Context {
-            bool_stack: vec![true, true, true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolShove)],
-            float_stack: vec![],
-            int_stack: vec![2],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false, true, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-
-        let mut context = Context {
-            bool_stack: vec![true, true, true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolShove)],
-            float_stack: vec![],
-            int_stack: vec![0],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, true, true, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-
-        let mut context = Context {
-            bool_stack: vec![true],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolShove)],
-            float_stack: vec![],
-            int_stack: vec![1],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-    }
-
-    #[test]
-    fn bool_stack_depth() {
-        let mut context = Context {
-            bool_stack: vec![true, false, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolStackDepth)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![true, false, false], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![3], context.int_stack);
-    }
-
-    #[test]
-    fn bool_swap() {
-        let mut context = Context {
-            bool_stack: vec![true, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolSwap)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-    }
-
-    #[test]
-    fn bool_yank() {
-        let mut context = Context {
-            bool_stack: vec![false, true, false, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolYank)],
-            float_stack: vec![],
-            int_stack: vec![2],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false, false, false, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-    }
-
-    #[test]
-    fn bool_yank_dup() {
-        let mut context = Context {
-            bool_stack: vec![false, true, false, false],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolYankDup)],
-            float_stack: vec![],
-            int_stack: vec![2],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(vec![false, true, false, false, true], context.bool_stack);
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(0, context.int_stack.len());
-    }
-
-    #[test]
-    fn code_append() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![
-                Code::List(vec![Code::LiteralInteger(1)]),
-                Code::List(vec![Code::LiteralInteger(2)]),
-            ],
-            exec_stack: vec![Code::Instruction(Instruction::CodeAppend)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(
-            vec![Code::List(vec![
-                Code::LiteralInteger(1),
-                Code::LiteralInteger(2)
-            ])],
-            context.code_stack
-        );
-    }
-
-    #[test]
-    fn code_atom() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::LiteralInteger(-12)],
-            exec_stack: vec![Code::Instruction(Instruction::CodeAtom)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![true], context.bool_stack);
-        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::List(vec![])],
-            exec_stack: vec![Code::Instruction(Instruction::CodeAtom)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![false], context.bool_stack);
-        assert_eq!(vec![Code::List(vec![])], context.code_stack);
-    }
-
-    #[test]
-    fn code_car() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::LiteralInteger(-12)],
-            exec_stack: vec![Code::Instruction(Instruction::CodeCar)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::List(vec![
-                Code::LiteralInteger(-12),
-                Code::LiteralInteger(2),
-            ])],
-            exec_stack: vec![Code::Instruction(Instruction::CodeCar)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![Code::LiteralInteger(-12)], context.code_stack);
-    }
-
-    #[test]
-    fn code_cdr() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::LiteralInteger(-12)],
-            exec_stack: vec![Code::Instruction(Instruction::CodeCdr)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(vec![Code::List(vec![])], context.code_stack);
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::List(vec![
-                Code::LiteralInteger(-12),
-                Code::LiteralInteger(2),
-            ])],
-            exec_stack: vec![Code::Instruction(Instruction::CodeCdr)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(
-            vec![Code::List(vec![Code::LiteralInteger(2)])],
-            context.code_stack
-        );
-    }
-
-    #[test]
-    fn code_cons() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![Code::LiteralInteger(-12), Code::LiteralBool(true)],
-            exec_stack: vec![Code::Instruction(Instruction::CodeCons)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
-
-        assert_eq!(Some(1), context.next());
-        assert_eq!(0, context.exec_stack.len());
-        assert_eq!(
-            vec![Code::List(vec![
-                Code::LiteralInteger(-12),
-                Code::LiteralBool(true),
-            ])],
-            context.code_stack
-        );
+    fn code_quote() {
+        let to_run = load_and_run("( CODEQUOTE TRUE )");
+        assert_eq!(0, to_run.exec_stack.len());
+        assert_eq!(0, to_run.bool_stack.len());
+        assert_eq!(vec![Code::LiteralBool(true)], to_run.code_stack);
     }
 }

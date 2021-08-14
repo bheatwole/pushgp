@@ -41,12 +41,12 @@ pub enum Instruction {
     BoolStackDepth,
     // Swaps the top two BOOLEANs
     BoolSwap,
-    // Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
-    // INTEGER stack
-    BoolYank,
     // Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
     // The index is taken from the INTEGER stack
     BoolYankDup,
+    // Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
+    // INTEGER stack
+    BoolYank,
     // Pushes the result of appending the top two pieces of code. If one of the pieces of code is a single instruction
     // or literal (that is, something not surrounded by parentheses) then it is surrounded by parentheses first.
     CodeAppend,

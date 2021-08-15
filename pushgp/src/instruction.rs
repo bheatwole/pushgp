@@ -150,6 +150,8 @@ pub enum Instruction {
     CodeYank,
     // Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item. The index is taken from the INTEGER stack.
     CodeYankdup,
+    // Pops the INTEGER stack.
+    IntegerPop,
 }
 
 impl Instruction {
@@ -217,6 +219,8 @@ impl Instruction {
             Instruction::CodeSwap => vec![InstructionType::Code],
             Instruction::CodeYank => vec![InstructionType::Code, InstructionType::Int],
             Instruction::CodeYankdup => vec![InstructionType::Code, InstructionType::Int],
+
+            Instruction::IntegerPop => vec![InstructionType::Int],
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
+use log::*;
 use rand::{thread_rng, RngCore};
 use rust_decimal::Decimal;
 
@@ -19,6 +20,9 @@ impl Iterator for Context {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // Turn on 'trace' log level to debug execution of a context
+        trace!("{:?}", self);
+
         // Pop the top piece of code from the exec stack and execute it.
         if let Some(code) = self.exec_stack.pop() {
             match code {
@@ -283,11 +287,96 @@ impl Context {
                     self.int_stack.push(discrepancy);
                 }
             }
-            Instruction::CodeDo => {}
-            Instruction::CodeDoN => {}
-            Instruction::CodeDoNCount => {}
-            Instruction::CodeDoNRange => {}
-            Instruction::CodeDoNTimes => {}
+            Instruction::CodeDo => {
+                if self.code_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    self.exec_stack
+                        .push(Code::Instruction(Instruction::CodePop));
+                    self.exec_stack.push(code.clone());
+                    self.code_stack.push(code);
+                }
+            }
+            Instruction::CodeDoN => {
+                if self.code_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    self.exec_stack.push(code.clone());
+                    self.code_stack.push(code);
+                }
+            }
+            Instruction::CodeDoNCount => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    let count = self.int_stack.pop().unwrap();
+                    // NOOP if count <= 0
+                    if count <= 0 {
+                        self.code_stack.push(code);
+                        self.int_stack.push(count);
+                    } else {
+                        // Turn into DoNRange with (Count - 1) as destination
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(0),
+                            Code::LiteralInteger(count - 1),
+                            Code::Instruction(Instruction::CodeQuote),
+                            code,
+                            Code::Instruction(Instruction::CodeDoNRange),
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+                }
+            }
+            Instruction::CodeDoNRange => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 2 {
+                    let code = self.code_stack.pop().unwrap();
+                    let dest = self.int_stack.pop().unwrap();
+                    let cur = self.int_stack.pop().unwrap();
+
+                    // If we haven't reached the destination yet, push the next iteration onto the stack first.
+                    if cur != dest {
+                        let increment = if cur < dest { 1 } else { -1 };
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(cur + increment),
+                            Code::LiteralInteger(dest),
+                            Code::Instruction(Instruction::CodeQuote),
+                            code.clone(),
+                            Code::Instruction(Instruction::CodeDoNRange),
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+
+                    // Push the current index onto the int stack so its accessible in the loop
+                    self.int_stack.push(cur);
+
+                    // Push the code to run onto the exec stack
+                    self.exec_stack.push(code);
+                }
+            }
+            Instruction::CodeDoNTimes => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    let count = self.int_stack.pop().unwrap();
+
+                    // NOOP if count <= 0
+                    if count <= 0 {
+                        self.code_stack.push(code);
+                        self.int_stack.push(count);
+                    } else {
+                        // The difference between Count and Times is that the 'current index' is not available to
+                        // the loop body. Pop that value first
+                        let code =
+                            Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
+
+                        // Turn into DoNRange with (Count - 1) as destination
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(0),
+                            Code::LiteralInteger(count - 1),
+                            Code::Instruction(Instruction::CodeQuote),
+                            code,
+                            Code::Instruction(Instruction::CodeDoNRange),
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+                }
+            }
             Instruction::CodeDup => {}
             Instruction::CodeEqual => {}
             Instruction::CodeExtract => {}
@@ -306,7 +395,11 @@ impl Context {
             Instruction::CodeNth => {}
             Instruction::CodeNthcdr => {}
             Instruction::CodeNull => {}
-            Instruction::CodePop => {}
+            Instruction::CodePop => {
+                if self.code_stack.len() >= 1 {
+                    self.code_stack.pop();
+                }
+            }
             Instruction::CodePosition => {}
             Instruction::CodeQuote => {
                 if self.exec_stack.len() >= 1 {
@@ -322,6 +415,11 @@ impl Context {
             Instruction::CodeSwap => {}
             Instruction::CodeYank => {}
             Instruction::CodeYankdup => {}
+            Instruction::IntegerPop => {
+                if self.int_stack.len() >= 1 {
+                    self.int_stack.pop();
+                }
+            }
         }
     }
 }
@@ -394,6 +492,14 @@ mod tests {
         test_code_definition: ("( CODEQUOTE TRUE ANAME ANAME CODEDEFINE CODEDEFINITION )", "( CODEQUOTE TRUE )"),
         test_code_discrepancy_zero: ("( CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEDISCREPANCY )", "( 0 )"),
         test_code_discrepancy_multi: ("( CODEQUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODEQUOTE 1 CODEDISCREPANCY )", "( 7 )"),
+        test_code_do: ("( CODEQUOTE ( FALSE 1 ) CODEDO )", "( FALSE 1 )"),
+        test_code_do_pops_last: ("( CODEQUOTE ( CODEQUOTE FALSE ) CODEDO )", "( CODEQUOTE ( CODEQUOTE FALSE ) )"),
+        test_code_do_n_count: ("( 4 CODEQUOTE BOOLFROMINT CODEDONCOUNT )", "( FALSE TRUE TRUE TRUE )"),
+        test_code_do_n_range_countup: ("( 0 3 CODEQUOTE BOOLFROMINT CODEDONRANGE )", "( FALSE TRUE TRUE TRUE )"),
+        test_code_do_n_range_countdown: ("( 3 0 CODEQUOTE BOOLFROMINT CODEDONRANGE )", "( TRUE TRUE TRUE FALSE )"),
+        test_code_do_n_times: ("( FALSE TRUE TRUE 2 CODEQUOTE BOOLROT CODEDONTIMES )", "( TRUE FALSE TRUE )"),
+        test_code_pop: ("( CODEQUOTE TRUE CODEPOP )", "( )"),
+        test_int_pop: ("( 42 INTEGERPOP )", "( )"),
     }
 
     #[test]

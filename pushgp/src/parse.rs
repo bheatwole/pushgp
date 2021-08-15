@@ -3,9 +3,9 @@ use crate::Code;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, digit1, one_of, space0},
+    character::complete::{char, digit1, one_of, space0, space1},
     character::is_digit,
-    combinator::opt,
+    combinator::{eof, opt},
     multi::{many0, many1},
     IResult,
 };
@@ -37,6 +37,11 @@ fn end_list(input: &str) -> IResult<&str, ()> {
     Ok((input, ()))
 }
 
+fn space_or_end(input: &str) -> IResult<&str, ()> {
+    let (input, _) = alt((space1, eof))(input)?;
+    Ok((input, ()))
+}
+
 fn parse_code_list(input: &str) -> IResult<&str, Code> {
     // A list is a start tag, zero or more codes and an end tag
     let (input, _) = start_list(input)?;
@@ -48,7 +53,7 @@ fn parse_code_list(input: &str) -> IResult<&str, Code> {
 
 fn parse_code_bool(input: &str) -> IResult<&str, Code> {
     let (input, text_value) = alt((tag("TRUE"), tag("FALSE")))(input)?;
-    let (input, _) = space0(input)?;
+    let (input, _) = space_or_end(input)?;
 
     Ok((
         input,
@@ -114,7 +119,7 @@ fn parse_exponent(input: &str) -> IResult<&str, String> {
 fn parse_code_integer(input: &str) -> IResult<&str, Code> {
     let (input, opt_sign) = opt(alt((char('+'), char('-'))))(input)?;
     let (input, digits) = digit1(input)?;
-    let (input, _) = space0(input)?;
+    let (input, _) = space_or_end(input)?;
 
     let digits = format!("{}{}", opt_sign.unwrap_or('+'), digits);
 
@@ -134,7 +139,7 @@ fn parse_code_name(input: &str) -> IResult<&str, Code> {
 
     // It MAY end with and '=' sign
     let (input, opt_equal) = opt(char('='))(input)?;
-    let (input, _) = space0(input)?;
+    let (input, _) = space_or_end(input)?;
 
     // If every character is a digit and there is no 'equal' sign, than this is actually a number, not a name
     if opt_equal.is_none() && base64_string.iter().all(|&x| is_digit(x as u8)) {
@@ -265,9 +270,10 @@ mod tests {
                 Code::LiteralName(9000),
             ]),
             Code::Instruction(Instruction::BoolAnd),
+            Code::LiteralName(4411804095821),
         ]);
         assert_eq!(
-            parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )"),
+            parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND TRUENAME )"),
             expected
         );
     }

@@ -126,6 +126,25 @@ impl Code {
             _ => 1,
         }
     }
+
+    pub fn extract_point(&self, point: i64) -> Extraction {
+        if 0 == point {
+            return Extraction::Extracted(self.clone());
+        }
+        match &self {
+            Code::List(list) => {
+                let mut used = 1;
+                for item in list {
+                    match item.extract_point(point - used) {
+                        Extraction::Extracted(code) => return Extraction::Extracted(code),
+                        Extraction::Used(u) => used += u,
+                    }
+                }
+                Extraction::Used(used)
+            }
+            _ => Extraction::Used(1),
+        }
+    }
 }
 
 impl Display for Code {
@@ -151,8 +170,16 @@ impl Display for Code {
     }
 }
 
+// An extraction can either return a piece of code or the number of points used
+#[derive(Debug, PartialEq)]
+pub enum Extraction {
+    Extracted(Code),
+    Used(i64),
+}
+
 #[cfg(test)]
 mod tests {
+    use super::Extraction;
     use crate::{Code, Instruction};
     use rust_decimal::Decimal;
 
@@ -188,6 +215,19 @@ mod tests {
             Code::Instruction(Instruction::BoolAnd),
         ]);
         assert_eq!(7, code.points());
+    }
+
+    #[test]
+    fn extract_point() {
+        let code = Code::new("( A ( B ) )");
+        assert_eq!(4, code.points());
+        assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
+        assert_eq!(code.extract_point(1), Extraction::Extracted(Code::new("A")));
+        assert_eq!(
+            code.extract_point(2),
+            Extraction::Extracted(Code::new("( B )"))
+        );
+        assert_eq!(code.extract_point(3), Extraction::Extracted(Code::new("B")));
     }
 
     #[test]

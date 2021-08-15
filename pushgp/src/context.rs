@@ -1,3 +1,4 @@
+use crate::code::Extraction;
 use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
 use log::*;
@@ -377,15 +378,68 @@ impl Context {
                     }
                 }
             }
-            Instruction::CodeDup => {}
-            Instruction::CodeEqual => {}
-            Instruction::CodeExtract => {}
-            Instruction::CodeFlush => {}
-            Instruction::CodeFromBoolean => {}
-            Instruction::CodeFromFloat => {}
-            Instruction::CodeFromInteger => {}
-            Instruction::CodeFromName => {}
-            Instruction::CodeIf => {}
+            Instruction::CodeDup => {
+                if self.code_stack.len() >= 1 {
+                    let code = self.code_stack.last().unwrap().clone();
+                    self.code_stack.push(code);
+                }
+            }
+            Instruction::CodeEqual => {
+                if self.code_stack.len() >= 2 {
+                    let a = self.code_stack.pop().unwrap();
+                    let b = self.code_stack.pop().unwrap();
+                    self.bool_stack.push(a == b);
+                }
+            }
+            Instruction::CodeExtract => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    let total_points = code.points();
+                    let point = self.int_stack.pop().unwrap().abs() % total_points;
+                    match code.extract_point(point) {
+                        Extraction::Extracted(code) => self.code_stack.push(code),
+                        Extraction::Used(_) => panic!("should always be able to extract some code because of abs() and modulo"),
+                    }
+                }
+            }
+            Instruction::CodeFlush => {
+                self.code_stack.clear();
+            }
+            Instruction::CodeFromBoolean => {
+                if self.bool_stack.len() >= 1 {
+                    let value = self.bool_stack.pop().unwrap();
+                    self.code_stack.push(Code::LiteralBool(value));
+                }
+            }
+            Instruction::CodeFromFloat => {
+                if self.float_stack.len() >= 1 {
+                    let value = self.float_stack.pop().unwrap();
+                    self.code_stack.push(Code::LiteralFloat(value));
+                }
+            }
+            Instruction::CodeFromInteger => {
+                if self.int_stack.len() >= 1 {
+                    let value = self.int_stack.pop().unwrap();
+                    self.code_stack.push(Code::LiteralInteger(value));
+                }
+            }
+            Instruction::CodeFromName => {
+                if self.name_stack.len() >= 1 {
+                    let value = self.name_stack.pop().unwrap();
+                    self.code_stack.push(Code::LiteralName(value));
+                }
+            }
+            Instruction::CodeIf => {
+                if self.code_stack.len() >= 2 && self.bool_stack.len() >= 1 {
+                    let false_branch = self.code_stack.pop().unwrap();
+                    let true_branch = self.code_stack.pop().unwrap();
+                    self.exec_stack.push(if self.bool_stack.pop().unwrap() {
+                        true_branch
+                    } else {
+                        false_branch
+                    });
+                }
+            }
             Instruction::CodeInsert => {}
             Instruction::CodeInstructions => {}
             Instruction::CodeLength => {}
@@ -498,6 +552,21 @@ mod tests {
         test_code_do_n_range_countup: ("( 0 3 CODEQUOTE BOOLFROMINT CODEDONRANGE )", "( FALSE TRUE TRUE TRUE )"),
         test_code_do_n_range_countdown: ("( 3 0 CODEQUOTE BOOLFROMINT CODEDONRANGE )", "( TRUE TRUE TRUE FALSE )"),
         test_code_do_n_times: ("( FALSE TRUE TRUE 2 CODEQUOTE BOOLROT CODEDONTIMES )", "( TRUE FALSE TRUE )"),
+        test_code_dup: ("( CODEQUOTE BOOLFROMINT CODEDUP )", "( CODEQUOTE BOOLFROMINT CODEQUOTE BOOLFROMINT )"),
+        test_code_equal_true: ("( CODEQUOTE BOOLFROMINT CODEQUOTE BOOLFROMINT CODEEQUAL )", "( TRUE )"),
+        test_code_equal_false: ("( CODEQUOTE BOOLFROMINT CODEQUOTE BOOLFROMFLOAT CODEEQUAL )", "( FALSE )"),
+        test_code_extract_0: ("( CODEQUOTE ( 1 ( 2 ) ) 0 CODEEXTRACT )", "( CODEQUOTE ( 1 ( 2 ) ) )"),
+        test_code_extract_1: ("( CODEQUOTE ( 1 ( 2 ) ) 1 CODEEXTRACT )", "( CODEQUOTE 1 )"),
+        test_code_extract_2: ("( CODEQUOTE ( 1 ( 2 ) ) 2 CODEEXTRACT )", "( CODEQUOTE ( 2 ) )"),
+        test_code_extract_3: ("( CODEQUOTE ( 1 ( 2 ) ) 3 CODEEXTRACT )", "( CODEQUOTE 2 )"),
+        test_code_extract_modulo: ("( CODEQUOTE ( 1 ( 2 ) ) 4 CODEEXTRACT )", "( CODEQUOTE ( 1 ( 2 ) ) )"),
+        test_code_flush: ("( CODEQUOTE ( 1 ( 2 ) ) CODEFLUSH )", "( )"),
+        test_code_from_boolean: ("( TRUE CODEFROMBOOLEAN )", "( CODEQUOTE TRUE )"),
+        test_code_from_float: ("( 1.5 CODEFROMFLOAT )", "( CODEQUOTE 1.5 )"),
+        test_code_from_integer: ("( 42 CODEFROMINTEGER )", "( CODEQUOTE 42 )"),
+        test_code_from_name: ("( KmU7 CODEFROMNAME )", "( CODEQUOTE KmU7 )"),
+        test_code_if_true: ("( TRUE CODEQUOTE TRUENAME CODEQUOTE FALSENAME CODEIF )", "( TRUENAME )"),
+        test_code_if_false: ("( FALSE CODEQUOTE TRUENAME CODEQUOTE FALSENAME CODEIF )", "( FALSENAME )"),
         test_code_pop: ("( CODEQUOTE TRUE CODEPOP )", "( )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
     }

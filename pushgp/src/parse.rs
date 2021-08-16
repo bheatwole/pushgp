@@ -81,24 +81,13 @@ fn parse_code_float(input: &str) -> IResult<&str, Code> {
     let (input, _) = space0(input)?;
 
     // Put the whole thing back into a string
-    let float_string = format!(
-        "{}{}.{}{}",
-        opt_sign.unwrap_or('+'),
-        whole,
-        fractional,
-        opt_exponent.unwrap_or("".to_owned())
-    );
+    let float_string =
+        format!("{}{}.{}{}", opt_sign.unwrap_or('+'), whole, fractional, opt_exponent.unwrap_or("".to_owned()));
 
     // Parse it
     match float_string.parse::<f64>() {
-        Ok(float_value) => Ok((
-            input,
-            Code::LiteralFloat(Decimal::from_f64(float_value).unwrap()),
-        )),
-        Err(_) => Err(nom::Err::Error(nom::error::make_error(
-            input,
-            nom::error::ErrorKind::Verify,
-        ))),
+        Ok(float_value) => Ok((input, Code::LiteralFloat(Decimal::from_f64(float_value).unwrap()))),
+        Err(_) => Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify))),
     }
 }
 
@@ -126,10 +115,7 @@ fn parse_code_integer(input: &str) -> IResult<&str, Code> {
     // Parse it
     match digits.parse::<i64>() {
         Ok(int_value) => Ok((input, Code::LiteralInteger(int_value))),
-        Err(_) => Err(nom::Err::Error(nom::error::make_error(
-            input,
-            nom::error::ErrorKind::Verify,
-        ))),
+        Err(_) => Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify))),
     }
 }
 
@@ -143,10 +129,7 @@ fn parse_code_name(input: &str) -> IResult<&str, Code> {
 
     // If every character is a digit and there is no 'equal' sign, than this is actually a number, not a name
     if opt_equal.is_none() && base64_string.iter().all(|&x| is_digit(x as u8)) {
-        return Err(nom::Err::Error(nom::error::make_error(
-            input,
-            nom::error::ErrorKind::Verify,
-        )));
+        return Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify)));
     }
 
     // Otherwise, re-assemble and decode. Pad the end with '=' to make even multiple of four. We can only have '==' at
@@ -172,10 +155,7 @@ fn parse_code_name(input: &str) -> IResult<&str, Code> {
             let value = u64::from_le_bytes(u8_array);
             Ok((input, Code::LiteralName(value)))
         }
-        Err(_) => Err(nom::Err::Failure(nom::error::Error::new(
-            "error parsing name",
-            nom::error::ErrorKind::Verify,
-        ))),
+        Err(_) => Err(nom::Err::Failure(nom::error::Error::new("error parsing name", nom::error::ErrorKind::Verify))),
     }
 }
 
@@ -187,8 +167,7 @@ fn base64_char(input: &str) -> IResult<&str, char> {
 mod tests {
     use crate::instruction::parse_code_instruction;
     use crate::parse::{
-        parse_code, parse_code_bool, parse_code_float, parse_code_integer, parse_code_list,
-        parse_code_name,
+        parse_code, parse_code_bool, parse_code_float, parse_code_integer, parse_code_list, parse_code_name,
     };
     use crate::{Code, Instruction};
     use rust_decimal::Decimal;
@@ -272,9 +251,6 @@ mod tests {
             Code::Instruction(Instruction::BoolAnd),
             Code::LiteralName(4411804095821),
         ]);
-        assert_eq!(
-            parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND TRUENAME )"),
-            expected
-        );
+        assert_eq!(parse_code("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND TRUENAME )"), expected);
     }
 }

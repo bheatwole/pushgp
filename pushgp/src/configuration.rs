@@ -8,14 +8,11 @@ pub struct Configuration {
 
 impl Configuration {
     pub fn new() -> Configuration {
-        Configuration {
-            allowed_instructions: FnvHashSet::default(),
-        }
+        Configuration { allowed_instructions: FnvHashSet::default() }
     }
 
     pub fn disallow_type(&mut self, disallowed: InstructionType) {
-        // From the instructions we currently allow, make a list of the ones that don't use the specified type in any
-        // way.
+        // From the instructions we currently allow, make a list of the ones that don't use the specified type
         let mut remaining: Vec<Instruction> = self
             .allowed_instructions
             .iter()
@@ -39,9 +36,6 @@ impl Configuration {
     }
 
     pub fn get_allowed_instructions(&self) -> Vec<Instruction> {
-        self.allowed_instructions
-            .iter()
-            .map(|i| i.clone())
-            .collect()
+        self.allowed_instructions.iter().map(|i| i.clone()).collect()
     }
 }

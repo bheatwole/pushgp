@@ -291,8 +291,7 @@ impl Context {
             Instruction::CodeDo => {
                 if self.code_stack.len() >= 1 {
                     let code = self.code_stack.pop().unwrap();
-                    self.exec_stack
-                        .push(Code::Instruction(Instruction::CodePop));
+                    self.exec_stack.push(Code::Instruction(Instruction::CodePop));
                     self.exec_stack.push(code.clone());
                     self.code_stack.push(code);
                 }
@@ -363,8 +362,7 @@ impl Context {
                     } else {
                         // The difference between Count and Times is that the 'current index' is not available to
                         // the loop body. Pop that value first
-                        let code =
-                            Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
+                        let code = Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
 
                         // Turn into DoNRange with (Count - 1) as destination
                         let next = Code::List(vec![
@@ -398,7 +396,9 @@ impl Context {
                     let point = self.int_stack.pop().unwrap().abs() % total_points;
                     match code.extract_point(point) {
                         Extraction::Extracted(code) => self.code_stack.push(code),
-                        Extraction::Used(_) => panic!("should always be able to extract some code because of abs() and modulo"),
+                        Extraction::Used(_) => {
+                            panic!("should always be able to extract some code because of abs() and modulo")
+                        }
                     }
                 }
             }
@@ -433,11 +433,7 @@ impl Context {
                 if self.code_stack.len() >= 2 && self.bool_stack.len() >= 1 {
                     let false_branch = self.code_stack.pop().unwrap();
                     let true_branch = self.code_stack.pop().unwrap();
-                    self.exec_stack.push(if self.bool_stack.pop().unwrap() {
-                        true_branch
-                    } else {
-                        false_branch
-                    });
+                    self.exec_stack.push(if self.bool_stack.pop().unwrap() { true_branch } else { false_branch });
                 }
             }
             Instruction::CodeInsert => {
@@ -446,8 +442,7 @@ impl Context {
                     let replace_with = self.code_stack.pop().unwrap();
                     let total_points = search_in.points();
                     let point = self.int_stack.pop().unwrap().abs() % total_points;
-                    self.code_stack
-                        .push(search_in.replace_point(point, &replace_with).0);
+                    self.code_stack.push(search_in.replace_point(point, &replace_with).0);
                 }
             }
             Instruction::CodeInstructions => {
@@ -635,11 +630,7 @@ mod tests {
 
         context.run(9999999);
         assert_eq!(2, context.code_stack.len());
-        assert!(context
-            .code_stack
-            .contains(&Code::Instruction(Instruction::BoolAnd)));
-        assert!(context
-            .code_stack
-            .contains(&Code::Instruction(Instruction::CodeAppend)));
+        assert!(context.code_stack.contains(&Code::Instruction(Instruction::BoolAnd)));
+        assert!(context.code_stack.contains(&Code::Instruction(Instruction::CodeAppend)));
     }
 }

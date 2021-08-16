@@ -231,10 +231,7 @@ mod tests {
             ]),
             Code::Instruction(Instruction::BoolAnd),
         ]);
-        assert_eq!(
-            "( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )",
-            format!("{}", code)
-        );
+        assert_eq!("( ( TRUE 0.012345 -12784 KCMAAAAAAAA= ) BOOLAND )", format!("{}", code));
     }
 
     #[test]
@@ -257,10 +254,7 @@ mod tests {
         assert_eq!(4, code.points());
         assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
         assert_eq!(code.extract_point(1), Extraction::Extracted(Code::new("A")));
-        assert_eq!(
-            code.extract_point(2),
-            Extraction::Extracted(Code::new("( B )"))
-        );
+        assert_eq!(code.extract_point(2), Extraction::Extracted(Code::new("( B )")));
         assert_eq!(code.extract_point(3), Extraction::Extracted(Code::new("B")));
     }
 
@@ -268,22 +262,10 @@ mod tests {
     fn replace_point() {
         let code = Code::new("( A ( B ) )");
         assert_eq!(code.replace_point(0, &Code::new("C")).0, Code::new("C"));
-        assert_eq!(
-            code.replace_point(1, &Code::new("C")).0,
-            Code::new("( C ( B ) )")
-        );
-        assert_eq!(
-            code.replace_point(2, &Code::new("C")).0,
-            Code::new("( A C )")
-        );
-        assert_eq!(
-            code.replace_point(3, &Code::new("C")).0,
-            Code::new("( A ( C ) )")
-        );
-        assert_eq!(
-            code.replace_point(4, &Code::new("C")).0,
-            Code::new("( A ( B ) )")
-        );
+        assert_eq!(code.replace_point(1, &Code::new("C")).0, Code::new("( C ( B ) )"));
+        assert_eq!(code.replace_point(2, &Code::new("C")).0, Code::new("( A C )"));
+        assert_eq!(code.replace_point(3, &Code::new("C")).0, Code::new("( A ( C ) )"));
+        assert_eq!(code.replace_point(4, &Code::new("C")).0, Code::new("( A ( B ) )"));
     }
 
     #[test]

@@ -170,16 +170,10 @@ impl Context {
             }
             Instruction::CodeAppend => {
                 if self.code_stack.len() >= 2 {
-                    let to_append = self.code_stack.pop().unwrap().to_list();
-                    let append_to = self.code_stack.pop().unwrap().to_list();
-                    let combined = match (append_to, to_append) {
-                        (Code::List(mut dst), Code::List(src)) => {
-                            dst.extend_from_slice(&src[..]);
-                            Code::List(dst)
-                        }
-                        _ => panic!("should never get here"),
-                    };
-                    self.code_stack.push(combined);
+                    let src = self.code_stack.pop().unwrap().to_list();
+                    let mut dst = self.code_stack.pop().unwrap().to_list();
+                    dst.extend_from_slice(&src[..]);
+                    self.code_stack.push(Code::List(dst));
                 }
             }
             Instruction::CodeAtom => {
@@ -456,32 +450,132 @@ impl Context {
                     self.int_stack.push(code.len() as i64);
                 }
             }
-            Instruction::CodeList => {}
-            Instruction::CodeMember => {}
-            Instruction::CodeNoop => {}
-            Instruction::CodeNth => {}
-            Instruction::CodeNthcdr => {}
-            Instruction::CodeNull => {}
+            Instruction::CodeList => {
+                if self.code_stack.len() >= 2 {
+                    let a = self.code_stack.pop().unwrap();
+                    let b = self.code_stack.pop().unwrap();
+                    self.code_stack.push(Code::List(vec![b, a]));
+                }
+            }
+            Instruction::CodeMember => {
+                if self.code_stack.len() >= 2 {
+                    let look_in = self.code_stack.pop().unwrap();
+                    let look_for = self.code_stack.pop().unwrap();
+                    self.bool_stack.push(look_in.has_member(&look_for));
+                }
+            }
+            Instruction::CodeNoop => {
+                // Intentionally blank
+            }
+            Instruction::CodeNth => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let index = self.int_stack.pop().unwrap().abs() as usize;
+                    let mut list = self.code_stack.pop().unwrap().to_list();
+                    if 0 == list.len() {
+                        self.code_stack.push(Code::List(list));
+                    } else {
+                        let index = index % list.len();
+                        list.truncate(index + 1);
+                        self.code_stack.push(list.pop().unwrap());
+                    }
+                }
+            }
+            Instruction::CodeNthCdr => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let index = self.int_stack.pop().unwrap().abs() as usize;
+                    let mut list = self.code_stack.pop().unwrap().to_list();
+                    if 0 == list.len() {
+                        self.code_stack.push(Code::List(list));
+                    } else {
+                        let index = index % list.len();
+                        list.remove(index);
+                        self.code_stack.push(Code::List(list));
+                    }
+                }
+            }
+            Instruction::CodeNull => {
+                if self.code_stack.len() >= 1 {
+                    // This relies on the behavior that code.len() returns 1 for atoms
+                    let code = self.code_stack.pop().unwrap();
+                    self.bool_stack.push(0 == code.len());
+                }
+            }
             Instruction::CodePop => {
                 if self.code_stack.len() >= 1 {
                     self.code_stack.pop();
                 }
             }
-            Instruction::CodePosition => {}
+            Instruction::CodePosition => {
+                if self.code_stack.len() >= 2 {
+                    let look_in = self.code_stack.pop().unwrap();
+                    let look_for = self.code_stack.pop().unwrap();
+                    match look_in.position_of(&look_for) {
+                        Some(index) => self.int_stack.push(index as i64),
+                        None => self.int_stack.push(-1),
+                    }
+                }
+            }
             Instruction::CodeQuote => {
                 if self.exec_stack.len() >= 1 {
                     self.code_stack.push(self.exec_stack.pop().unwrap());
                 }
             }
             Instruction::CodeRand => {}
-            Instruction::CodeRot => {}
-            Instruction::CodeShove => {}
-            Instruction::CodeSize => {}
-            Instruction::CodeStackdepth => {}
-            Instruction::CodeSubstitute => {}
-            Instruction::CodeSwap => {}
-            Instruction::CodeYank => {}
-            Instruction::CodeYankdup => {}
+            Instruction::CodeRot => {
+                let a = self.code_stack.pop().unwrap();
+                let b = self.code_stack.pop().unwrap();
+                let c = self.code_stack.pop().unwrap();
+                self.code_stack.push(b);
+                self.code_stack.push(a);
+                self.code_stack.push(c);
+            }
+            Instruction::CodeShove => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
+                    let b = self.code_stack.pop().unwrap();
+                    self.code_stack.insert(vec_index, b);
+                }
+            }
+            Instruction::CodeSize => {
+                if self.code_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    self.int_stack.push(code.points());
+                }
+            }
+            Instruction::CodeStackdepth => {
+                self.int_stack.push(self.code_stack.len() as i64);
+            }
+            Instruction::CodeSubstitute => {
+                if self.code_stack.len() >= 3 {
+                    let look_in = self.code_stack.pop().unwrap();
+                    let look_for = self.code_stack.pop().unwrap();
+                    let replace_with = self.code_stack.pop().unwrap();
+                    self.code_stack.push(look_in.replace(&look_for, &replace_with));
+                }
+            }
+            Instruction::CodeSwap => {
+                let a = self.code_stack.pop().unwrap();
+                let b = self.code_stack.pop().unwrap();
+                self.code_stack.push(a);
+                self.code_stack.push(b);
+            }
+            Instruction::CodeYank => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
+                    let b = self.code_stack.remove(vec_index);
+                    self.code_stack.push(b);
+                }
+            }
+            Instruction::CodeYankDup => {
+                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
+                    let b = self.code_stack.get(vec_index).unwrap().clone();
+                    self.code_stack.push(b);
+                }
+            }
             Instruction::IntegerPop => {
                 if self.int_stack.len() >= 1 {
                     self.int_stack.pop();
@@ -551,8 +645,9 @@ mod tests {
         test_code_atom_false: ("( CODEQUOTE ( ) CODEATOM )", "( CODEQUOTE ( ) FALSE )"),
         test_code_car: ("( CODEQUOTE ( -12 2 ) CODECAR )", "( CODEQUOTE -12 )"),
         test_code_cdr: ("( CODEQUOTE ( -12 2 ) CODECDR )", "( CODEQUOTE ( 2 ) )"),
+        test_code_cdr_atom: ("( CODEQUOTE A CODECDR )", "( CODEQUOTE ( ) )"),
         test_code_cons: ("( CODEQUOTE TRUE CODEQUOTE ( 1 2 ) CODECONS )", "( CODEQUOTE ( TRUE 1 2 ) )"),
-        test_code_container: ("( CODEQUOTE ( 2 ( 3 ( 1 ) ) ( 4 ( 1 ) ) ) CODEQUOTE ( 1 ) CODECONTAINER )", "( CODEQUOTE ( 3 ( 1 ) ) )"),
+        test_code_container: ("( CODEQUOTE ( B ( C ( A ) ) ( D ( A ) ) ) CODEQUOTE ( A ) CODECONTAINER )", "( CODEQUOTE ( C ( A ) ) )"),
         test_code_contains_true: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE 3 CODECONTAINS )", "( TRUE )"),
         test_code_contains_false: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE 1 CODECONTAINS )", "( FALSE )"),
         test_code_contains_list: ("( CODEQUOTE ( 4 ( 3 ( 2 ) ) ) CODEQUOTE ( 2 ) CODECONTAINS )", "( TRUE )"),
@@ -582,7 +677,34 @@ mod tests {
         test_code_if_false: ("( FALSE CODEQUOTE TRUENAME CODEQUOTE FALSENAME CODEIF )", "( FALSENAME )"),
         test_code_insert: ("( CODEQUOTE C CODEQUOTE ( A ( B ) ) 2 CODEINSERT )", "( CODEQUOTE ( A C ) )"),
         test_code_length: ("( CODEQUOTE ( A B ( C 1 2 3 ) ) CODELENGTH )", "( 3 )"),
+        test_code_list: ("( CODEQUOTE A CODEQUOTE ( B ) CODELIST )", "( CODEQUOTE ( A ( B ) ) )"),
+        test_code_member_true: ("( CODEQUOTE A CODEQUOTE ( A ( B ) ) CODEMEMBER )", "( TRUE )"),
+        test_code_member_false: ("( CODEQUOTE B CODEQUOTE ( A ( B ) ) CODEMEMBER )", "( FALSE )"),
+        test_code_nth: ("( CODEQUOTE ( A ( B ) C ) 2 CODENTH )", "( CODEQUOTE C )"),
+        test_code_nth_modulo: ("( CODEQUOTE ( A ( B ) C ) 4 CODENTH )", "( CODEQUOTE ( B ) )"),
+        test_code_nth_empty: ("( CODEQUOTE ( ) 3 CODENTH )", "( CODEQUOTE ( ) )"),
+        test_code_nth_coerce: ("( CODEQUOTE A 3 CODENTH )", "( CODEQUOTE A )"),
+        test_code_nthcdr: ("( CODEQUOTE ( A ( B ) C ) 2 CODENTHCDR )", "( CODEQUOTE ( A ( B ) ) )"),
+        test_code_nthcdr_modulo: ("( CODEQUOTE ( A ( B ) C ) 4 CODENTHCDR )", "( CODEQUOTE ( A C ) )"),
+        test_code_nthcdr_empty: ("( CODEQUOTE ( ) 3 CODENTHCDR )", "( CODEQUOTE ( ) )"),
+        test_code_nthcdr_coerce: ("( CODEQUOTE A 3 CODENTHCDR )", "( CODEQUOTE ( ) )"),
+        test_code_null_false: ("( CODEQUOTE ( A ) CODENULL )", "( FALSE )"),
+        test_code_null_atom: ("( CODEQUOTE A CODENULL )", "( FALSE )"),
+        test_code_null_true: ("( CODEQUOTE ( ) CODENULL )", "( TRUE )"),
         test_code_pop: ("( CODEQUOTE TRUE CODEPOP )", "( )"),
+        test_code_position: ("( CODEQUOTE ( B ) CODEQUOTE ( A ( B ) ) CODEPOSITION )", "( 1 )"),
+        test_code_position_not_found: ("( CODEQUOTE B CODEQUOTE ( A ( B ) ) CODEPOSITION )", "( -1 )"),
+        test_code_position_self: ("( CODEQUOTE B CODEQUOTE B CODEPOSITION )", "( 0 )"),
+        test_code_rot: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEROT )", "( CODEQUOTE B CODEQUOTE C CODEQUOTE A )"),
+        test_code_shove: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C 2 CODESHOVE )", "( CODEQUOTE C CODEQUOTE A CODEQUOTE B )"),
+        test_code_shove_zero: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C 0 CODESHOVE )", "( CODEQUOTE A CODEQUOTE B CODEQUOTE C )"),
+        test_code_shove_wrap: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C 3 CODESHOVE )", "( CODEQUOTE A CODEQUOTE B CODEQUOTE C )"),
+        test_code_size: ("( CODEQUOTE ( A ( B ) C ) CODESIZE )", "( 5 )"),
+        test_code_stack_depth: ("( CODEQUOTE A CODEQUOTE B CODESTACKDEPTH )", "( CODEQUOTE A CODEQUOTE B 2 )"),
+        test_code_substitute: ("( CODEQUOTE A CODEQUOTE ( B ) CODEQUOTE ( A ( B ) ( A ( B ) ) ) CODESUBSTITUTE )", "( CODEQUOTE ( A A ( A A ) ) )"),
+        test_code_swap: ("( CODEQUOTE A CODEQUOTE B CODESWAP )", "( CODEQUOTE B CODEQUOTE A )"),
+        test_code_yank: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D 2 CODEYANK )", "( CODEQUOTE A CODEQUOTE C CODEQUOTE D CODEQUOTE B )"),
+        test_code_yank_dup: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D 2 CODEYANKDUP )", "( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D CODEQUOTE B )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
     }
 

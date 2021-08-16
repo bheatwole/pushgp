@@ -8,13 +8,13 @@ trait NomTag {
 
 #[derive(Clone, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
 pub enum Instruction {
-    // Pushes the logical AND of the top two BOOLEANs.
+    /// Pushes the logical AND of the top two BOOLEANs.
     BoolAnd,
-    // Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack onto
-    // the EXEC stack
+    /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
+    /// onto the EXEC stack
     BoolDefine,
-    // Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
-    // effect of the duplication!)
+    /// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
+    /// effect of the duplication!)
     BoolDup,
     // Pushes TRUE if the top two BOOLEANs are equal, or FALSE otherwise
     BoolEqual,
@@ -72,15 +72,30 @@ pub enum Instruction {
     // "( B ( C ( A ) ) ( D ( A ) ) )" and the second piece of code is "( A )" then this pushes ( C ( A ) ). Pushes an
     // empty list if there is no such container.
     CodeContainer,
-    // Pushes TRUE on the BOOLEAN stack if the second CODE stack item contains the first CODE stack item anywhere (e.g. in a sub-list).
+    // Pushes TRUE on the BOOLEAN stack if the second CODE stack item contains the first CODE stack item anywhere
+    // (e.g. in a sub-list).
     CodeContains,
-    // Defines the name on top of the NAME stack as an instruction that will push the top item of the CODE stack onto the EXEC stack.
+    // Defines the name on top of the NAME stack as an instruction that will push the top item of the CODE stack onto
+    // the EXEC stack.
     CodeDefine,
-    // Pushes the definition associated with the top NAME on the NAME stack (if any) onto the CODE stack. This extracts the definition for inspection/manipulation, rather than for immediate execution (although it may then be executed with a call to CODE.DO or a similar instruction).
+    // Pushes the definition associated with the top NAME on the NAME stack (if any) onto the CODE stack. This extracts
+    // the definition for inspection/manipulation, rather than for immediate execution (although it may then be executed
+    // with a call to CODE.DO or a similar instruction).
     CodeDefinition,
-    // Pushes a measure of the discrepancy between the top two CODE stack items onto the INTEGER stack. This will be zero if the top two items are equivalent, and will be higher the 'more different' the items are from one another. The calculation is as follows: 1. Construct a list of all of the unique items in both of the lists (where uniqueness is determined by equalp). Sub-lists and atoms all count as items. 2. Initialize the result to zero. 3. For each unique item increment the result by the difference between the number of occurrences of the item in the two pieces of code. 4. Push the result.
+    // Pushes a measure of the discrepancy between the top two CODE stack items onto the INTEGER stack. This will be
+    // zero if the top two items are equivalent, and will be higher the 'more different' the items are from one another.
+    // The calculation is as follows: 1. Construct a list of all of the unique items in both of the lists (where
+    // uniqueness is determined by equalp). Sub-lists and atoms all count as items. 2. Initialize the result to zero. 3.
+    // For each unique item increment the result by the difference between the number of occurrences of the item in the
+    // two pieces of code. 4. Push the result.
     CodeDiscrepancy,
-    // An iteration instruction that performs a loop (the body of which is taken from the CODE stack) the number of times indicated by the INTEGER argument, pushing an index (which runs from zero to one less than the number of iterations) onto the INTEGER stack prior to each execution of the loop body. This should be implemented as a macro that expands into a call to CODE.DO*RANGE. CODE.DO*COUNT takes a single INTEGER argument (the number of times that the loop will be executed) and a single CODE argument (the body of the loop). If the provided INTEGER argument is negative or zero then this becomes a NOOP. Otherwise it expands into: ( 0 <1 - IntegerArg> CODE.QUOTE <CodeArg> CODE.DO*RANGE )
+    // An iteration instruction that performs a loop (the body of which is taken from the CODE stack) the number of
+    // times indicated by the INTEGER argument, pushing an index (which runs from zero to one less than the number of
+    // iterations) onto the INTEGER stack prior to each execution of the loop body. This should be implemented as a
+    // macro that expands into a call to CODE.DO*RANGE. CODE.DO*COUNT takes a single INTEGER argument (the number of
+    // times that the loop will be executed) and a single CODE argument (the body of the loop). If the provided INTEGER
+    // argument is negative or zero then this becomes a NOOP. Otherwise it expands into: ( 0 <1 - IntegerArg> CODE.QUOTE
+    // <CodeArg> CODE.DO*RANGE )
     CodeDoNCount,
     // An iteration instruction that executes the top item on the CODE stack a number of times that depends on the top two integers, while also pushing the loop counter onto the INTEGER stack for possible access during the execution of the body of the loop. The top integer is the "destination index" and the second integer is the "current index." First the code and the integer arguments are saved locally and popped. Then the integers are compared. If the integers are equal then the current index is pushed onto the INTEGER stack and the code (which is the "body" of the loop) is pushed onto the EXEC stack for subsequent execution. If the integers are not equal then the current index will still be pushed onto the INTEGER stack but two items will be pushed onto the EXEC stack -- first a recursive call to CODE.DO*RANGE (with the same code and destination index, but with a current index that has been either incremented or decremented by 1 to be closer to the destination index) and then the body code. Note that the range is inclusive of both endpoints; a call with integer arguments 3 and 5 will cause its body to be executed 3 times, with the loop counter having the values 3, 4, and 5. Note also that one can specify a loop that "counts down" by providing a destination index that is less than the specified current index.
     CodeDoNRange,
@@ -120,10 +135,10 @@ pub enum Instruction {
     CodeMember,
     // Does nothing.
     CodeNoop,
+    // Pushes the nth "CDR" (in the Lisp sense) of the expression on top of the CODE stack (which is coerced to a list first if necessary). If the expression is an empty list then the result is an empty list. N is taken from the INTEGER stack and is taken modulo the length of the expression into which it is indexing. A "CDR" of a list is the list without its first element.
+    CodeNthCdr,
     // Pushes the nth element of the expression on top of the CODE stack (which is coerced to a list first if necessary). If the expression is an empty list then the result is an empty list. N is taken from the INTEGER stack and is taken modulo the length of the expression into which it is indexing.
     CodeNth,
-    // Pushes the nth "CDR" (in the Lisp sense) of the expression on top of the CODE stack (which is coerced to a list first if necessary). If the expression is an empty list then the result is an empty list. N is taken from the INTEGER stack and is taken modulo the length of the expression into which it is indexing. A "CDR" of a list is the list without its first element.
-    CodeNthcdr,
     // Pushes TRUE onto the BOOLEAN stack if the top item of the CODE stack is an empty list, or FALSE otherwise.
     CodeNull,
     // Pops the CODE stack.
@@ -146,10 +161,10 @@ pub enum Instruction {
     CodeSubstitute,
     // Swaps the top two pieces of CODE.
     CodeSwap,
+    // Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item. The index is taken from the INTEGER stack.
+    CodeYankDup,
     // Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the INTEGER stack.
     CodeYank,
-    // Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item. The index is taken from the INTEGER stack.
-    CodeYankdup,
     // Pops the INTEGER stack.
     IntegerPop,
 }
@@ -205,7 +220,7 @@ impl Instruction {
             Instruction::CodeMember => vec![InstructionType::Bool, InstructionType::Code],
             Instruction::CodeNoop => vec![InstructionType::Code],
             Instruction::CodeNth => vec![InstructionType::Code, InstructionType::Int],
-            Instruction::CodeNthcdr => vec![InstructionType::Code, InstructionType::Int],
+            Instruction::CodeNthCdr => vec![InstructionType::Code, InstructionType::Int],
             Instruction::CodeNull => vec![InstructionType::Bool, InstructionType::Code],
             Instruction::CodePop => vec![InstructionType::Code],
             Instruction::CodePosition => vec![InstructionType::Code, InstructionType::Int],
@@ -218,7 +233,7 @@ impl Instruction {
             Instruction::CodeSubstitute => vec![InstructionType::Code],
             Instruction::CodeSwap => vec![InstructionType::Code],
             Instruction::CodeYank => vec![InstructionType::Code, InstructionType::Int],
-            Instruction::CodeYankdup => vec![InstructionType::Code, InstructionType::Int],
+            Instruction::CodeYankDup => vec![InstructionType::Code, InstructionType::Int],
 
             Instruction::IntegerPop => vec![InstructionType::Int],
         }

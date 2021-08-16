@@ -37,4 +37,11 @@ impl Configuration {
     pub fn allow_instruction(&mut self, allow: Instruction) {
         self.allowed_instructions.insert(allow);
     }
+
+    pub fn get_allowed_instructions(&self) -> Vec<Instruction> {
+        self.allowed_instructions
+            .iter()
+            .map(|i| i.clone())
+            .collect()
+    }
 }

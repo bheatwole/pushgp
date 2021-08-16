@@ -440,9 +440,27 @@ impl Context {
                     });
                 }
             }
-            Instruction::CodeInsert => {}
-            Instruction::CodeInstructions => {}
-            Instruction::CodeLength => {}
+            Instruction::CodeInsert => {
+                if self.code_stack.len() >= 2 && self.int_stack.len() >= 1 {
+                    let search_in = self.code_stack.pop().unwrap();
+                    let replace_with = self.code_stack.pop().unwrap();
+                    let total_points = search_in.points();
+                    let point = self.int_stack.pop().unwrap().abs() % total_points;
+                    self.code_stack
+                        .push(search_in.replace_point(point, &replace_with).0);
+                }
+            }
+            Instruction::CodeInstructions => {
+                for inst in self.config.get_allowed_instructions() {
+                    self.code_stack.push(Code::Instruction(inst));
+                }
+            }
+            Instruction::CodeLength => {
+                if self.code_stack.len() >= 1 {
+                    let code = self.code_stack.pop().unwrap();
+                    self.int_stack.push(code.len() as i64);
+                }
+            }
             Instruction::CodeList => {}
             Instruction::CodeMember => {}
             Instruction::CodeNoop => {}
@@ -567,6 +585,8 @@ mod tests {
         test_code_from_name: ("( KmU7 CODEFROMNAME )", "( CODEQUOTE KmU7 )"),
         test_code_if_true: ("( TRUE CODEQUOTE TRUENAME CODEQUOTE FALSENAME CODEIF )", "( TRUENAME )"),
         test_code_if_false: ("( FALSE CODEQUOTE TRUENAME CODEQUOTE FALSENAME CODEIF )", "( FALSENAME )"),
+        test_code_insert: ("( CODEQUOTE C CODEQUOTE ( A ( B ) ) 2 CODEINSERT )", "( CODEQUOTE ( A C ) )"),
+        test_code_length: ("( CODEQUOTE ( A B ( C 1 2 3 ) ) CODELENGTH )", "( 3 )"),
         test_code_pop: ("( CODEQUOTE TRUE CODEPOP )", "( )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
     }
@@ -595,5 +615,31 @@ mod tests {
         assert_eq!(0, to_run.exec_stack.len());
         assert_eq!(0, to_run.bool_stack.len());
         assert_eq!(vec![Code::LiteralBool(true)], to_run.code_stack);
+    }
+
+    #[test]
+    fn code_instructions() {
+        let mut context = Context {
+            bool_stack: vec![],
+            code_stack: vec![],
+            exec_stack: vec![Code::new("CODEINSTRUCTIONS")],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            defined_names: FnvHashMap::default(),
+            config: Configuration::new(),
+        };
+
+        context.config.allow_instruction(Instruction::BoolAnd);
+        context.config.allow_instruction(Instruction::CodeAppend);
+
+        context.run(9999999);
+        assert_eq!(2, context.code_stack.len());
+        assert!(context
+            .code_stack
+            .contains(&Code::Instruction(Instruction::BoolAnd)));
+        assert!(context
+            .code_stack
+            .contains(&Code::Instruction(Instruction::CodeAppend)));
     }
 }

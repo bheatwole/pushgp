@@ -145,6 +145,40 @@ impl Code {
             _ => Extraction::Used(1),
         }
     }
+
+    pub fn replace_point(&self, mut point: i64, replace_with: &Code) -> (Code, i64) {
+        // If this is the replacement point, return the replacement
+        if 0 == point {
+            (replace_with.clone(), 1)
+        } else if point < 1 {
+            // After we've performed the replacement, everything gets returned as-is
+            (self.clone(), 1)
+        } else {
+            // Lists get special handling, but atoms get returned as-is
+            match &self {
+                Code::List(list) => {
+                    let mut next_list = vec![];
+                    let mut total_used = 1;
+                    point -= 1;
+                    for item in list {
+                        let (next, used) = item.replace_point(point, replace_with);
+                        point -= used;
+                        total_used += used;
+                        next_list.push(next);
+                    }
+                    (Code::List(next_list), total_used)
+                }
+                _ => (self.clone(), 1),
+            }
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match &self {
+            Code::List(list) => list.len(),
+            _ => 1,
+        }
+    }
 }
 
 impl Display for Code {
@@ -228,6 +262,28 @@ mod tests {
             Extraction::Extracted(Code::new("( B )"))
         );
         assert_eq!(code.extract_point(3), Extraction::Extracted(Code::new("B")));
+    }
+
+    #[test]
+    fn replace_point() {
+        let code = Code::new("( A ( B ) )");
+        assert_eq!(code.replace_point(0, &Code::new("C")).0, Code::new("C"));
+        assert_eq!(
+            code.replace_point(1, &Code::new("C")).0,
+            Code::new("( C ( B ) )")
+        );
+        assert_eq!(
+            code.replace_point(2, &Code::new("C")).0,
+            Code::new("( A C )")
+        );
+        assert_eq!(
+            code.replace_point(3, &Code::new("C")).0,
+            Code::new("( A ( C ) )")
+        );
+        assert_eq!(
+            code.replace_point(4, &Code::new("C")).0,
+            Code::new("( A ( B ) )")
+        );
     }
 
     #[test]

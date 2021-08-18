@@ -579,24 +579,180 @@ impl Context {
                     self.code_stack.push(b);
                 }
             }
-            Instruction::ExecDefine => {}
-            Instruction::ExecDoNCount => {}
-            Instruction::ExecDoNRange => {}
-            Instruction::ExecDoNTimes => {}
-            Instruction::ExecDup => {}
-            Instruction::ExecEqual => {}
-            Instruction::ExecFlush => {}
-            Instruction::ExecIf => {}
-            Instruction::ExecK => {}
-            Instruction::ExecPop => {}
-            Instruction::ExecRot => {}
-            Instruction::ExecShove => {}
-            Instruction::ExecStackdepth => {}
-            Instruction::ExecSwap => {}
-            Instruction::ExecS => {}
-            Instruction::ExecYankDup => {}
-            Instruction::ExecYank => {}
-            Instruction::ExecY => {}
+            Instruction::ExecDefine => {
+                if self.name_stack.len() >= 1 && self.exec_stack.len() >= 1 {
+                    let name = self.name_stack.pop().unwrap();
+                    let code = self.exec_stack.pop().unwrap();
+                    self.defined_names.insert(name, code);
+                }
+            }
+            Instruction::ExecDoNCount => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let code = self.exec_stack.pop().unwrap();
+                    let count = self.int_stack.pop().unwrap();
+                    // NOOP if count <= 0
+                    if count <= 0 {
+                        self.exec_stack.push(code);
+                        self.int_stack.push(count);
+                    } else {
+                        // Turn into DoNRange with (Count - 1) as destination
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(0),
+                            Code::LiteralInteger(count - 1),
+                            Code::Instruction(Instruction::ExecDoNRange),
+                            code,
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+                }
+            }
+            Instruction::ExecDoNRange => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 2 {
+                    let code = self.exec_stack.pop().unwrap();
+                    let dest = self.int_stack.pop().unwrap();
+                    let cur = self.int_stack.pop().unwrap();
+
+                    // If we haven't reached the destination yet, push the next iteration onto the stack first.
+                    if cur != dest {
+                        let increment = if cur < dest { 1 } else { -1 };
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(cur + increment),
+                            Code::LiteralInteger(dest),
+                            Code::Instruction(Instruction::ExecDoNRange),
+                            code.clone(),
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+
+                    // Push the current index onto the int stack so its accessible in the loop
+                    self.int_stack.push(cur);
+
+                    // Push the code to run onto the exec stack
+                    self.exec_stack.push(code);
+                }
+            }
+            Instruction::ExecDoNTimes => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let code = self.exec_stack.pop().unwrap();
+                    let count = self.int_stack.pop().unwrap();
+
+                    // NOOP if count <= 0
+                    if count <= 0 {
+                        self.exec_stack.push(code);
+                        self.int_stack.push(count);
+                    } else {
+                        // The difference between Count and Times is that the 'current index' is not available to
+                        // the loop body. Pop that value first
+                        let code = Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
+
+                        // Turn into DoNRange with (Count - 1) as destination
+                        let next = Code::List(vec![
+                            Code::LiteralInteger(0),
+                            Code::LiteralInteger(count - 1),
+                            Code::Instruction(Instruction::ExecDoNRange),
+                            code,
+                        ]);
+                        self.exec_stack.push(next);
+                    }
+                }
+            }
+            Instruction::ExecDup => {
+                if self.exec_stack.len() >= 1 {
+                    let value = self.exec_stack.last().unwrap().clone();
+                    self.exec_stack.push(value);
+                }
+            }
+            Instruction::ExecEqual => {
+                if self.exec_stack.len() >= 2 {
+                    let a = self.exec_stack.pop().unwrap();
+                    let b = self.exec_stack.pop().unwrap();
+                    self.bool_stack.push(a == b);
+                }
+            }
+            Instruction::ExecFlush => {
+                self.exec_stack.clear();
+            }
+            Instruction::ExecIf => {
+                if self.exec_stack.len() >= 2 && self.bool_stack.len() >= 1 {
+                    let true_branch = self.exec_stack.pop().unwrap();
+                    let false_branch = self.exec_stack.pop().unwrap();
+                    self.exec_stack.push(if self.bool_stack.pop().unwrap() { true_branch } else { false_branch });
+                }
+            }
+            Instruction::ExecK => {
+                if self.exec_stack.len() >= 2 {
+                    let keep = self.exec_stack.pop().unwrap();
+                    let _discard = self.exec_stack.pop().unwrap();
+                    self.exec_stack.push(keep);
+                }
+            }
+            Instruction::ExecPop => {
+                if self.exec_stack.len() >= 1 {
+                    let _discard = self.exec_stack.pop().unwrap();
+                }
+            }
+            Instruction::ExecRot => {
+                let a = self.exec_stack.pop().unwrap();
+                let b = self.exec_stack.pop().unwrap();
+                let c = self.exec_stack.pop().unwrap();
+                self.exec_stack.push(b);
+                self.exec_stack.push(a);
+                self.exec_stack.push(c);
+            }
+            Instruction::ExecShove => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
+                    let b = self.exec_stack.pop().unwrap();
+                    self.exec_stack.insert(vec_index, b);
+                }
+            }
+            Instruction::ExecStackdepth => {
+                self.int_stack.push(self.exec_stack.len() as i64);
+            }
+            Instruction::ExecSwap => {
+                let a = self.exec_stack.pop().unwrap();
+                let b = self.exec_stack.pop().unwrap();
+                self.exec_stack.push(a);
+                self.exec_stack.push(b);
+            }
+            Instruction::ExecS => {
+                if self.exec_stack.len() >= 3 {
+                    let a = self.exec_stack.pop().unwrap();
+                    let b = self.exec_stack.pop().unwrap();
+                    let c = self.exec_stack.pop().unwrap();
+                    self.exec_stack.push(Code::List(vec![b, c.clone()]));
+                    self.exec_stack.push(c);
+                    self.exec_stack.push(a);
+                }
+            }
+            Instruction::ExecYankDup => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
+                    let b = self.exec_stack.get(vec_index).unwrap().clone();
+                    self.exec_stack.push(b);
+                }
+            }
+            Instruction::ExecYank => {
+                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
+                    let b = self.exec_stack.remove(vec_index);
+                    self.exec_stack.push(b);
+                }
+            }
+            Instruction::ExecY => {
+                if self.exec_stack.len() >= 1 {
+                    // Get the code we will run on a loop
+                    let repeat = self.exec_stack.pop().unwrap();
+                    // Construct the looping code
+                    let next_exec = Code::List(vec![Code::Instruction(Instruction::ExecY), repeat.clone()]);
+                    // Push them back so that we DO and the DO AGAIN
+                    self.exec_stack.push(next_exec);
+                    self.exec_stack.push(repeat);
+                }
+            }
             Instruction::FloatCos => {}
             Instruction::FloatDefine => {}
             Instruction::FloatDifference => {}
@@ -625,8 +781,19 @@ impl Context {
             Instruction::FloatYank => {}
             Instruction::IntegerDefine => {}
             Instruction::IntegerDifference => {}
-            Instruction::IntegerDup => {}
-            Instruction::IntegerEqual => {}
+            Instruction::IntegerDup => {
+                if self.int_stack.len() >= 1 {
+                    let value = self.int_stack.last().unwrap().clone();
+                    self.int_stack.push(value);
+                }
+            }
+            Instruction::IntegerEqual => {
+                if self.int_stack.len() >= 2 {
+                    let a = self.int_stack.pop().unwrap();
+                    let b = self.int_stack.pop().unwrap();
+                    self.bool_stack.push(a == b);
+                }
+            }
             Instruction::IntegerFlush => {}
             Instruction::IntegerFromBoolean => {}
             Instruction::IntegerFromFloat => {}
@@ -646,7 +813,13 @@ impl Context {
             Instruction::IntegerRot => {}
             Instruction::IntegerShove => {}
             Instruction::IntegerStackdepth => {}
-            Instruction::IntegerSum => {}
+            Instruction::IntegerSum => {
+                if self.int_stack.len() >= 2 {
+                    let a = self.int_stack.pop().unwrap();
+                    let b = self.int_stack.pop().unwrap();
+                    self.int_stack.push(a + b);
+                }
+            }
             Instruction::IntegerSwap => {}
             Instruction::IntegerYankDup => {}
             Instruction::IntegerYank => {}
@@ -788,7 +961,32 @@ mod tests {
         test_code_swap: ("( CODEQUOTE A CODEQUOTE B CODESWAP )", "( CODEQUOTE B CODEQUOTE A )"),
         test_code_yank: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D 2 CODEYANK )", "( CODEQUOTE A CODEQUOTE C CODEQUOTE D CODEQUOTE B )"),
         test_code_yank_dup: ("( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D 2 CODEYANKDUP )", "( CODEQUOTE A CODEQUOTE B CODEQUOTE C CODEQUOTE D CODEQUOTE B )"),
+        test_exec_define: ("( A TRUE EXECDEFINE A )", "( TRUE )"),
+        test_exec_do_n_count: ("( 4 EXECDONCOUNT BOOLFROMINT )", "( FALSE TRUE TRUE TRUE )"),
+        test_exec_do_n_range_countup: ("( 0 3 EXECDONRANGE BOOLFROMINT )", "( FALSE TRUE TRUE TRUE )"),
+        test_exec_do_n_range_countdown: ("( 3 0 EXECDONRANGE BOOLFROMINT )", "( TRUE TRUE TRUE FALSE )"),
+        test_exec_do_n_times: ("( FALSE TRUE TRUE 2 EXECDONTIMES BOOLROT )", "( TRUE FALSE TRUE )"),
+        test_exec_dup: ("( EXECDUP 5 )", "( 5 5 )"),
+        test_exec_equal: ("( EXECEQUAL 5 5 )", "( TRUE )"),
+        test_exec_flush: ("( EXECFLUSH 5 5 )", "( )"),
+        test_exec_if_true: ("( TRUE EXECIF TRUENAME FALSENAME )", "( TRUENAME )"),
+        test_exec_if_false: ("( FALSE EXECIF TRUENAME FALSENAME )", "( FALSENAME )"),
+        test_exec_k: ("( EXECK TRUENAME FALSENAME )", "( TRUENAME )"),
+        test_exec_pop: ("( EXECPOP 5 )", "( )"),
+        test_exec_rot: ("( EXECROT A B C )", "( C A B )"),
+        test_exec_shove: ("( 2 EXECSHOVE A B C )", "( B C A )"),
+        test_exec_shove_zero: ("( 0 EXECSHOVE A B C )", "( A B C )"),
+        test_exec_shove_wrap: ("( 3 EXECSHOVE A B C )", "( A B C )"),
+        test_exec_stack_depth: ("( EXECSTACKDEPTH A B )", "( A B 2 )"),
+        test_exec_swap: ("( EXECSWAP A B )", "( B A )"),
+        test_exec_s: ("( EXECS A B C )", "( A C ( B C ) )"),
+        test_exec_yank: ("( 2 EXECYANK A B C D )", "( C A B D )"),
+        test_exec_yank_dup: ("( 2 EXECYANKDUP A B C D )", "( C A B C D )"),
+        test_exec_y: ("( 0 EXECY ( INTEGERDUP 2 INTEGEREQUAL EXECIF EXECPOP ( INTEGERDUP 1 INTEGERSUM ) ) )", "( 0 1 2 )"),
+        test_int_dup: ("( 42 INTEGERDUP )", "( 42 42 )"),
+        test_int_equal: ("( 42 0 INTEGEREQUAL )", "( FALSE )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
+        test_int_sum: ("( 42 7 INTEGERSUM )", "( 49 )"),
     }
 
     #[test]

@@ -579,11 +579,90 @@ impl Context {
                     self.code_stack.push(b);
                 }
             }
+            Instruction::ExecDefine => {}
+            Instruction::ExecDoNCount => {}
+            Instruction::ExecDoNRange => {}
+            Instruction::ExecDoNTimes => {}
+            Instruction::ExecDup => {}
+            Instruction::ExecEqual => {}
+            Instruction::ExecFlush => {}
+            Instruction::ExecIf => {}
+            Instruction::ExecK => {}
+            Instruction::ExecPop => {}
+            Instruction::ExecRot => {}
+            Instruction::ExecShove => {}
+            Instruction::ExecStackdepth => {}
+            Instruction::ExecSwap => {}
+            Instruction::ExecS => {}
+            Instruction::ExecYankDup => {}
+            Instruction::ExecYank => {}
+            Instruction::ExecY => {}
+            Instruction::FloatCos => {}
+            Instruction::FloatDefine => {}
+            Instruction::FloatDifference => {}
+            Instruction::FloatDup => {}
+            Instruction::FloatEqual => {}
+            Instruction::FloatFlush => {}
+            Instruction::FloatFromBoolean => {}
+            Instruction::FloatFromInteger => {}
+            Instruction::FloatGreater => {}
+            Instruction::FloatLess => {}
+            Instruction::FloatMax => {}
+            Instruction::FloatMin => {}
+            Instruction::FloatModulo => {}
+            Instruction::FloatPop => {}
+            Instruction::FloatProduct => {}
+            Instruction::FloatQuotient => {}
+            Instruction::FloatRand => {}
+            Instruction::FloatRot => {}
+            Instruction::FloatShove => {}
+            Instruction::FloatSin => {}
+            Instruction::FloatStackdepth => {}
+            Instruction::FloatSum => {}
+            Instruction::FloatSwap => {}
+            Instruction::FloatTan => {}
+            Instruction::FloatYankDup => {}
+            Instruction::FloatYank => {}
+            Instruction::IntegerDefine => {}
+            Instruction::IntegerDifference => {}
+            Instruction::IntegerDup => {}
+            Instruction::IntegerEqual => {}
+            Instruction::IntegerFlush => {}
+            Instruction::IntegerFromBoolean => {}
+            Instruction::IntegerFromFloat => {}
+            Instruction::IntegerGreater => {}
+            Instruction::IntegerLess => {}
+            Instruction::IntegerMax => {}
+            Instruction::IntegerMin => {}
+            Instruction::IntegerModulo => {}
             Instruction::IntegerPop => {
                 if self.int_stack.len() >= 1 {
                     self.int_stack.pop();
                 }
             }
+            Instruction::IntegerProduct => {}
+            Instruction::IntegerQuotient => {}
+            Instruction::IntegerRand => {}
+            Instruction::IntegerRot => {}
+            Instruction::IntegerShove => {}
+            Instruction::IntegerStackdepth => {}
+            Instruction::IntegerSum => {}
+            Instruction::IntegerSwap => {}
+            Instruction::IntegerYankDup => {}
+            Instruction::IntegerYank => {}
+            Instruction::NameDup => {}
+            Instruction::NameEqual => {}
+            Instruction::NameFlush => {}
+            Instruction::NamePop => {}
+            Instruction::NameQuote => {}
+            Instruction::NameRandBoundName => {}
+            Instruction::NameRand => {}
+            Instruction::NameRot => {}
+            Instruction::NameShove => {}
+            Instruction::NameStackdepth => {}
+            Instruction::NameSwap => {}
+            Instruction::NameYankDup => {}
+            Instruction::NameYank => {}
         }
     }
 }

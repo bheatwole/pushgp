@@ -7,6 +7,8 @@ mod context;
 mod instruction;
 mod instruction_type;
 mod parse;
+mod random_code_generator;
+mod random_type;
 mod util;
 
 pub use code::Code;
@@ -14,3 +16,5 @@ pub use configuration::Configuration;
 pub use context::Context;
 pub use instruction::Instruction;
 pub use instruction_type::InstructionType;
+pub use random_code_generator::RandomCodeGenerator;
+pub use random_type::RandomType;

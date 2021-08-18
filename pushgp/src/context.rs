@@ -440,7 +440,7 @@ impl Context {
                 }
             }
             Instruction::CodeInstructions => {
-                for inst in self.config.get_allowed_instructions() {
+                for inst in self.config.allowed_instructions() {
                     self.code_stack.push(Code::Instruction(inst));
                 }
             }
@@ -520,7 +520,10 @@ impl Context {
                     self.code_stack.push(self.exec_stack.pop().unwrap());
                 }
             }
-            Instruction::CodeRand => {}
+            Instruction::CodeRand => {
+                let names: Vec<u64> = self.defined_names.keys().map(|n| *n).collect();
+                self.code_stack.push(self.config.generate_random_code(&names[..]));
+            }
             Instruction::CodeRot => {
                 let a = self.code_stack.pop().unwrap();
                 let b = self.code_stack.pop().unwrap();
@@ -601,6 +604,7 @@ mod tests {
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };
+        context.config.set_seed(1);
         context.run(9999999);
         context
     }
@@ -747,8 +751,12 @@ mod tests {
             config: Configuration::new(),
         };
 
-        context.config.allow_instruction(Instruction::BoolAnd);
-        context.config.allow_instruction(Instruction::CodeAppend);
+        // These instructions should appear in the output in any order
+        context.config.set_instruction_weight(Instruction::BoolAnd, 1);
+        context.config.set_instruction_weight(Instruction::CodeAppend, 5);
+
+        // This instruction should not appear because it's weight is zero
+        context.config.set_instruction_weight(Instruction::CodeCdr, 0);
 
         context.run(9999999);
         assert_eq!(2, context.code_stack.len());

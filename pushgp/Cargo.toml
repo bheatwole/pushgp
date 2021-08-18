@@ -12,5 +12,8 @@ fnv = "1.0.7"
 log = "0.4.11"
 nom = "6.2.1"
 pushgp-macros = { path = "../pushgp-macros" }
-rand = "0.8"
 rust_decimal = "1.15"
+
+[dependencies.rand]
+version = "0.8"
+features = ["small_rng"]

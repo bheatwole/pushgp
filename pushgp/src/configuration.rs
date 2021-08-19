@@ -1,17 +1,25 @@
-use crate::{Code, Instruction, InstructionType, RandomCodeGenerator, RandomType};
+use crate::{Code, Instruction, InstructionType, RandomType};
 use fnv::FnvHashMap;
+use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
     instruction_weights: FnvHashMap<Instruction, u8>,
     ephemeral_bool_weight: u8,
     ephemeral_float_weight: u8,
+    min_random_float: f64,
+    max_random_float: f64,
     ephemeral_int_weight: u8,
+    min_random_int: i64,
+    max_random_int: i64,
     ephemeral_name_weight: u8,
     defined_name_weight: u8,
     random_seed: Option<u64>,
+    max_points_in_random_expressions: usize,
     runtime_instruction_limit: usize,
-    code_generator: RandomCodeGenerator,
+    rng: SmallRng,
+    types: Vec<RandomType>,
 }
 
 impl Configuration {
@@ -25,7 +33,13 @@ impl Configuration {
             defined_name_weight: 1,
             random_seed: None,
             runtime_instruction_limit: 10000,
-            code_generator: RandomCodeGenerator::new(),
+            rng: SmallRng::from_entropy(),
+            types: vec![],
+            min_random_float: -1.0,
+            max_random_float: 1.0,
+            min_random_int: std::i64::MIN,
+            max_random_int: std::i64::MAX,
+            max_points_in_random_expressions: 1000,
         }
     }
 
@@ -34,7 +48,7 @@ impl Configuration {
         for (inst, weight) in self.instruction_weights.iter_mut() {
             if inst.types().contains(&disallowed) {
                 *weight = 0;
-                self.code_generator.clear_types();
+                self.types.clear();
             }
         }
     }
@@ -43,7 +57,7 @@ impl Configuration {
     /// code generation. The weight will be the relative likelihood of the instruction being selected.
     pub fn set_instruction_weight(&mut self, allow: Instruction, weight: u8) {
         self.instruction_weights.insert(allow, weight);
-        self.code_generator.clear_types();
+        self.types.clear();
     }
 
     /// Returns a list of all instructions that have a weight > 0
@@ -51,39 +65,101 @@ impl Configuration {
         self.instruction_weights.iter().filter(|pair| *pair.1 != 0).map(|pair| *pair.0).collect()
     }
 
-    pub fn set_seed(&mut self, seed: u64) {
-        self.random_seed = Some(seed);
-        self.code_generator.set_seed(self.random_seed);
+    pub fn set_seed(&mut self, seed: Option<u64>) {
+        self.random_seed = seed;
+        self.rng = if let Some(seed) = seed { SmallRng::seed_from_u64(seed) } else { SmallRng::from_entropy() }
     }
 
-    pub fn random_atom_of_type(&mut self, atom_type: RandomType) -> Code {
-        self.code_generator.random_atom_of_type(atom_type)
+    fn append_type(&mut self, rand_type: RandomType, weight: u8) {
+        for _ in 0..weight {
+            self.types.push(rand_type);
+        }
+    }
+
+    pub fn random_bool(&mut self) -> bool {
+        if 0 == self.rng.gen_range(0..=1) {
+            false
+        } else {
+            true
+        }
+    }
+
+    pub fn random_float(&mut self) -> Decimal {
+        let float: f64 = self.rng.gen_range(self.min_random_float..self.max_random_float);
+        Decimal::from_f64(float).unwrap()
+    }
+
+    pub fn random_int(&mut self) -> i64 {
+        self.rng.gen_range(self.min_random_int..=self.max_random_int)
     }
 
     pub fn random_int_in_range(&mut self, range: std::ops::Range<i64>) -> i64 {
-        self.code_generator.random_int_in_range(range)
+        self.rng.gen_range(range)
+    }
+
+    pub fn random_name(&mut self) -> u64 {
+        self.rng.gen_range(0..=u64::MAX)
     }
 
     pub fn generate_random_code(&mut self, defined_names: &[u64]) -> Code {
-        if !self.code_generator.are_types_defined() {
+        if 0 == self.types.len() {
             // Define the ephemal constants types
-            self.code_generator.append_type(RandomType::EphemeralBool, self.ephemeral_bool_weight);
-            self.code_generator.append_type(RandomType::EphemeralFloat, self.ephemeral_float_weight);
-            self.code_generator.append_type(RandomType::EphemeralInt, self.ephemeral_int_weight);
-            self.code_generator.append_type(RandomType::EphemeralName, self.ephemeral_name_weight);
+            self.append_type(RandomType::EphemeralBool, self.ephemeral_bool_weight);
+            self.append_type(RandomType::EphemeralFloat, self.ephemeral_float_weight);
+            self.append_type(RandomType::EphemeralInt, self.ephemeral_int_weight);
+            self.append_type(RandomType::EphemeralName, self.ephemeral_name_weight);
 
             // Define all the names we know about
             for &name in defined_names {
-                self.code_generator.append_type(RandomType::DefinedName(name), self.defined_name_weight);
+                self.append_type(RandomType::DefinedName(name), self.defined_name_weight);
             }
 
-            // Define all the instructions we know about
-            for (&inst, &weight) in self.instruction_weights.iter() {
-                self.code_generator.append_type(RandomType::Instruction(inst), weight);
+            // Define all the instructions we know about. We need to copy the weights for immutable/mutable borrowing
+            let weights: Vec<(Instruction, u8)> =
+                self.instruction_weights.iter().map(|(&key, &weight)| (key, weight)).collect();
+            for (inst, weight) in weights {
+                self.append_type(RandomType::Instruction(inst), weight);
             }
         }
 
         // Generate some code!
-        self.code_generator.generate()
+        self.generate()
+    }
+
+    fn generate(&mut self) -> Code {
+        let actual_points = self.rng.gen_range(1..=self.max_points_in_random_expressions);
+        self.random_code_with_size(actual_points)
+    }
+
+    fn random_code_with_size(&mut self, points: usize) -> Code {
+        if 1 == points {
+            let index = self.rng.gen_range(0..self.types.len());
+            match self.types.get(index).unwrap() {
+                RandomType::EphemeralBool => Code::LiteralBool(self.random_bool()),
+                RandomType::EphemeralFloat => Code::LiteralFloat(self.random_float()),
+                RandomType::EphemeralInt => Code::LiteralInteger(self.random_int()),
+                RandomType::EphemeralName => Code::LiteralName(self.random_name()),
+                RandomType::DefinedName(name) => Code::LiteralName(*name),
+                RandomType::Instruction(inst) => Code::Instruction(*inst),
+            }
+        } else {
+            let mut sizes_this_level = self.decompose(points - 1, points - 1);
+            sizes_this_level.shuffle(&mut self.rng);
+            let mut list = vec![];
+            for size in sizes_this_level {
+                list.push(self.random_code_with_size(size));
+            }
+            Code::List(list)
+        }
+    }
+
+    fn decompose(&mut self, number: usize, max_parts: usize) -> Vec<usize> {
+        if 1 == number || 1 == max_parts {
+            return vec![1];
+        }
+        let this_part = self.rng.gen_range(1..=(number - 1));
+        let mut result = vec![this_part];
+        result.extend_from_slice(&self.decompose(number - this_part, max_parts - 1));
+        result
     }
 }

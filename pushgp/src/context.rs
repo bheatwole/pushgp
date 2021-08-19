@@ -1,5 +1,5 @@
 use crate::code::Extraction;
-use crate::{Code, Configuration, Instruction, RandomType};
+use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
 use log::*;
 use rust_decimal::{
@@ -77,6 +77,17 @@ impl Context {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.bool_stack.clear();
+        self.code_stack.clear();
+        self.exec_stack.clear();
+        self.float_stack.clear();
+        self.int_stack.clear();
+        self.name_stack.clear();
+        self.quote_next_name = false;
+        self.defined_names.clear();
+    }
+
     pub fn run(&mut self, max: usize) -> usize {
         let mut total_count = 0;
         while let Some(count) = self.next() {
@@ -148,12 +159,7 @@ impl Context {
             Instruction::BoolPop => {
                 self.bool_stack.pop();
             }
-            Instruction::BoolRand => {
-                self.bool_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralBool) {
-                    Code::LiteralBool(value) => value,
-                    _ => panic!("shouldn't ever get anything else"),
-                })
-            }
+            Instruction::BoolRand => self.bool_stack.push(self.config.random_bool()),
             Instruction::BoolRot => {
                 let a = self.bool_stack.pop().unwrap();
                 let b = self.bool_stack.pop().unwrap();
@@ -885,12 +891,7 @@ impl Context {
                     self.float_stack.push(top / bottom);
                 }
             }
-            Instruction::FloatRand => {
-                self.float_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralFloat) {
-                    Code::LiteralFloat(value) => value,
-                    _ => panic!("shouldn't ever get anything else"),
-                })
-            }
+            Instruction::FloatRand => self.float_stack.push(self.config.random_float()),
             Instruction::FloatRot => {
                 let a = self.float_stack.pop().unwrap();
                 let b = self.float_stack.pop().unwrap();
@@ -1047,12 +1048,7 @@ impl Context {
                     self.int_stack.push(top / bottom);
                 }
             }
-            Instruction::IntegerRand => {
-                self.int_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralInt) {
-                    Code::LiteralInteger(value) => value,
-                    _ => panic!("shouldn't ever get anything else"),
-                })
-            }
+            Instruction::IntegerRand => self.int_stack.push(self.config.random_int()),
             Instruction::IntegerRot => {
                 let a = self.int_stack.pop().unwrap();
                 let b = self.int_stack.pop().unwrap();
@@ -1134,12 +1130,7 @@ impl Context {
                     }
                 }
             }
-            Instruction::NameRand => {
-                self.name_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralName) {
-                    Code::LiteralName(value) => value,
-                    _ => panic!("shouldn't ever get anything else"),
-                })
-            }
+            Instruction::NameRand => self.name_stack.push(self.config.random_name()),
             Instruction::NameRot => {
                 let a = self.name_stack.pop().unwrap();
                 let b = self.name_stack.pop().unwrap();
@@ -1202,7 +1193,7 @@ mod tests {
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };
-        context.config.set_seed(1);
+        context.config.set_seed(Some(1));
         context.run(1000);
         context
     }

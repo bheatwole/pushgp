@@ -927,8 +927,20 @@ impl Context {
                     self.float_stack.push(b);
                 }
             }
-            Instruction::IntegerDefine => {}
-            Instruction::IntegerDifference => {}
+            Instruction::IntegerDefine => {
+                if self.name_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let name = self.name_stack.pop().unwrap();
+                    let value = self.int_stack.pop().unwrap();
+                    self.defined_names.insert(name, Code::LiteralInteger(value));
+                }
+            }
+            Instruction::IntegerDifference => {
+                if self.int_stack.len() >= 2 {
+                    let right = self.int_stack.pop().unwrap();
+                    let left = self.int_stack.pop().unwrap();
+                    self.int_stack.push(left - right);
+                }
+            }
             Instruction::IntegerDup => {
                 if self.int_stack.len() >= 1 {
                     let value = self.int_stack.last().unwrap().clone();
@@ -942,25 +954,100 @@ impl Context {
                     self.bool_stack.push(a == b);
                 }
             }
-            Instruction::IntegerFlush => {}
-            Instruction::IntegerFromBoolean => {}
-            Instruction::IntegerFromFloat => {}
-            Instruction::IntegerGreater => {}
-            Instruction::IntegerLess => {}
-            Instruction::IntegerMax => {}
-            Instruction::IntegerMin => {}
-            Instruction::IntegerModulo => {}
+            Instruction::IntegerFlush => {
+                self.int_stack.clear();
+            }
+            Instruction::IntegerFromBoolean => {
+                if self.bool_stack.len() >= 1 {
+                    self.int_stack.push(if self.bool_stack.pop().unwrap() { 1 } else { 0 });
+                }
+            }
+            Instruction::IntegerFromFloat => {
+                if self.float_stack.len() >= 1 {
+                    self.int_stack.push(self.float_stack.pop().unwrap().to_i64().unwrap());
+                }
+            }
+            Instruction::IntegerGreater => {
+                if self.int_stack.len() >= 2 {
+                    let right = self.int_stack.pop().unwrap();
+                    let left = self.int_stack.pop().unwrap();
+                    self.bool_stack.push(left > right);
+                }
+            }
+            Instruction::IntegerLess => {
+                if self.int_stack.len() >= 2 {
+                    let right = self.int_stack.pop().unwrap();
+                    let left = self.int_stack.pop().unwrap();
+                    self.bool_stack.push(left < right);
+                }
+            }
+            Instruction::IntegerMax => {
+                if self.int_stack.len() >= 2 {
+                    let a = self.int_stack.pop().unwrap();
+                    let b = self.int_stack.pop().unwrap();
+                    self.int_stack.push(if a < b { b } else { a });
+                }
+            }
+            Instruction::IntegerMin => {
+                if self.int_stack.len() >= 2 {
+                    let a = self.int_stack.pop().unwrap();
+                    let b = self.int_stack.pop().unwrap();
+                    self.int_stack.push(if a < b { a } else { b });
+                }
+            }
+            Instruction::IntegerModulo => {
+                if self.int_stack.len() >= 2 {
+                    let bottom = self.int_stack.pop().unwrap();
+                    let top = self.int_stack.pop().unwrap();
+                    if bottom != 0 {
+                        self.int_stack.push(top % bottom);
+                    }
+                }
+            }
             Instruction::IntegerPop => {
                 if self.int_stack.len() >= 1 {
                     self.int_stack.pop();
                 }
             }
-            Instruction::IntegerProduct => {}
-            Instruction::IntegerQuotient => {}
-            Instruction::IntegerRand => {}
-            Instruction::IntegerRot => {}
-            Instruction::IntegerShove => {}
-            Instruction::IntegerStackdepth => {}
+            Instruction::IntegerProduct => {
+                if self.int_stack.len() >= 2 {
+                    let right = self.int_stack.pop().unwrap();
+                    let left = self.int_stack.pop().unwrap();
+                    self.int_stack.push(left * right);
+                }
+            }
+            Instruction::IntegerQuotient => {
+                let bottom = self.int_stack.pop().unwrap();
+                let top = self.int_stack.pop().unwrap();
+                if bottom != 0 {
+                    self.int_stack.push(top / bottom);
+                }
+            }
+            Instruction::IntegerRand => {
+                self.int_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralInt) {
+                    Code::LiteralInteger(value) => value,
+                    _ => panic!("shouldn't ever get anything else"),
+                })
+            }
+            Instruction::IntegerRot => {
+                let a = self.int_stack.pop().unwrap();
+                let b = self.int_stack.pop().unwrap();
+                let c = self.int_stack.pop().unwrap();
+                self.int_stack.push(b);
+                self.int_stack.push(a);
+                self.int_stack.push(c);
+            }
+            Instruction::IntegerShove => {
+                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
+                    let b = self.int_stack.pop().unwrap();
+                    self.int_stack.insert(vec_index, b);
+                }
+            }
+            Instruction::IntegerStackdepth => {
+                self.int_stack.push(self.int_stack.len() as i64);
+            }
             Instruction::IntegerSum => {
                 if self.int_stack.len() >= 2 {
                     let a = self.int_stack.pop().unwrap();
@@ -968,9 +1055,28 @@ impl Context {
                     self.int_stack.push(a + b);
                 }
             }
-            Instruction::IntegerSwap => {}
-            Instruction::IntegerYankDup => {}
-            Instruction::IntegerYank => {}
+            Instruction::IntegerSwap => {
+                let a = self.int_stack.pop().unwrap();
+                let b = self.int_stack.pop().unwrap();
+                self.int_stack.push(a);
+                self.int_stack.push(b);
+            }
+            Instruction::IntegerYankDup => {
+                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
+                    let &b = self.int_stack.get(vec_index).unwrap();
+                    self.int_stack.push(b);
+                }
+            }
+            Instruction::IntegerYank => {
+                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
+                    let b = self.int_stack.remove(vec_index);
+                    self.int_stack.push(b);
+                }
+            }
             Instruction::NameDup => {}
             Instruction::NameEqual => {}
             Instruction::NameFlush => {}
@@ -1145,10 +1251,10 @@ mod tests {
         test_float_min: ("( -5.0 3.0 FLOATMIN )", "( -5.0 )"),
         test_float_modulo: ("( -5.0 3.0 FLOATMODULO )", "( -2.0 )"),
         test_float_modulo_zero: ("( -5.0 0.0 FLOATMODULO )", "( )"),
+        test_float_pop: ("( 5.0 FLOATPOP )", "( )"),
         test_float_product: ("( -5.0 3.0 FLOATPRODUCT )", "( -15.0 )"),
         test_float_quotient: ("( 15.0 3.0 FLOATQUOTIENT )", "( 5.0 )"),
         test_float_quotient_zero: ("( 15.0 0.0 FLOATQUOTIENT )", "( )"),
-        test_float_pop: ("( 5.0 FLOATPOP )", "( )"),
         test_float_rot: ("( 0.0 1.0 2.0 FLOATROT )", "( 1.0 2.0 0.0 )"),
         test_float_shove: ("( 1.0 2.0 3.0 2 FLOATSHOVE )", "( 3.0 1.0 2.0 )"),
         test_float_shove_zero: ("( 1.0 2.0 3.0 0 FLOATSHOVE )", "( 1.0 2.0 3.0 )"),
@@ -1160,10 +1266,33 @@ mod tests {
         test_float_tan: ("( 1.0 FLOATTAN )", "( 1.557407724654902 )"),
         test_float_yank: ("( 1.0 2.0 3.0 4.0 2 FLOATYANK )", "( 1.0 3.0 4.0 2.0 )"),
         test_float_yank_dup: ("( 1.0 2.0 3.0 4.0 2 FLOATYANKDUP )", "( 1.0 2.0 3.0 4.0 2.0 )"),
+        test_int_define: ("( A 1 INTEGERDEFINE A )", "( 1 )"),
+        test_int_difference: ("( 3 1 INTEGERDIFFERENCE )", "( 2 )"),
         test_int_dup: ("( 42 INTEGERDUP )", "( 42 42 )"),
         test_int_equal: ("( 42 0 INTEGEREQUAL )", "( FALSE )"),
+        test_int_flush: ("( 1 1 INTEGERFLUSH )", "( )"),
+        test_int_fromboolean: ("( TRUE INTEGERFROMBOOLEAN FALSE INTEGERFROMBOOLEAN )", "( 1 0 )"),
+        test_int_fromfloat: ("( 5.0 INTEGERFROMFLOAT )", "( 5 )"),
+        test_int_greater: ("( 5 3 INTEGERGREATER )", "( TRUE )"),
+        test_int_less: ("( 5 3 INTEGERLESS )", "( FALSE )"),
+        test_int_max: ("( 5 3 INTEGERMAX )", "( 5 )"),
+        test_int_min: ("( -5 3 INTEGERMIN )", "( -5 )"),
+        test_int_modulo: ("( -5 3 INTEGERMODULO )", "( -2 )"),
+        test_int_modulo_zero: ("( -5 0 INTEGERMODULO )", "( )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
+        test_int_product: ("( -5 3 INTEGERPRODUCT )", "( -15 )"),
+        test_int_quotient: ("( 15 3 INTEGERQUOTIENT )", "( 5 )"),
+        test_int_quotient_zero: ("( 15 0 INTEGERQUOTIENT )", "( )"),
+        test_int_rot: ("( 0 1 2 INTEGERROT )", "( 1 2 0 )"),
+        test_int_shove: ("( 1 2 3 2 INTEGERSHOVE )", "( 3 1 2 )"),
+        test_int_shove_zero: ("( 1 2 3 0 INTEGERSHOVE )", "( 1 2 3 )"),
+        test_int_shove_wrap: ("( 1 2 3 3 INTEGERSHOVE )", "( 1 2 3 )"),
+        test_int_stack_depth: ("( 1 2 INTEGERSTACKDEPTH )", "( 1 2 2 )"),
         test_int_sum: ("( 42 7 INTEGERSUM )", "( 49 )"),
+        test_int_swap: ("( 1 2 3 INTEGERSWAP )", "( 1 3 2 )"),
+        test_int_yank: ("( 1 2 3 4 2 INTEGERYANK )", "( 1 3 4 2 )"),
+        test_int_yank_dup: ("( 1 2 3 4 2 INTEGERYANKDUP )", "( 1 2 3 4 2 )"),
+
     }
 
     #[test]

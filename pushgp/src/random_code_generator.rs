@@ -49,6 +49,10 @@ impl RandomCodeGenerator {
         self.random_code_with_size(actual_points)
     }
 
+    pub fn random_int_in_range(&mut self, range: std::ops::Range<i64>) -> i64 {
+        self.rng.gen_range(range)
+    }
+
     pub fn random_atom_of_type(&mut self, atom_type: RandomType) -> Code {
         match atom_type {
             RandomType::EphemeralBool => Code::LiteralBool(if 0 == self.rng.gen_range(0..=1) { false } else { true }),

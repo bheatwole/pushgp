@@ -2,7 +2,6 @@ use crate::code::Extraction;
 use crate::{Code, Configuration, Instruction, RandomType};
 use fnv::FnvHashMap;
 use log::*;
-use rand::{thread_rng, RngCore};
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -16,6 +15,7 @@ pub struct Context {
     float_stack: Vec<Decimal>,
     int_stack: Vec<i64>,
     name_stack: Vec<u64>,
+    quote_next_name: bool,
     defined_names: FnvHashMap<u64, Code>,
     config: Configuration,
 }
@@ -39,10 +39,17 @@ impl Iterator for Context {
                 Code::LiteralBool(v) => self.bool_stack.push(v),
                 Code::LiteralFloat(v) => self.float_stack.push(v),
                 Code::LiteralInteger(v) => self.int_stack.push(v),
-                Code::LiteralName(v) => match self.defined_names.get(&v) {
-                    None => self.name_stack.push(v),
-                    Some(code) => self.exec_stack.push(code.clone()),
-                },
+                Code::LiteralName(v) => {
+                    if self.quote_next_name {
+                        self.name_stack.push(v);
+                        self.quote_next_name = false;
+                    } else {
+                        match self.defined_names.get(&v) {
+                            None => self.name_stack.push(v),
+                            Some(code) => self.exec_stack.push(code.clone()),
+                        }
+                    }
+                }
                 Code::Instruction(inst) => self.execute_instruction(inst),
             }
 
@@ -56,6 +63,20 @@ impl Iterator for Context {
 }
 
 impl Context {
+    pub fn new(config: Configuration) -> Context {
+        Context {
+            bool_stack: vec![],
+            code_stack: vec![],
+            exec_stack: vec![],
+            float_stack: vec![],
+            int_stack: vec![],
+            name_stack: vec![],
+            quote_next_name: false,
+            defined_names: FnvHashMap::default(),
+            config: config,
+        }
+    }
+
     pub fn run(&mut self, max: usize) -> usize {
         let mut total_count = 0;
         while let Some(count) = self.next() {
@@ -128,7 +149,10 @@ impl Context {
                 self.bool_stack.pop();
             }
             Instruction::BoolRand => {
-                self.bool_stack.push(thread_rng().next_u32() & 1 == 1);
+                self.bool_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralBool) {
+                    Code::LiteralBool(value) => value,
+                    _ => panic!("shouldn't ever get anything else"),
+                })
             }
             Instruction::BoolRot => {
                 let a = self.bool_stack.pop().unwrap();
@@ -1077,19 +1101,86 @@ impl Context {
                     self.int_stack.push(b);
                 }
             }
-            Instruction::NameDup => {}
-            Instruction::NameEqual => {}
-            Instruction::NameFlush => {}
-            Instruction::NamePop => {}
-            Instruction::NameQuote => {}
-            Instruction::NameRandBoundName => {}
-            Instruction::NameRand => {}
-            Instruction::NameRot => {}
-            Instruction::NameShove => {}
-            Instruction::NameStackdepth => {}
-            Instruction::NameSwap => {}
-            Instruction::NameYankDup => {}
-            Instruction::NameYank => {}
+            Instruction::NameDup => {
+                if self.name_stack.len() >= 1 {
+                    let value = self.name_stack.last().unwrap().clone();
+                    self.name_stack.push(value);
+                }
+            }
+            Instruction::NameEqual => {
+                if self.name_stack.len() >= 2 {
+                    let a = self.name_stack.pop().unwrap();
+                    let b = self.name_stack.pop().unwrap();
+                    self.bool_stack.push(a == b);
+                }
+            }
+            Instruction::NameFlush => {
+                self.name_stack.clear();
+            }
+            Instruction::NamePop => {
+                if self.name_stack.len() >= 1 {
+                    self.name_stack.pop();
+                }
+            }
+            Instruction::NameQuote => {
+                self.quote_next_name = true;
+            }
+            Instruction::NameRandBoundName => {
+                let len = self.defined_names.len() as i64;
+                if len > 0 {
+                    let index = self.config.random_int_in_range(0..len);
+                    if let Some(name) = self.defined_names.keys().skip(index as usize).next() {
+                        self.name_stack.push(*name);
+                    }
+                }
+            }
+            Instruction::NameRand => {
+                self.name_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralName) {
+                    Code::LiteralName(value) => value,
+                    _ => panic!("shouldn't ever get anything else"),
+                })
+            }
+            Instruction::NameRot => {
+                let a = self.name_stack.pop().unwrap();
+                let b = self.name_stack.pop().unwrap();
+                let c = self.name_stack.pop().unwrap();
+                self.name_stack.push(b);
+                self.name_stack.push(a);
+                self.name_stack.push(c);
+            }
+            Instruction::NameShove => {
+                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
+                    let b = self.name_stack.pop().unwrap();
+                    self.name_stack.insert(vec_index, b);
+                }
+            }
+            Instruction::NameStackdepth => {
+                self.int_stack.push(self.name_stack.len() as i64);
+            }
+            Instruction::NameSwap => {
+                let a = self.name_stack.pop().unwrap();
+                let b = self.name_stack.pop().unwrap();
+                self.name_stack.push(a);
+                self.name_stack.push(b);
+            }
+            Instruction::NameYankDup => {
+                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
+                    let &b = self.name_stack.get(vec_index).unwrap();
+                    self.name_stack.push(b);
+                }
+            }
+            Instruction::NameYank => {
+                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
+                    let b = self.name_stack.remove(vec_index);
+                    self.name_stack.push(b);
+                }
+            }
         }
     }
 }
@@ -1107,6 +1198,7 @@ mod tests {
             float_stack: vec![],
             int_stack: vec![],
             name_stack: vec![],
+            quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };
@@ -1292,6 +1384,19 @@ mod tests {
         test_int_swap: ("( 1 2 3 INTEGERSWAP )", "( 1 3 2 )"),
         test_int_yank: ("( 1 2 3 4 2 INTEGERYANK )", "( 1 3 4 2 )"),
         test_int_yank_dup: ("( 1 2 3 4 2 INTEGERYANKDUP )", "( 1 2 3 4 2 )"),
+        test_name_dup: ("( A NAMEDUP )", "( A A )"),
+        test_name_equal: ("( A B NAMEEQUAL )", "( FALSE )"),
+        test_name_flush: ("( A B NAMEFLUSH )", "( )"),
+        test_name_pop: ("( A NAMEPOP )", "( )"),
+        test_name_quote: ("( A 1.0 FLOATDEFINE NAMEQUOTE A )", "( A )"),
+        test_name_rot: ("( A B C NAMEROT )", "( B C A )"),
+        test_name_shove: ("( A B C 2 NAMESHOVE )", "( C A B )"),
+        test_name_shove_zero: ("( A B C 0 NAMESHOVE )", "( A B C )"),
+        test_name_shove_wrap: ("( A B C 3 NAMESHOVE )", "( A B C )"),
+        test_name_stack_depth: ("( A B NAMESTACKDEPTH )", "( A B 2 )"),
+        test_name_swap: ("( A B C NAMESWAP )", "( A C B )"),
+        test_name_yank: ("( A B C D 2 NAMEYANK )", "( A C D B )"),
+        test_name_yank_dup: ("( A B C D 2 NAMEYANKDUP )", "( A B C D B )"),
 
     }
 
@@ -1304,6 +1409,7 @@ mod tests {
             float_stack: vec![],
             int_stack: vec![],
             name_stack: vec![],
+            quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };
@@ -1319,6 +1425,32 @@ mod tests {
 
         assert_eq!(1, context.float_stack.len());
         assert_eq!(0, context.exec_stack.len());
+    }
+
+    #[test]
+    fn int_rand() {
+        let context = load_and_run("( INTEGERRAND )");
+
+        assert_eq!(1, context.int_stack.len());
+        assert_eq!(0, context.exec_stack.len());
+    }
+
+    #[test]
+    fn name_rand() {
+        let context = load_and_run("( NAMERAND )");
+
+        assert_eq!(1, context.name_stack.len());
+        assert_eq!(0, context.exec_stack.len());
+    }
+
+    #[test]
+    fn name_rand_bound_name() {
+        let mut context = load_and_run("( A 1.0 FLOATDEFINE NAMERANDBOUNDNAME )");
+        let mut expected = load_and_run("( A )");
+
+        assert_eq!(1, context.name_stack.len());
+        assert_eq!(0, context.exec_stack.len());
+        assert_eq!(context.name_stack.pop(), expected.name_stack.pop());
     }
 
     #[test]
@@ -1338,6 +1470,7 @@ mod tests {
             float_stack: vec![],
             int_stack: vec![],
             name_stack: vec![],
+            quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
         };

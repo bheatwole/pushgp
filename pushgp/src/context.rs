@@ -1393,19 +1393,8 @@ mod tests {
 
     #[test]
     fn bool_rand() {
-        let mut context = Context {
-            bool_stack: vec![],
-            code_stack: vec![],
-            exec_stack: vec![Code::Instruction(Instruction::BoolRand)],
-            float_stack: vec![],
-            int_stack: vec![],
-            name_stack: vec![],
-            quote_next_name: false,
-            defined_names: FnvHashMap::default(),
-            config: Configuration::new(),
-        };
+        let context = load_and_run("( BOOLRAND )");
 
-        assert_eq!(Some(1), context.next());
         assert_eq!(1, context.bool_stack.len());
         assert_eq!(0, context.exec_stack.len());
     }

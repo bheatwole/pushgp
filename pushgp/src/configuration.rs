@@ -56,6 +56,10 @@ impl Configuration {
         self.code_generator.set_seed(self.random_seed);
     }
 
+    pub fn random_atom_of_type(&mut self, atom_type: RandomType) -> Code {
+        self.code_generator.random_atom_of_type(atom_type)
+    }
+
     pub fn generate_random_code(&mut self, defined_names: &[u64]) -> Code {
         if !self.code_generator.are_types_defined() {
             // Define the ephemal constants types

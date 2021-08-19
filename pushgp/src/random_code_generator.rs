@@ -18,8 +18,8 @@ impl RandomCodeGenerator {
         RandomCodeGenerator {
             rng: SmallRng::from_entropy(),
             types: vec![],
-            min_random_float: std::f64::MIN,
-            max_random_float: std::f64::MAX,
+            min_random_float: -1.0,
+            max_random_float: 1.0,
             min_random_int: std::i64::MIN,
             max_random_int: std::i64::MAX,
             max_points_in_random_expressions: 1000,
@@ -49,24 +49,26 @@ impl RandomCodeGenerator {
         self.random_code_with_size(actual_points)
     }
 
+    pub fn random_atom_of_type(&mut self, atom_type: RandomType) -> Code {
+        match atom_type {
+            RandomType::EphemeralBool => Code::LiteralBool(if 0 == self.rng.gen_range(0..=1) { false } else { true }),
+            RandomType::EphemeralFloat => {
+                let float: f64 = self.rng.gen_range(self.min_random_float..self.max_random_float);
+                Code::LiteralFloat(Decimal::from_f64(float).unwrap())
+            }
+            RandomType::EphemeralInt => {
+                Code::LiteralInteger(self.rng.gen_range(self.min_random_int..=self.max_random_int))
+            }
+            RandomType::EphemeralName => Code::LiteralName(self.rng.gen_range(0..=u64::MAX)),
+            RandomType::DefinedName(name) => Code::LiteralName(name),
+            RandomType::Instruction(inst) => Code::Instruction(inst),
+        }
+    }
+
     fn random_code_with_size(&mut self, points: usize) -> Code {
         if 1 == points {
             let index = self.rng.gen_range(0..self.types.len());
-            match self.types.get(index).unwrap() {
-                RandomType::EphemeralBool => {
-                    Code::LiteralBool(if 0 == self.rng.gen_range(0..=1) { false } else { true })
-                }
-                RandomType::EphemeralFloat => {
-                    let float: f64 = self.rng.gen_range(self.min_random_float..=self.max_random_float);
-                    Code::LiteralFloat(Decimal::from_f64(float).unwrap())
-                }
-                RandomType::EphemeralInt => {
-                    Code::LiteralInteger(self.rng.gen_range(self.min_random_int..=self.max_random_int))
-                }
-                RandomType::EphemeralName => Code::LiteralName(self.rng.gen_range(0..=u64::MAX)),
-                RandomType::DefinedName(name) => Code::LiteralName(*name),
-                RandomType::Instruction(inst) => Code::Instruction(*inst),
-            }
+            self.random_atom_of_type(*self.types.get(index).unwrap())
         } else {
             let mut sizes_this_level = self.decompose(points - 1, points - 1);
             sizes_this_level.shuffle(&mut self.rng);

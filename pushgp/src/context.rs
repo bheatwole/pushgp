@@ -1,9 +1,12 @@
 use crate::code::Extraction;
-use crate::{Code, Configuration, Instruction};
+use crate::{Code, Configuration, Instruction, RandomType};
 use fnv::FnvHashMap;
 use log::*;
 use rand::{thread_rng, RngCore};
-use rust_decimal::Decimal;
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Context {
@@ -753,32 +756,177 @@ impl Context {
                     self.exec_stack.push(repeat);
                 }
             }
-            Instruction::FloatCos => {}
-            Instruction::FloatDefine => {}
-            Instruction::FloatDifference => {}
-            Instruction::FloatDup => {}
-            Instruction::FloatEqual => {}
-            Instruction::FloatFlush => {}
-            Instruction::FloatFromBoolean => {}
-            Instruction::FloatFromInteger => {}
-            Instruction::FloatGreater => {}
-            Instruction::FloatLess => {}
-            Instruction::FloatMax => {}
-            Instruction::FloatMin => {}
-            Instruction::FloatModulo => {}
-            Instruction::FloatPop => {}
-            Instruction::FloatProduct => {}
-            Instruction::FloatQuotient => {}
-            Instruction::FloatRand => {}
-            Instruction::FloatRot => {}
-            Instruction::FloatShove => {}
-            Instruction::FloatSin => {}
-            Instruction::FloatStackdepth => {}
-            Instruction::FloatSum => {}
-            Instruction::FloatSwap => {}
-            Instruction::FloatTan => {}
-            Instruction::FloatYankDup => {}
-            Instruction::FloatYank => {}
+            Instruction::FloatCos => {
+                if self.float_stack.len() >= 1 {
+                    let value = self.float_stack.pop().unwrap();
+                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
+                }
+            }
+            Instruction::FloatDefine => {
+                if self.name_stack.len() >= 1 && self.float_stack.len() >= 1 {
+                    let name = self.name_stack.pop().unwrap();
+                    let value = self.float_stack.pop().unwrap();
+                    self.defined_names.insert(name, Code::LiteralFloat(value));
+                }
+            }
+            Instruction::FloatDifference => {
+                if self.float_stack.len() >= 2 {
+                    let right = self.float_stack.pop().unwrap();
+                    let left = self.float_stack.pop().unwrap();
+                    self.float_stack.push(left - right);
+                }
+            }
+            Instruction::FloatDup => {
+                if self.float_stack.len() >= 1 {
+                    let value = self.float_stack.pop().unwrap();
+                    self.float_stack.push(value);
+                    self.float_stack.push(value);
+                }
+            }
+            Instruction::FloatEqual => {
+                if self.float_stack.len() >= 2 {
+                    let a = self.float_stack.pop().unwrap();
+                    let b = self.float_stack.pop().unwrap();
+                    self.bool_stack.push(a == b);
+                }
+            }
+            Instruction::FloatFlush => {
+                self.float_stack.clear();
+            }
+            Instruction::FloatFromBoolean => {
+                if self.bool_stack.len() >= 1 {
+                    self.float_stack.push(if self.bool_stack.pop().unwrap() {
+                        Decimal::new(1, 0)
+                    } else {
+                        Decimal::new(0, 0)
+                    });
+                }
+            }
+            Instruction::FloatFromInteger => {
+                if self.int_stack.len() >= 1 {
+                    self.float_stack.push(Decimal::new(self.int_stack.pop().unwrap(), 0));
+                }
+            }
+            Instruction::FloatGreater => {
+                if self.float_stack.len() >= 2 {
+                    let right = self.float_stack.pop().unwrap();
+                    let left = self.float_stack.pop().unwrap();
+                    self.bool_stack.push(left > right);
+                }
+            }
+            Instruction::FloatLess => {
+                if self.float_stack.len() >= 2 {
+                    let right = self.float_stack.pop().unwrap();
+                    let left = self.float_stack.pop().unwrap();
+                    self.bool_stack.push(left < right);
+                }
+            }
+            Instruction::FloatMax => {
+                if self.float_stack.len() >= 2 {
+                    let a = self.float_stack.pop().unwrap();
+                    let b = self.float_stack.pop().unwrap();
+                    self.float_stack.push(if a < b { b } else { a });
+                }
+            }
+            Instruction::FloatMin => {
+                if self.float_stack.len() >= 2 {
+                    let a = self.float_stack.pop().unwrap();
+                    let b = self.float_stack.pop().unwrap();
+                    self.float_stack.push(if a < b { a } else { b });
+                }
+            }
+            Instruction::FloatModulo => {
+                if self.float_stack.len() >= 2 {
+                    let bottom = self.float_stack.pop().unwrap();
+                    let top = self.float_stack.pop().unwrap();
+                    if bottom != Decimal::ZERO {
+                        self.float_stack.push(top % bottom);
+                    }
+                }
+            }
+            Instruction::FloatPop => {
+                self.float_stack.pop();
+            }
+            Instruction::FloatProduct => {
+                if self.float_stack.len() >= 2 {
+                    let right = self.float_stack.pop().unwrap();
+                    let left = self.float_stack.pop().unwrap();
+                    self.float_stack.push(left * right);
+                }
+            }
+            Instruction::FloatQuotient => {
+                let bottom = self.float_stack.pop().unwrap();
+                let top = self.float_stack.pop().unwrap();
+                if bottom != Decimal::ZERO {
+                    self.float_stack.push(top / bottom);
+                }
+            }
+            Instruction::FloatRand => {
+                self.float_stack.push(match self.config.random_atom_of_type(RandomType::EphemeralFloat) {
+                    Code::LiteralFloat(value) => value,
+                    _ => panic!("shouldn't ever get anything else"),
+                })
+            }
+            Instruction::FloatRot => {
+                let a = self.float_stack.pop().unwrap();
+                let b = self.float_stack.pop().unwrap();
+                let c = self.float_stack.pop().unwrap();
+                self.float_stack.push(b);
+                self.float_stack.push(a);
+                self.float_stack.push(c);
+            }
+            Instruction::FloatShove => {
+                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
+                    let b = self.float_stack.pop().unwrap();
+                    self.float_stack.insert(vec_index, b);
+                }
+            }
+            Instruction::FloatSin => {
+                if self.float_stack.len() >= 1 {
+                    let value = self.float_stack.pop().unwrap();
+                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
+                }
+            }
+            Instruction::FloatStackdepth => {
+                self.int_stack.push(self.float_stack.len() as i64);
+            }
+            Instruction::FloatSum => {
+                if self.float_stack.len() >= 2 {
+                    let right = self.float_stack.pop().unwrap();
+                    let left = self.float_stack.pop().unwrap();
+                    self.float_stack.push(left + right);
+                }
+            }
+            Instruction::FloatSwap => {
+                let a = self.float_stack.pop().unwrap();
+                let b = self.float_stack.pop().unwrap();
+                self.float_stack.push(a);
+                self.float_stack.push(b);
+            }
+            Instruction::FloatTan => {
+                if self.float_stack.len() >= 1 {
+                    let value = self.float_stack.pop().unwrap();
+                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
+                }
+            }
+            Instruction::FloatYankDup => {
+                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
+                    let &b = self.float_stack.get(vec_index).unwrap();
+                    self.float_stack.push(b);
+                }
+            }
+            Instruction::FloatYank => {
+                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
+                    let stack_index = self.int_stack.pop().unwrap();
+                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
+                    let b = self.float_stack.remove(vec_index);
+                    self.float_stack.push(b);
+                }
+            }
             Instruction::IntegerDefine => {}
             Instruction::IntegerDifference => {}
             Instruction::IntegerDup => {
@@ -857,7 +1005,7 @@ mod tests {
             config: Configuration::new(),
         };
         context.config.set_seed(1);
-        context.run(9999999);
+        context.run(1000);
         context
     }
 
@@ -983,6 +1131,35 @@ mod tests {
         test_exec_yank: ("( 2 EXECYANK A B C D )", "( C A B D )"),
         test_exec_yank_dup: ("( 2 EXECYANKDUP A B C D )", "( C A B C D )"),
         test_exec_y: ("( 0 EXECY ( INTEGERDUP 2 INTEGEREQUAL EXECIF EXECPOP ( INTEGERDUP 1 INTEGERSUM ) ) )", "( 0 1 2 )"),
+        test_float_cos: ("( 1.0 FLOATCOS )", "( 0.54030230586814 )"),
+        test_float_define: ("( A 1.0 FLOATDEFINE A )", "( 1.0 )"),
+        test_float_difference: ("( 3.0 1.0 FLOATDIFFERENCE )", "( 2.0 )"),
+        test_float_dup: ("( 1.0 FLOATDUP )", "( 1.0 1.0 )"),
+        test_float_equal: ("( 1.0 1.0 FLOATEQUAL )", "( TRUE )"),
+        test_float_flush: ("( 1.0 1.0 FLOATFLUSH )", "( )"),
+        test_float_fromboolean: ("( TRUE FLOATFROMBOOLEAN FALSE FLOATFROMBOOLEAN )", "( 1.0 0.0 )"),
+        test_float_frominteger: ("( 5 FLOATFROMINTEGER )", "( 5.0 )"),
+        test_float_greater: ("( 5.0 3.0 FLOATGREATER )", "( TRUE )"),
+        test_float_less: ("( 5.0 3.0 FLOATLESS )", "( FALSE )"),
+        test_float_max: ("( 5.0 3.0 FLOATMAX )", "( 5.0 )"),
+        test_float_min: ("( -5.0 3.0 FLOATMIN )", "( -5.0 )"),
+        test_float_modulo: ("( -5.0 3.0 FLOATMODULO )", "( -2.0 )"),
+        test_float_modulo_zero: ("( -5.0 0.0 FLOATMODULO )", "( )"),
+        test_float_product: ("( -5.0 3.0 FLOATPRODUCT )", "( -15.0 )"),
+        test_float_quotient: ("( 15.0 3.0 FLOATQUOTIENT )", "( 5.0 )"),
+        test_float_quotient_zero: ("( 15.0 0.0 FLOATQUOTIENT )", "( )"),
+        test_float_pop: ("( 5.0 FLOATPOP )", "( )"),
+        test_float_rot: ("( 0.0 1.0 2.0 FLOATROT )", "( 1.0 2.0 0.0 )"),
+        test_float_shove: ("( 1.0 2.0 3.0 2 FLOATSHOVE )", "( 3.0 1.0 2.0 )"),
+        test_float_shove_zero: ("( 1.0 2.0 3.0 0 FLOATSHOVE )", "( 1.0 2.0 3.0 )"),
+        test_float_shove_wrap: ("( 1.0 2.0 3.0 3 FLOATSHOVE )", "( 1.0 2.0 3.0 )"),
+        test_float_sin: ("( 1.0 FLOATSIN )", "( 0.841470984807897 )"),
+        test_float_stack_depth: ("( 1.0 2.0 FLOATSTACKDEPTH )", "( 1.0 2.0 2 )"),
+        test_float_sum: ("( 1.5 2.5 FLOATSUM )", "( 4.0 )"),
+        test_float_swap: ("( 1.0 2.0 3.0 FLOATSWAP )", "( 1.0 3.0 2.0 )"),
+        test_float_tan: ("( 1.0 FLOATTAN )", "( 1.557407724654902 )"),
+        test_float_yank: ("( 1.0 2.0 3.0 4.0 2 FLOATYANK )", "( 1.0 3.0 4.0 2.0 )"),
+        test_float_yank_dup: ("( 1.0 2.0 3.0 4.0 2 FLOATYANKDUP )", "( 1.0 2.0 3.0 4.0 2.0 )"),
         test_int_dup: ("( 42 INTEGERDUP )", "( 42 42 )"),
         test_int_equal: ("( 42 0 INTEGEREQUAL )", "( FALSE )"),
         test_int_pop: ("( 42 INTEGERPOP )", "( )"),
@@ -1004,6 +1181,14 @@ mod tests {
 
         assert_eq!(Some(1), context.next());
         assert_eq!(1, context.bool_stack.len());
+        assert_eq!(0, context.exec_stack.len());
+    }
+
+    #[test]
+    fn float_rand() {
+        let context = load_and_run("( FLOATRAND )");
+
+        assert_eq!(1, context.float_stack.len());
         assert_eq!(0, context.exec_stack.len());
     }
 
@@ -1035,7 +1220,7 @@ mod tests {
         // This instruction should not appear because it's weight is zero
         context.config.set_instruction_weight(Instruction::CodeCdr, 0);
 
-        context.run(9999999);
+        context.run(1000);
         assert_eq!(2, context.code_stack.len());
         assert!(context.code_stack.contains(&Code::Instruction(Instruction::BoolAnd)));
         assert!(context.code_stack.contains(&Code::Instruction(Instruction::CodeAppend)));

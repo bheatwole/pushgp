@@ -13,6 +13,7 @@ mod util;
 pub use code::Code;
 pub use configuration::Configuration;
 pub use context::Context;
+pub use instruction::ConfigureAllInstructions;
 pub use instruction::Instruction;
 pub use instruction_type::InstructionType;
 pub use random_type::RandomType;

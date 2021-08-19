@@ -1,4 +1,4 @@
-use crate::{Code, InstructionType};
+use crate::{Code, Configuration, InstructionType};
 use nom::{branch::alt, bytes::complete::tag, character::complete::space0, IResult};
 use std::fmt::Display;
 
@@ -6,7 +6,11 @@ trait NomTag {
     fn nom_tag(input: &str) -> IResult<&str, Instruction>;
 }
 
-#[derive(Clone, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
+pub trait ConfigureAllInstructions {
+    fn configure_all_instructions(config: &mut Configuration, default_weight: u8);
+}
+
+#[derive(Clone, ConfigureAllInstructions, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
 pub enum Instruction {
     /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
     BoolAnd,
@@ -589,10 +593,17 @@ pub fn parse_code_instruction(input: &str) -> IResult<&str, Code> {
 
 #[cfg(test)]
 mod tests {
-    use crate::Instruction;
+    use crate::{Configuration, ConfigureAllInstructions, Instruction};
 
     #[test]
     fn instruction_display() {
         assert_eq!("CODENTH", format!("{}", Instruction::CodeNth));
+    }
+
+    #[test]
+    fn configure_all() {
+        let mut config = Configuration::new();
+        Instruction::configure_all_instructions(&mut config, 1);
+        assert!(config.allowed_instructions().len() > 100);
     }
 }

@@ -126,3 +126,51 @@ fn impl_nom_text_to_instruction_for_variant(
         _ => panic!("#[derive(NomTag)] works only with unit variants"),
     }
 }
+
+#[proc_macro_derive(ConfigureAllInstructions)]
+#[doc(hidden)]
+pub fn configure_all_instructions(input: TokenStream) -> TokenStream {
+    // Parse the string representation
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+
+    match ast.data {
+        syn::Data::Enum(ref enum_data) => {
+            let name = &ast.ident;
+            impl_configure_all_instructions(name, enum_data).into()
+        }
+        _ => panic!("#[derive(ConfigureAllInstructions)] works only on enums"),
+    }
+}
+
+fn impl_configure_all_instructions(
+    name: &syn::Ident,
+    data: &syn::DataEnum,
+) -> proc_macro2::TokenStream {
+    let variants = data
+        .variants
+        .iter()
+        .map(|variant| impl_configure_all_instructions_for_variant(name, variant));
+
+    quote! {
+        impl ConfigureAllInstructions for #name {
+            fn configure_all_instructions(config: &mut Configuration, default_weight: u8) {
+                #(#variants)*
+            }
+        }
+    }
+}
+
+fn impl_configure_all_instructions_for_variant(
+    name: &syn::Ident,
+    variant: &syn::Variant,
+) -> proc_macro2::TokenStream {
+    let id = &variant.ident;
+    match variant.fields {
+        syn::Fields::Unit => {
+            quote! {
+                config.set_instruction_weight(#name::#id, default_weight);
+            }
+        }
+        _ => panic!("#[derive(ConfigureAllInstructions)] works only with unit variants"),
+    }
+}

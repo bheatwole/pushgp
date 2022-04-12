@@ -132,15 +132,9 @@ fn parse_code_name(input: &str) -> IResult<&str, Code> {
         return Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify)));
     }
 
-    // Otherwise, re-assemble and decode. Pad the end with '=' to make even multiple of four. We can only have '==' at
-    // the end or we get an invalid decode error. So if we have three missing bytes, the first missing byte needs to be
-    // 'A' which translates to a byte of 0x00.
-    while base64_string.len() % 4 > 0 {
-        if 1 == base64_string.len() % 4 {
-            base64_string.push('A');
-        } else {
-            base64_string.push('=');
-        }
+    // Otherwise, re-assemble and decode. Pad the end with 'A' (0x00) to make even multiple of four.
+    for _ in 0..base64_string.len() % 4 {
+        base64_string.push('A');
     }
     let base_64_input: String = base64_string.into_iter().collect();
     match base64::decode(base_64_input) {
@@ -217,6 +211,9 @@ mod tests {
 
         let expected = Code::LiteralName(269275136);
         assert_eq!(parse_code("ANAME"), expected);
+
+        let expected = Code::LiteralName(8692663460558411521);
+        assert_eq!(parse_code("AReallyLongNameThatMightNot213Parse"), expected);
     }
 
     #[test]

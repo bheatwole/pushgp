@@ -43,6 +43,11 @@ impl Configuration {
         }
     }
 
+    /// Sets to zero the weights of all instructions that use the specified type as an operand or as a destination. This
+    /// will prevent that type of instruction from appearing in randomly generated code.
+    /// 
+    /// For example if you didn't want your program to define any variables, you could call
+    /// context.disallow_type(InstructionType::Name)
     pub fn disallow_type(&mut self, disallowed: InstructionType) {
         // Loop through all instructions and set the weight to zero for any that use the specified type
         for (inst, weight) in self.instruction_weights.iter_mut() {
@@ -65,6 +70,8 @@ impl Configuration {
         self.instruction_weights.iter().filter(|pair| *pair.1 != 0).map(|pair| *pair.0).collect()
     }
 
+    /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
+    /// the generator with a truly random value ensuring unique results.
     pub fn set_seed(&mut self, seed: Option<u64>) {
         self.random_seed = seed;
         self.rng = if let Some(seed) = seed { SmallRng::seed_from_u64(seed) } else { SmallRng::from_entropy() }
@@ -76,6 +83,7 @@ impl Configuration {
         }
     }
 
+    /// Returns a random boolean value
     pub fn random_bool(&mut self) -> bool {
         if 0 == self.rng.gen_range(0..=1) {
             false
@@ -84,23 +92,34 @@ impl Configuration {
         }
     }
 
+    /// Returns a random float value in the range (context.min_random_float..context.max_random_float)
     pub fn random_float(&mut self) -> Decimal {
         let float: f64 = self.rng.gen_range(self.min_random_float..self.max_random_float);
         Decimal::from_f64(float).unwrap()
     }
 
+    /// Returns a random int value in the range (context.min_random_int..context.max_random_int)
     pub fn random_int(&mut self) -> i64 {
         self.rng.gen_range(self.min_random_int..=self.max_random_int)
     }
 
+    /// Returns a random int value using the range passed int
     pub fn random_int_in_range(&mut self, range: std::ops::Range<i64>) -> i64 {
         self.rng.gen_range(range)
     }
 
+    /// Returns a random name
     pub fn random_name(&mut self) -> u64 {
         self.rng.gen_range(0..=u64::MAX)
     }
 
+    /// Generates some random code using the context parameters for how often random bool, ints, floats and names are
+    /// choosen. You may also pass in pre-defined names that could be selected randomly as well. The weights table for
+    /// all instructions will be considered as well.
+    /// 
+    /// The generated code will have at least one code point and as many as `context.max_points_in_random_expressions`.
+    /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
+    /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
     pub fn generate_random_code(&mut self, defined_names: &[u64]) -> Code {
         if 0 == self.types.len() {
             // Define the ephemal constants types
@@ -133,6 +152,7 @@ impl Configuration {
 
     fn random_code_with_size(&mut self, points: usize) -> Code {
         if 1 == points {
+            // We need a leaf, so pick one of the atoms
             let index = self.rng.gen_range(0..self.types.len());
             match self.types.get(index).unwrap() {
                 RandomType::EphemeralBool => Code::LiteralBool(self.random_bool()),
@@ -143,6 +163,7 @@ impl Configuration {
                 RandomType::Instruction(inst) => Code::Instruction(*inst),
             }
         } else {
+            // Break this level down into a list of lists, or possibly specific leaf atoms.
             let mut sizes_this_level = self.decompose(points - 1, points - 1);
             sizes_this_level.shuffle(&mut self.rng);
             let mut list = vec![];

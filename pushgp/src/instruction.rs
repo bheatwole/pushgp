@@ -10,6 +10,8 @@ pub trait ConfigureAllInstructions {
     fn configure_all_instructions(config: &mut Configuration, default_weight: u8);
 }
 
+/// Each Instruction performs a different operation to the stacks of a Context. The bulk of the repeative definitions
+/// are handled by macros.
 #[derive(Clone, ConfigureAllInstructions, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
 pub enum Instruction {
     /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack

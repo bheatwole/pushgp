@@ -1,6 +1,9 @@
-// Takes a stack index which is a zero-based index from the end of a Vec and translates it into a Vec index (zero-based
-// from the front). Additionally, if the stack_index is larger than the vec_len, the modulo is used so that it is
-// always a valid result
+/// Takes a stack index which is a zero-based index from the end of a Vec and translates it into a Vec index (zero-based
+/// from the front). Additionally, if the stack_index is larger than the vec_len, the modulo is used so that it is
+/// always a valid result
+/// 
+/// stack index: [ 4, 3, 2, 1, 0 ]
+///   vec index: [ 0, 1, 2, 3, 4 ]
 pub fn stack_to_vec(mut stack_index: i64, vec_len: usize) -> usize {
     assert!(vec_len > 0);
 
@@ -42,16 +45,16 @@ mod tests {
         assert_eq!(1999, stack_to_vec(2000, 2000));
 
         // Going negative should not break the cycle
-        assert_eq!(4, stack_to_vec(5, 5));
-        assert_eq!(0, stack_to_vec(4, 5));
-        assert_eq!(1, stack_to_vec(3, 5));
-        assert_eq!(2, stack_to_vec(2, 5));
-        assert_eq!(3, stack_to_vec(1, 5));
-        assert_eq!(4, stack_to_vec(0, 5));
-        assert_eq!(0, stack_to_vec(-1, 5));
-        assert_eq!(1, stack_to_vec(-2, 5));
-        assert_eq!(2, stack_to_vec(-3, 5));
-        assert_eq!(3, stack_to_vec(-4, 5));
-        assert_eq!(4, stack_to_vec(-5, 5));
+        assert_eq!(stack_to_vec(5, 5), 4);
+        assert_eq!(stack_to_vec(4, 5), 0);
+        assert_eq!(stack_to_vec(3, 5), 1);
+        assert_eq!(stack_to_vec(2, 5), 2);
+        assert_eq!(stack_to_vec(1, 5), 3);
+        assert_eq!(stack_to_vec(0, 5), 4);
+        assert_eq!(stack_to_vec(-1, 5), 0);
+        assert_eq!(stack_to_vec(-2, 5), 1);
+        assert_eq!(stack_to_vec(-3, 5), 2);
+        assert_eq!(stack_to_vec(-4, 5), 3);
+        assert_eq!(stack_to_vec(-5, 5), 4);
     }
 }

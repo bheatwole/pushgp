@@ -7,10 +7,10 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.13"
-byte-slice-cast = "1.0.0"
-fnv = "1.0.7"
-log = "0.4.11"
-nom = "6.2.1"
+byte-slice-cast = "1.0"
+fnv = "1.0"
+log = "0.4"
+nom = "7.1"
 pushgp-macros = { path = "../pushgp-macros" }
 rust_decimal = "1.15"
 

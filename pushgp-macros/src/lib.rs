@@ -48,6 +48,49 @@ fn impl_display_for_variant(name: &syn::Ident, variant: &syn::Variant) -> proc_m
     }
 }
 
+#[proc_macro_derive(ExecuteInstruction)]
+#[doc(hidden)]
+pub fn execute_instruction(input: TokenStream) -> TokenStream {
+    // Parse the string representation
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+
+    match ast.data {
+        syn::Data::Enum(ref enum_data) => {
+            let name = &ast.ident;
+            impl_execute_instruction(name, enum_data).into()
+        }
+        _ => panic!("#[derive(ExecuteInstruction)] works only on enums"),
+    }
+}
+
+fn impl_execute_instruction(name: &syn::Ident, data: &syn::DataEnum) -> proc_macro2::TokenStream {
+    let variants = data
+        .variants
+        .iter()
+        .map(|variant| impl_execute_instruction_for_variant(name, variant));
+
+    quote! {
+        pub fn execute_instruction(context: &mut Context, instruction: Instruction) {
+            match instruction {
+                #(#variants)*
+            }
+        }
+    }
+}
+
+fn impl_execute_instruction_for_variant(name: &syn::Ident, variant: &syn::Variant) -> proc_macro2::TokenStream {
+    let id = &variant.ident;
+    let lower = syn::Ident::new(&format!("execute_{}", id).to_lowercase(), id.span());
+    match variant.fields {
+        syn::Fields::Unit => {
+            quote! {
+                #name::#id => #lower(context),
+            }
+        }
+        _ => panic!("#[derive(ExecuteInstruction)] works only with unit variants"),
+    }
+}
+
 #[proc_macro_derive(NomTag)]
 #[doc(hidden)]
 pub fn nom_tag(input: TokenStream) -> TokenStream {

@@ -1,4 +1,10 @@
-use crate::{Code, Configuration, InstructionType};
+use crate::execute_bool::*;
+use crate::execute_code::*;
+use crate::execute_exec::*;
+use crate::execute_float::*;
+use crate::execute_integer::*;
+use crate::execute_name::*;
+use crate::{Code, Configuration, Context, InstructionType};
 use nom::{branch::alt, bytes::complete::tag, character::complete::space0, IResult};
 use std::fmt::Display;
 
@@ -12,7 +18,7 @@ pub trait ConfigureAllInstructions {
 
 /// Each Instruction performs a different operation to the stacks of a Context. The bulk of the repeative definitions
 /// are handled by macros.
-#[derive(Clone, ConfigureAllInstructions, Copy, Debug, Display, Eq, Hash, NomTag, PartialEq)]
+#[derive(Clone, ConfigureAllInstructions, Copy, Debug, Display, Eq, ExecuteInstruction, Hash, NomTag, PartialEq)]
 pub enum Instruction {
     /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
     BoolAnd,

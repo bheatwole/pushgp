@@ -1,23 +1,25 @@
-use crate::code::Extraction;
+use crate::execute_bool::*;
+use crate::execute_code::*;
+use crate::execute_exec::*;
+use crate::execute_float::*;
+use crate::execute_integer::*;
+use crate::execute_name::*;
 use crate::{Code, Configuration, Instruction};
 use fnv::FnvHashMap;
 use log::*;
-use rust_decimal::{
-    prelude::{FromPrimitive, ToPrimitive},
-    Decimal,
-};
+use rust_decimal::Decimal;
 
 #[derive(Debug, PartialEq)]
 pub struct Context {
-    bool_stack: Vec<bool>,
-    code_stack: Vec<Code>,
-    exec_stack: Vec<Code>,
-    float_stack: Vec<Decimal>,
-    int_stack: Vec<i64>,
-    name_stack: Vec<u64>,
-    quote_next_name: bool,
-    defined_names: FnvHashMap<u64, Code>,
-    config: Configuration,
+    pub(crate) bool_stack: Vec<bool>,
+    pub(crate) code_stack: Vec<Code>,
+    pub(crate) exec_stack: Vec<Code>,
+    pub(crate) float_stack: Vec<Decimal>,
+    pub(crate) int_stack: Vec<i64>,
+    pub(crate) name_stack: Vec<u64>,
+    pub(crate) quote_next_name: bool,
+    pub(crate) defined_names: FnvHashMap<u64, Code>,
+    pub(crate) config: Configuration,
 }
 
 impl Iterator for Context {
@@ -101,1077 +103,148 @@ impl Context {
 
     fn execute_instruction(&mut self, instruction: Instruction) {
         match instruction {
-            Instruction::BoolAnd => {
-                if self.bool_stack.len() >= 2 {
-                    let a = self.bool_stack.pop().unwrap();
-                    let b = self.bool_stack.pop().unwrap();
-                    self.bool_stack.push(a && b);
-                }
-            }
-            Instruction::BoolDefine => {
-                if self.bool_stack.len() >= 1 && self.name_stack.len() >= 1 {
-                    let b = self.bool_stack.pop().unwrap();
-                    let n = self.name_stack.pop().unwrap();
-                    self.defined_names.insert(n, Code::LiteralBool(b));
-                }
-            }
-            Instruction::BoolDup => {
-                if self.bool_stack.len() >= 1 {
-                    let &b = self.bool_stack.last().unwrap();
-                    self.bool_stack.push(b);
-                }
-            }
-            Instruction::BoolEqual => {
-                if self.bool_stack.len() >= 2 {
-                    let a = self.bool_stack.pop().unwrap();
-                    let b = self.bool_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::BoolFlush => {
-                self.bool_stack.clear();
-            }
-            Instruction::BoolFromFloat => {
-                if self.float_stack.len() >= 1 {
-                    let f = self.float_stack.pop().unwrap();
-                    self.bool_stack.push(!f.is_zero());
-                }
-            }
-            Instruction::BoolFromInt => {
-                if self.int_stack.len() >= 1 {
-                    let i = self.int_stack.pop().unwrap();
-                    self.bool_stack.push(i != 0);
-                }
-            }
-            Instruction::BoolNot => {
-                if self.bool_stack.len() >= 1 {
-                    let b = self.bool_stack.pop().unwrap();
-                    self.bool_stack.push(!b);
-                }
-            }
-            Instruction::BoolOr => {
-                if self.bool_stack.len() >= 2 {
-                    let a = self.bool_stack.pop().unwrap();
-                    let b = self.bool_stack.pop().unwrap();
-                    self.bool_stack.push(a || b);
-                }
-            }
-            Instruction::BoolPop => {
-                self.bool_stack.pop();
-            }
-            Instruction::BoolRand => self.bool_stack.push(self.config.random_bool()),
-            Instruction::BoolRot => {
-                let a = self.bool_stack.pop().unwrap();
-                let b = self.bool_stack.pop().unwrap();
-                let c = self.bool_stack.pop().unwrap();
-                self.bool_stack.push(b);
-                self.bool_stack.push(a);
-                self.bool_stack.push(c);
-            }
-            Instruction::BoolShove => {
-                if self.bool_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.bool_stack.len());
-                    let b = self.bool_stack.pop().unwrap();
-                    self.bool_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::BoolStackDepth => {
-                self.int_stack.push(self.bool_stack.len() as i64);
-            }
-            Instruction::BoolSwap => {
-                let a = self.bool_stack.pop().unwrap();
-                let b = self.bool_stack.pop().unwrap();
-                self.bool_stack.push(a);
-                self.bool_stack.push(b);
-            }
-            Instruction::BoolYank => {
-                if self.bool_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.bool_stack.len());
-                    let b = self.bool_stack.remove(vec_index);
-                    self.bool_stack.push(b);
-                }
-            }
-            Instruction::BoolYankDup => {
-                if self.bool_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.bool_stack.len());
-                    let &b = self.bool_stack.get(vec_index).unwrap();
-                    self.bool_stack.push(b);
-                }
-            }
-            Instruction::CodeAppend => {
-                if self.code_stack.len() >= 2 {
-                    let src = self.code_stack.pop().unwrap().to_list();
-                    let mut dst = self.code_stack.pop().unwrap().to_list();
-                    dst.extend_from_slice(&src[..]);
-                    self.code_stack.push(Code::List(dst));
-                }
-            }
-            Instruction::CodeAtom => {
-                if self.code_stack.len() >= 1 {
-                    let c = self.code_stack.last().unwrap();
-                    self.bool_stack.push(!c.is_list());
-                }
-            }
-            Instruction::CodeCar => {
-                if self.code_stack.len() >= 1 {
-                    let c = self.code_stack.pop().unwrap();
-                    self.code_stack.push(match c {
-                        Code::List(list) => {
-                            if list.len() > 0 {
-                                list[0].clone()
-                            } else {
-                                Code::List(vec![])
-                            }
-                        }
-                        x => x.clone(),
-                    });
-                }
-            }
-            Instruction::CodeCdr => {
-                if self.code_stack.len() >= 1 {
-                    let c = self.code_stack.pop().unwrap();
-                    self.code_stack.push(match c {
-                        Code::List(mut list) => {
-                            if list.len() > 0 {
-                                list.remove(0);
-                            }
-                            Code::List(list)
-                        }
-                        _ => Code::List(vec![]),
-                    })
-                }
-            }
-            Instruction::CodeCons => {
-                if self.code_stack.len() >= 2 {
-                    let top = self.code_stack.pop().unwrap();
-                    let c = self.code_stack.pop().unwrap();
-                    self.code_stack.push(match top {
-                        Code::List(mut list) => {
-                            list.insert(0, c);
-                            Code::List(list)
-                        }
-                        x => Code::List(vec![c, x]),
-                    })
-                }
-            }
-            Instruction::CodeContainer => {
-                if self.code_stack.len() >= 2 {
-                    let look_for = self.code_stack.pop().unwrap();
-                    let look_in = self.code_stack.pop().unwrap();
-                    if let Some(code) = look_in.container(&look_for) {
-                        self.code_stack.push(code);
-                    }
-                }
-            }
-            Instruction::CodeContains => {
-                if self.code_stack.len() >= 2 {
-                    let look_for = self.code_stack.pop().unwrap();
-                    let look_in = self.code_stack.pop().unwrap();
-                    self.bool_stack.push(look_in.contains(&look_for));
-                }
-            }
-            Instruction::CodeDefine => {
-                if self.code_stack.len() >= 1 && self.name_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    let n = self.name_stack.pop().unwrap();
-                    self.defined_names.insert(n, code);
-                }
-            }
-            Instruction::CodeDefinition => {
-                if self.name_stack.len() >= 1 {
-                    let name = self.name_stack.pop().unwrap();
-                    if let Some(code) = self.defined_names.get(&name) {
-                        self.code_stack.push(code.clone());
-                    }
-                }
-            }
-            Instruction::CodeDiscrepancy => {
-                if self.code_stack.len() >= 2 {
-                    let a = self.code_stack.pop().unwrap();
-                    let b = self.code_stack.pop().unwrap();
-
-                    // Determine all the unique code items along with the count that each appears
-                    let a_items = a.discrepancy_items();
-                    let b_items = b.discrepancy_items();
-
-                    // Count up all the difference from a to b
-                    let mut discrepancy = 0;
-                    for (key, &a_count) in a_items.iter() {
-                        let b_count = *b_items.get(&key).unwrap_or(&0);
-                        discrepancy += (a_count - b_count).abs();
-                    }
-
-                    // Count up the difference from b to a for only the keys we didn't use already
-                    for (key, &b_count) in b_items.iter() {
-                        if a_items.get(&key).is_none() {
-                            discrepancy += b_count;
-                        }
-                    }
-
-                    // Push that value
-                    self.int_stack.push(discrepancy);
-                }
-            }
-            Instruction::CodeDo => {
-                if self.code_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    self.exec_stack.push(Code::Instruction(Instruction::CodePop));
-                    self.exec_stack.push(code.clone());
-                    self.code_stack.push(code);
-                }
-            }
-            Instruction::CodeDoN => {
-                if self.code_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    self.exec_stack.push(code.clone());
-                    self.code_stack.push(code);
-                }
-            }
-            Instruction::CodeDoNCount => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    let count = self.int_stack.pop().unwrap();
-                    // NOOP if count <= 0
-                    if count <= 0 {
-                        self.code_stack.push(code);
-                        self.int_stack.push(count);
-                    } else {
-                        // Turn into DoNRange with (Count - 1) as destination
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(0),
-                            Code::LiteralInteger(count - 1),
-                            Code::Instruction(Instruction::CodeQuote),
-                            code,
-                            Code::Instruction(Instruction::CodeDoNRange),
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-                }
-            }
-            Instruction::CodeDoNRange => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 2 {
-                    let code = self.code_stack.pop().unwrap();
-                    let dest = self.int_stack.pop().unwrap();
-                    let cur = self.int_stack.pop().unwrap();
-
-                    // If we haven't reached the destination yet, push the next iteration onto the stack first.
-                    if cur != dest {
-                        let increment = if cur < dest { 1 } else { -1 };
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(cur + increment),
-                            Code::LiteralInteger(dest),
-                            Code::Instruction(Instruction::CodeQuote),
-                            code.clone(),
-                            Code::Instruction(Instruction::CodeDoNRange),
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-
-                    // Push the current index onto the int stack so its accessible in the loop
-                    self.int_stack.push(cur);
-
-                    // Push the code to run onto the exec stack
-                    self.exec_stack.push(code);
-                }
-            }
-            Instruction::CodeDoNTimes => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    let count = self.int_stack.pop().unwrap();
-
-                    // NOOP if count <= 0
-                    if count <= 0 {
-                        self.code_stack.push(code);
-                        self.int_stack.push(count);
-                    } else {
-                        // The difference between Count and Times is that the 'current index' is not available to
-                        // the loop body. Pop that value first
-                        let code = Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
-
-                        // Turn into DoNRange with (Count - 1) as destination
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(0),
-                            Code::LiteralInteger(count - 1),
-                            Code::Instruction(Instruction::CodeQuote),
-                            code,
-                            Code::Instruction(Instruction::CodeDoNRange),
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-                }
-            }
-            Instruction::CodeDup => {
-                if self.code_stack.len() >= 1 {
-                    let code = self.code_stack.last().unwrap().clone();
-                    self.code_stack.push(code);
-                }
-            }
-            Instruction::CodeEqual => {
-                if self.code_stack.len() >= 2 {
-                    let a = self.code_stack.pop().unwrap();
-                    let b = self.code_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::CodeExtract => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    let total_points = code.points();
-                    let point = self.int_stack.pop().unwrap().abs() % total_points;
-                    match code.extract_point(point) {
-                        Extraction::Extracted(code) => self.code_stack.push(code),
-                        Extraction::Used(_) => {
-                            panic!("should always be able to extract some code because of abs() and modulo")
-                        }
-                    }
-                }
-            }
-            Instruction::CodeFlush => {
-                self.code_stack.clear();
-            }
-            Instruction::CodeFromBoolean => {
-                if self.bool_stack.len() >= 1 {
-                    let value = self.bool_stack.pop().unwrap();
-                    self.code_stack.push(Code::LiteralBool(value));
-                }
-            }
-            Instruction::CodeFromFloat => {
-                if self.float_stack.len() >= 1 {
-                    let value = self.float_stack.pop().unwrap();
-                    self.code_stack.push(Code::LiteralFloat(value));
-                }
-            }
-            Instruction::CodeFromInteger => {
-                if self.int_stack.len() >= 1 {
-                    let value = self.int_stack.pop().unwrap();
-                    self.code_stack.push(Code::LiteralInteger(value));
-                }
-            }
-            Instruction::CodeFromName => {
-                if self.name_stack.len() >= 1 {
-                    let value = self.name_stack.pop().unwrap();
-                    self.code_stack.push(Code::LiteralName(value));
-                }
-            }
-            Instruction::CodeIf => {
-                if self.code_stack.len() >= 2 && self.bool_stack.len() >= 1 {
-                    let false_branch = self.code_stack.pop().unwrap();
-                    let true_branch = self.code_stack.pop().unwrap();
-                    self.exec_stack.push(if self.bool_stack.pop().unwrap() { true_branch } else { false_branch });
-                }
-            }
-            Instruction::CodeInsert => {
-                if self.code_stack.len() >= 2 && self.int_stack.len() >= 1 {
-                    let search_in = self.code_stack.pop().unwrap();
-                    let replace_with = self.code_stack.pop().unwrap();
-                    let total_points = search_in.points();
-                    let point = self.int_stack.pop().unwrap().abs() % total_points;
-                    self.code_stack.push(search_in.replace_point(point, &replace_with).0);
-                }
-            }
-            Instruction::CodeInstructions => {
-                for inst in self.config.allowed_instructions() {
-                    self.code_stack.push(Code::Instruction(inst));
-                }
-            }
-            Instruction::CodeLength => {
-                if self.code_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    self.int_stack.push(code.len() as i64);
-                }
-            }
-            Instruction::CodeList => {
-                if self.code_stack.len() >= 2 {
-                    let a = self.code_stack.pop().unwrap();
-                    let b = self.code_stack.pop().unwrap();
-                    self.code_stack.push(Code::List(vec![b, a]));
-                }
-            }
-            Instruction::CodeMember => {
-                if self.code_stack.len() >= 2 {
-                    let look_in = self.code_stack.pop().unwrap();
-                    let look_for = self.code_stack.pop().unwrap();
-                    self.bool_stack.push(look_in.has_member(&look_for));
-                }
-            }
-            Instruction::CodeNoop => {
-                // Intentionally blank
-            }
-            Instruction::CodeNth => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let index = self.int_stack.pop().unwrap().abs() as usize;
-                    let mut list = self.code_stack.pop().unwrap().to_list();
-                    if 0 == list.len() {
-                        self.code_stack.push(Code::List(list));
-                    } else {
-                        let index = index % list.len();
-                        list.truncate(index + 1);
-                        self.code_stack.push(list.pop().unwrap());
-                    }
-                }
-            }
-            Instruction::CodeNthCdr => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let index = self.int_stack.pop().unwrap().abs() as usize;
-                    let mut list = self.code_stack.pop().unwrap().to_list();
-                    if 0 == list.len() {
-                        self.code_stack.push(Code::List(list));
-                    } else {
-                        let index = index % list.len();
-                        list.remove(index);
-                        self.code_stack.push(Code::List(list));
-                    }
-                }
-            }
-            Instruction::CodeNull => {
-                if self.code_stack.len() >= 1 {
-                    // This relies on the behavior that code.len() returns 1 for atoms
-                    let code = self.code_stack.pop().unwrap();
-                    self.bool_stack.push(0 == code.len());
-                }
-            }
-            Instruction::CodePop => {
-                if self.code_stack.len() >= 1 {
-                    self.code_stack.pop();
-                }
-            }
-            Instruction::CodePosition => {
-                if self.code_stack.len() >= 2 {
-                    let look_in = self.code_stack.pop().unwrap();
-                    let look_for = self.code_stack.pop().unwrap();
-                    match look_in.position_of(&look_for) {
-                        Some(index) => self.int_stack.push(index as i64),
-                        None => self.int_stack.push(-1),
-                    }
-                }
-            }
-            Instruction::CodeQuote => {
-                if self.exec_stack.len() >= 1 {
-                    self.code_stack.push(self.exec_stack.pop().unwrap());
-                }
-            }
-            Instruction::CodeRand => {
-                let names: Vec<u64> = self.defined_names.keys().map(|n| *n).collect();
-                self.code_stack.push(self.config.generate_random_code(&names[..]));
-            }
-            Instruction::CodeRot => {
-                let a = self.code_stack.pop().unwrap();
-                let b = self.code_stack.pop().unwrap();
-                let c = self.code_stack.pop().unwrap();
-                self.code_stack.push(b);
-                self.code_stack.push(a);
-                self.code_stack.push(c);
-            }
-            Instruction::CodeShove => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
-                    let b = self.code_stack.pop().unwrap();
-                    self.code_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::CodeSize => {
-                if self.code_stack.len() >= 1 {
-                    let code = self.code_stack.pop().unwrap();
-                    self.int_stack.push(code.points());
-                }
-            }
-            Instruction::CodeStackdepth => {
-                self.int_stack.push(self.code_stack.len() as i64);
-            }
-            Instruction::CodeSubstitute => {
-                if self.code_stack.len() >= 3 {
-                    let look_in = self.code_stack.pop().unwrap();
-                    let look_for = self.code_stack.pop().unwrap();
-                    let replace_with = self.code_stack.pop().unwrap();
-                    self.code_stack.push(look_in.replace(&look_for, &replace_with));
-                }
-            }
-            Instruction::CodeSwap => {
-                let a = self.code_stack.pop().unwrap();
-                let b = self.code_stack.pop().unwrap();
-                self.code_stack.push(a);
-                self.code_stack.push(b);
-            }
-            Instruction::CodeYank => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
-                    let b = self.code_stack.remove(vec_index);
-                    self.code_stack.push(b);
-                }
-            }
-            Instruction::CodeYankDup => {
-                if self.code_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.code_stack.len());
-                    let b = self.code_stack.get(vec_index).unwrap().clone();
-                    self.code_stack.push(b);
-                }
-            }
-            Instruction::ExecDefine => {
-                if self.name_stack.len() >= 1 && self.exec_stack.len() >= 1 {
-                    let name = self.name_stack.pop().unwrap();
-                    let code = self.exec_stack.pop().unwrap();
-                    self.defined_names.insert(name, code);
-                }
-            }
-            Instruction::ExecDoNCount => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let code = self.exec_stack.pop().unwrap();
-                    let count = self.int_stack.pop().unwrap();
-                    // NOOP if count <= 0
-                    if count <= 0 {
-                        self.exec_stack.push(code);
-                        self.int_stack.push(count);
-                    } else {
-                        // Turn into DoNRange with (Count - 1) as destination
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(0),
-                            Code::LiteralInteger(count - 1),
-                            Code::Instruction(Instruction::ExecDoNRange),
-                            code,
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-                }
-            }
-            Instruction::ExecDoNRange => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 2 {
-                    let code = self.exec_stack.pop().unwrap();
-                    let dest = self.int_stack.pop().unwrap();
-                    let cur = self.int_stack.pop().unwrap();
-
-                    // If we haven't reached the destination yet, push the next iteration onto the stack first.
-                    if cur != dest {
-                        let increment = if cur < dest { 1 } else { -1 };
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(cur + increment),
-                            Code::LiteralInteger(dest),
-                            Code::Instruction(Instruction::ExecDoNRange),
-                            code.clone(),
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-
-                    // Push the current index onto the int stack so its accessible in the loop
-                    self.int_stack.push(cur);
-
-                    // Push the code to run onto the exec stack
-                    self.exec_stack.push(code);
-                }
-            }
-            Instruction::ExecDoNTimes => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let code = self.exec_stack.pop().unwrap();
-                    let count = self.int_stack.pop().unwrap();
-
-                    // NOOP if count <= 0
-                    if count <= 0 {
-                        self.exec_stack.push(code);
-                        self.int_stack.push(count);
-                    } else {
-                        // The difference between Count and Times is that the 'current index' is not available to
-                        // the loop body. Pop that value first
-                        let code = Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
-
-                        // Turn into DoNRange with (Count - 1) as destination
-                        let next = Code::List(vec![
-                            Code::LiteralInteger(0),
-                            Code::LiteralInteger(count - 1),
-                            Code::Instruction(Instruction::ExecDoNRange),
-                            code,
-                        ]);
-                        self.exec_stack.push(next);
-                    }
-                }
-            }
-            Instruction::ExecDup => {
-                if self.exec_stack.len() >= 1 {
-                    let value = self.exec_stack.last().unwrap().clone();
-                    self.exec_stack.push(value);
-                }
-            }
-            Instruction::ExecEqual => {
-                if self.exec_stack.len() >= 2 {
-                    let a = self.exec_stack.pop().unwrap();
-                    let b = self.exec_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::ExecFlush => {
-                self.exec_stack.clear();
-            }
-            Instruction::ExecIf => {
-                if self.exec_stack.len() >= 2 && self.bool_stack.len() >= 1 {
-                    let true_branch = self.exec_stack.pop().unwrap();
-                    let false_branch = self.exec_stack.pop().unwrap();
-                    self.exec_stack.push(if self.bool_stack.pop().unwrap() { true_branch } else { false_branch });
-                }
-            }
-            Instruction::ExecK => {
-                if self.exec_stack.len() >= 2 {
-                    let keep = self.exec_stack.pop().unwrap();
-                    let _discard = self.exec_stack.pop().unwrap();
-                    self.exec_stack.push(keep);
-                }
-            }
-            Instruction::ExecPop => {
-                if self.exec_stack.len() >= 1 {
-                    let _discard = self.exec_stack.pop().unwrap();
-                }
-            }
-            Instruction::ExecRot => {
-                let a = self.exec_stack.pop().unwrap();
-                let b = self.exec_stack.pop().unwrap();
-                let c = self.exec_stack.pop().unwrap();
-                self.exec_stack.push(b);
-                self.exec_stack.push(a);
-                self.exec_stack.push(c);
-            }
-            Instruction::ExecShove => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
-                    let b = self.exec_stack.pop().unwrap();
-                    self.exec_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::ExecStackdepth => {
-                self.int_stack.push(self.exec_stack.len() as i64);
-            }
-            Instruction::ExecSwap => {
-                let a = self.exec_stack.pop().unwrap();
-                let b = self.exec_stack.pop().unwrap();
-                self.exec_stack.push(a);
-                self.exec_stack.push(b);
-            }
-            Instruction::ExecS => {
-                if self.exec_stack.len() >= 3 {
-                    let a = self.exec_stack.pop().unwrap();
-                    let b = self.exec_stack.pop().unwrap();
-                    let c = self.exec_stack.pop().unwrap();
-                    self.exec_stack.push(Code::List(vec![b, c.clone()]));
-                    self.exec_stack.push(c);
-                    self.exec_stack.push(a);
-                }
-            }
-            Instruction::ExecYankDup => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
-                    let b = self.exec_stack.get(vec_index).unwrap().clone();
-                    self.exec_stack.push(b);
-                }
-            }
-            Instruction::ExecYank => {
-                if self.exec_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.exec_stack.len());
-                    let b = self.exec_stack.remove(vec_index);
-                    self.exec_stack.push(b);
-                }
-            }
-            Instruction::ExecY => {
-                if self.exec_stack.len() >= 1 {
-                    // Get the code we will run on a loop
-                    let repeat = self.exec_stack.pop().unwrap();
-                    // Construct the looping code
-                    let next_exec = Code::List(vec![Code::Instruction(Instruction::ExecY), repeat.clone()]);
-                    // Push them back so that we DO and the DO AGAIN
-                    self.exec_stack.push(next_exec);
-                    self.exec_stack.push(repeat);
-                }
-            }
-            Instruction::FloatCos => {
-                if self.float_stack.len() >= 1 {
-                    let value = self.float_stack.pop().unwrap();
-                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
-                }
-            }
-            Instruction::FloatDefine => {
-                if self.name_stack.len() >= 1 && self.float_stack.len() >= 1 {
-                    let name = self.name_stack.pop().unwrap();
-                    let value = self.float_stack.pop().unwrap();
-                    self.defined_names.insert(name, Code::LiteralFloat(value));
-                }
-            }
-            Instruction::FloatDifference => {
-                if self.float_stack.len() >= 2 {
-                    let right = self.float_stack.pop().unwrap();
-                    let left = self.float_stack.pop().unwrap();
-                    self.float_stack.push(left - right);
-                }
-            }
-            Instruction::FloatDup => {
-                if self.float_stack.len() >= 1 {
-                    let value = self.float_stack.pop().unwrap();
-                    self.float_stack.push(value);
-                    self.float_stack.push(value);
-                }
-            }
-            Instruction::FloatEqual => {
-                if self.float_stack.len() >= 2 {
-                    let a = self.float_stack.pop().unwrap();
-                    let b = self.float_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::FloatFlush => {
-                self.float_stack.clear();
-            }
-            Instruction::FloatFromBoolean => {
-                if self.bool_stack.len() >= 1 {
-                    self.float_stack.push(if self.bool_stack.pop().unwrap() {
-                        Decimal::new(1, 0)
-                    } else {
-                        Decimal::new(0, 0)
-                    });
-                }
-            }
-            Instruction::FloatFromInteger => {
-                if self.int_stack.len() >= 1 {
-                    self.float_stack.push(Decimal::new(self.int_stack.pop().unwrap(), 0));
-                }
-            }
-            Instruction::FloatGreater => {
-                if self.float_stack.len() >= 2 {
-                    let right = self.float_stack.pop().unwrap();
-                    let left = self.float_stack.pop().unwrap();
-                    self.bool_stack.push(left > right);
-                }
-            }
-            Instruction::FloatLess => {
-                if self.float_stack.len() >= 2 {
-                    let right = self.float_stack.pop().unwrap();
-                    let left = self.float_stack.pop().unwrap();
-                    self.bool_stack.push(left < right);
-                }
-            }
-            Instruction::FloatMax => {
-                if self.float_stack.len() >= 2 {
-                    let a = self.float_stack.pop().unwrap();
-                    let b = self.float_stack.pop().unwrap();
-                    self.float_stack.push(if a < b { b } else { a });
-                }
-            }
-            Instruction::FloatMin => {
-                if self.float_stack.len() >= 2 {
-                    let a = self.float_stack.pop().unwrap();
-                    let b = self.float_stack.pop().unwrap();
-                    self.float_stack.push(if a < b { a } else { b });
-                }
-            }
-            Instruction::FloatModulo => {
-                if self.float_stack.len() >= 2 {
-                    let bottom = self.float_stack.pop().unwrap();
-                    let top = self.float_stack.pop().unwrap();
-                    if bottom != Decimal::ZERO {
-                        self.float_stack.push(top % bottom);
-                    }
-                }
-            }
-            Instruction::FloatPop => {
-                self.float_stack.pop();
-            }
-            Instruction::FloatProduct => {
-                if self.float_stack.len() >= 2 {
-                    let right = self.float_stack.pop().unwrap();
-                    let left = self.float_stack.pop().unwrap();
-                    self.float_stack.push(left * right);
-                }
-            }
-            Instruction::FloatQuotient => {
-                let bottom = self.float_stack.pop().unwrap();
-                let top = self.float_stack.pop().unwrap();
-                if bottom != Decimal::ZERO {
-                    self.float_stack.push(top / bottom);
-                }
-            }
-            Instruction::FloatRand => self.float_stack.push(self.config.random_float()),
-            Instruction::FloatRot => {
-                let a = self.float_stack.pop().unwrap();
-                let b = self.float_stack.pop().unwrap();
-                let c = self.float_stack.pop().unwrap();
-                self.float_stack.push(b);
-                self.float_stack.push(a);
-                self.float_stack.push(c);
-            }
-            Instruction::FloatShove => {
-                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
-                    let b = self.float_stack.pop().unwrap();
-                    self.float_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::FloatSin => {
-                if self.float_stack.len() >= 1 {
-                    let value = self.float_stack.pop().unwrap();
-                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
-                }
-            }
-            Instruction::FloatStackdepth => {
-                self.int_stack.push(self.float_stack.len() as i64);
-            }
-            Instruction::FloatSum => {
-                if self.float_stack.len() >= 2 {
-                    let right = self.float_stack.pop().unwrap();
-                    let left = self.float_stack.pop().unwrap();
-                    self.float_stack.push(left + right);
-                }
-            }
-            Instruction::FloatSwap => {
-                let a = self.float_stack.pop().unwrap();
-                let b = self.float_stack.pop().unwrap();
-                self.float_stack.push(a);
-                self.float_stack.push(b);
-            }
-            Instruction::FloatTan => {
-                if self.float_stack.len() >= 1 {
-                    let value = self.float_stack.pop().unwrap();
-                    self.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
-                }
-            }
-            Instruction::FloatYankDup => {
-                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
-                    let &b = self.float_stack.get(vec_index).unwrap();
-                    self.float_stack.push(b);
-                }
-            }
-            Instruction::FloatYank => {
-                if self.float_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.float_stack.len());
-                    let b = self.float_stack.remove(vec_index);
-                    self.float_stack.push(b);
-                }
-            }
-            Instruction::IntegerDefine => {
-                if self.name_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let name = self.name_stack.pop().unwrap();
-                    let value = self.int_stack.pop().unwrap();
-                    self.defined_names.insert(name, Code::LiteralInteger(value));
-                }
-            }
-            Instruction::IntegerDifference => {
-                if self.int_stack.len() >= 2 {
-                    let right = self.int_stack.pop().unwrap();
-                    let left = self.int_stack.pop().unwrap();
-                    self.int_stack.push(left - right);
-                }
-            }
-            Instruction::IntegerDup => {
-                if self.int_stack.len() >= 1 {
-                    let value = self.int_stack.last().unwrap().clone();
-                    self.int_stack.push(value);
-                }
-            }
-            Instruction::IntegerEqual => {
-                if self.int_stack.len() >= 2 {
-                    let a = self.int_stack.pop().unwrap();
-                    let b = self.int_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::IntegerFlush => {
-                self.int_stack.clear();
-            }
-            Instruction::IntegerFromBoolean => {
-                if self.bool_stack.len() >= 1 {
-                    self.int_stack.push(if self.bool_stack.pop().unwrap() { 1 } else { 0 });
-                }
-            }
-            Instruction::IntegerFromFloat => {
-                if self.float_stack.len() >= 1 {
-                    self.int_stack.push(self.float_stack.pop().unwrap().to_i64().unwrap());
-                }
-            }
-            Instruction::IntegerGreater => {
-                if self.int_stack.len() >= 2 {
-                    let right = self.int_stack.pop().unwrap();
-                    let left = self.int_stack.pop().unwrap();
-                    self.bool_stack.push(left > right);
-                }
-            }
-            Instruction::IntegerLess => {
-                if self.int_stack.len() >= 2 {
-                    let right = self.int_stack.pop().unwrap();
-                    let left = self.int_stack.pop().unwrap();
-                    self.bool_stack.push(left < right);
-                }
-            }
-            Instruction::IntegerMax => {
-                if self.int_stack.len() >= 2 {
-                    let a = self.int_stack.pop().unwrap();
-                    let b = self.int_stack.pop().unwrap();
-                    self.int_stack.push(if a < b { b } else { a });
-                }
-            }
-            Instruction::IntegerMin => {
-                if self.int_stack.len() >= 2 {
-                    let a = self.int_stack.pop().unwrap();
-                    let b = self.int_stack.pop().unwrap();
-                    self.int_stack.push(if a < b { a } else { b });
-                }
-            }
-            Instruction::IntegerModulo => {
-                if self.int_stack.len() >= 2 {
-                    let bottom = self.int_stack.pop().unwrap();
-                    let top = self.int_stack.pop().unwrap();
-                    if bottom != 0 {
-                        self.int_stack.push(top % bottom);
-                    }
-                }
-            }
-            Instruction::IntegerPop => {
-                if self.int_stack.len() >= 1 {
-                    self.int_stack.pop();
-                }
-            }
-            Instruction::IntegerProduct => {
-                if self.int_stack.len() >= 2 {
-                    let right = self.int_stack.pop().unwrap();
-                    let left = self.int_stack.pop().unwrap();
-                    self.int_stack.push(left * right);
-                }
-            }
-            Instruction::IntegerQuotient => {
-                let bottom = self.int_stack.pop().unwrap();
-                let top = self.int_stack.pop().unwrap();
-                if bottom != 0 {
-                    self.int_stack.push(top / bottom);
-                }
-            }
-            Instruction::IntegerRand => self.int_stack.push(self.config.random_int()),
-            Instruction::IntegerRot => {
-                let a = self.int_stack.pop().unwrap();
-                let b = self.int_stack.pop().unwrap();
-                let c = self.int_stack.pop().unwrap();
-                self.int_stack.push(b);
-                self.int_stack.push(a);
-                self.int_stack.push(c);
-            }
-            Instruction::IntegerShove => {
-                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
-                    let b = self.int_stack.pop().unwrap();
-                    self.int_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::IntegerStackdepth => {
-                self.int_stack.push(self.int_stack.len() as i64);
-            }
-            Instruction::IntegerSum => {
-                if self.int_stack.len() >= 2 {
-                    let a = self.int_stack.pop().unwrap();
-                    let b = self.int_stack.pop().unwrap();
-                    self.int_stack.push(a + b);
-                }
-            }
-            Instruction::IntegerSwap => {
-                let a = self.int_stack.pop().unwrap();
-                let b = self.int_stack.pop().unwrap();
-                self.int_stack.push(a);
-                self.int_stack.push(b);
-            }
-            Instruction::IntegerYankDup => {
-                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
-                    let &b = self.int_stack.get(vec_index).unwrap();
-                    self.int_stack.push(b);
-                }
-            }
-            Instruction::IntegerYank => {
-                if self.int_stack.len() >= 1 && self.int_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.int_stack.len());
-                    let b = self.int_stack.remove(vec_index);
-                    self.int_stack.push(b);
-                }
-            }
-            Instruction::NameDup => {
-                if self.name_stack.len() >= 1 {
-                    let value = self.name_stack.last().unwrap().clone();
-                    self.name_stack.push(value);
-                }
-            }
-            Instruction::NameEqual => {
-                if self.name_stack.len() >= 2 {
-                    let a = self.name_stack.pop().unwrap();
-                    let b = self.name_stack.pop().unwrap();
-                    self.bool_stack.push(a == b);
-                }
-            }
-            Instruction::NameFlush => {
-                self.name_stack.clear();
-            }
-            Instruction::NamePop => {
-                if self.name_stack.len() >= 1 {
-                    self.name_stack.pop();
-                }
-            }
-            Instruction::NameQuote => {
-                self.quote_next_name = true;
-            }
-            Instruction::NameRandBoundName => {
-                let len = self.defined_names.len() as i64;
-                if len > 0 {
-                    let index = self.config.random_int_in_range(0..len);
-                    if let Some(name) = self.defined_names.keys().skip(index as usize).next() {
-                        self.name_stack.push(*name);
-                    }
-                }
-            }
-            Instruction::NameRand => self.name_stack.push(self.config.random_name()),
-            Instruction::NameRot => {
-                let a = self.name_stack.pop().unwrap();
-                let b = self.name_stack.pop().unwrap();
-                let c = self.name_stack.pop().unwrap();
-                self.name_stack.push(b);
-                self.name_stack.push(a);
-                self.name_stack.push(c);
-            }
-            Instruction::NameShove => {
-                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
-                    let b = self.name_stack.pop().unwrap();
-                    self.name_stack.insert(vec_index, b);
-                }
-            }
-            Instruction::NameStackdepth => {
-                self.int_stack.push(self.name_stack.len() as i64);
-            }
-            Instruction::NameSwap => {
-                let a = self.name_stack.pop().unwrap();
-                let b = self.name_stack.pop().unwrap();
-                self.name_stack.push(a);
-                self.name_stack.push(b);
-            }
-            Instruction::NameYankDup => {
-                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
-                    let &b = self.name_stack.get(vec_index).unwrap();
-                    self.name_stack.push(b);
-                }
-            }
-            Instruction::NameYank => {
-                if self.name_stack.len() >= 1 && self.name_stack.len() >= 1 {
-                    let stack_index = self.int_stack.pop().unwrap();
-                    let vec_index = crate::util::stack_to_vec(stack_index, self.name_stack.len());
-                    let b = self.name_stack.remove(vec_index);
-                    self.name_stack.push(b);
-                }
-            }
+            Instruction::BoolAnd => execute_booland(self),
+            Instruction::BoolDefine => execute_booldefine(self),
+            Instruction::BoolDup => execute_booldup(self),
+            Instruction::BoolEqual => execute_boolequal(self),
+            Instruction::BoolFlush => execute_boolflush(self),
+            Instruction::BoolFromFloat => execute_boolfromfloat(self),
+            Instruction::BoolFromInt => execute_boolfromint(self),
+            Instruction::BoolNot => execute_boolnot(self),
+            Instruction::BoolOr => execute_boolor(self),
+            Instruction::BoolPop => execute_boolpop(self),
+            Instruction::BoolRand => execute_boolrand(self),
+            Instruction::BoolRot => execute_boolrot(self),
+            Instruction::BoolShove => execute_boolshove(self),
+            Instruction::BoolStackDepth => execute_boolstackdepth(self),
+            Instruction::BoolSwap => execute_boolswap(self),
+            Instruction::BoolYank => execute_boolyank(self),
+            Instruction::BoolYankDup => execute_boolyankdup(self),
+            Instruction::CodeAppend => execute_codeappend(self),
+            Instruction::CodeAtom => execute_codeatom(self),
+            Instruction::CodeCar => execute_codecar(self),
+            Instruction::CodeCdr => execute_codecdr(self),
+            Instruction::CodeCons => execute_codecons(self),
+            Instruction::CodeContainer => execute_codecontainer(self),
+            Instruction::CodeContains => execute_codecontains(self),
+            Instruction::CodeDefine => execute_codedefine(self),
+            Instruction::CodeDefinition => execute_codedefinition(self),
+            Instruction::CodeDiscrepancy => execute_codediscrepancy(self),
+            Instruction::CodeDo => execute_codedo(self),
+            Instruction::CodeDoN => execute_codedon(self),
+            Instruction::CodeDoNCount => execute_codedoncount(self),
+            Instruction::CodeDoNRange => execute_codedonrange(self),
+            Instruction::CodeDoNTimes => execute_codedontimes(self),
+            Instruction::CodeDup => execute_codedup(self),
+            Instruction::CodeEqual => execute_codeequal(self),
+            Instruction::CodeExtract => execute_codeextract(self),
+            Instruction::CodeFlush => execute_codeflush(self),
+            Instruction::CodeFromBoolean => execute_codefromboolean(self),
+            Instruction::CodeFromFloat => execute_codefromfloat(self),
+            Instruction::CodeFromInteger => execute_codefrominteger(self),
+            Instruction::CodeFromName => execute_codefromname(self),
+            Instruction::CodeIf => execute_codeif(self),
+            Instruction::CodeInsert => execute_codeinsert(self),
+            Instruction::CodeInstructions => execute_codeinstructions(self),
+            Instruction::CodeLength => execute_codelength(self),
+            Instruction::CodeList => execute_codelist(self),
+            Instruction::CodeMember => execute_codemember(self),
+            Instruction::CodeNoop => execute_codenoop(self),
+            Instruction::CodeNth => execute_codenth(self),
+            Instruction::CodeNthCdr => execute_codenthcdr(self),
+            Instruction::CodeNull => execute_codenull(self),
+            Instruction::CodePop => execute_codepop(self),
+            Instruction::CodePosition => execute_codeposition(self),
+            Instruction::CodeQuote => execute_codequote(self),
+            Instruction::CodeRand => execute_coderand(self),
+            Instruction::CodeRot => execute_coderot(self),
+            Instruction::CodeShove => execute_codeshove(self),
+            Instruction::CodeSize => execute_codesize(self),
+            Instruction::CodeStackdepth => execute_codestackdepth(self),
+            Instruction::CodeSubstitute => execute_codesubstitute(self),
+            Instruction::CodeSwap => execute_codeswap(self),
+            Instruction::CodeYank => execute_codeyank(self),
+            Instruction::CodeYankDup => execute_codeyankdup(self),
+            Instruction::ExecDefine => execute_execdefine(self),
+            Instruction::ExecDoNCount => execute_execdoncount(self),
+            Instruction::ExecDoNRange => execute_execdonrange(self),
+            Instruction::ExecDoNTimes => execute_execdontimes(self),
+            Instruction::ExecDup => execute_execdup(self),
+            Instruction::ExecEqual => execute_execequal(self),
+            Instruction::ExecFlush => execute_execflush(self),
+            Instruction::ExecIf => execute_execif(self),
+            Instruction::ExecK => execute_execk(self),
+            Instruction::ExecPop => execute_execpop(self),
+            Instruction::ExecRot => execute_execrot(self),
+            Instruction::ExecShove => execute_execshove(self),
+            Instruction::ExecStackdepth => execute_execstackdepth(self),
+            Instruction::ExecSwap => execute_execswap(self),
+            Instruction::ExecS => execute_execs(self),
+            Instruction::ExecYankDup => execute_execyankdup(self),
+            Instruction::ExecYank => execute_execyank(self),
+            Instruction::ExecY => execute_execy(self),
+            Instruction::FloatCos => execute_floatcos(self),
+            Instruction::FloatDefine => execute_floatdefine(self),
+            Instruction::FloatDifference => execute_floatdifference(self),
+            Instruction::FloatDup => execute_floatdup(self),
+            Instruction::FloatEqual => execute_floatequal(self),
+            Instruction::FloatFlush => execute_floatflush(self),
+            Instruction::FloatFromBoolean => execute_floatfromboolean(self),
+            Instruction::FloatFromInteger => execute_floatfrominteger(self),
+            Instruction::FloatGreater => execute_floatgreater(self),
+            Instruction::FloatLess => execute_floatless(self),
+            Instruction::FloatMax => execute_floatmax(self),
+            Instruction::FloatMin => execute_floatmin(self),
+            Instruction::FloatModulo => execute_floatmodulo(self),
+            Instruction::FloatPop => execute_floatpop(self),
+            Instruction::FloatProduct => execute_floatproduct(self),
+            Instruction::FloatQuotient => execute_floatquotient(self),
+            Instruction::FloatRand => execute_floatrand(self),
+            Instruction::FloatRot => execute_floatrot(self),
+            Instruction::FloatShove => execute_floatshove(self),
+            Instruction::FloatSin => execute_floatsin(self),
+            Instruction::FloatStackdepth => execute_floatstackdepth(self),
+            Instruction::FloatSum => execute_floatsum(self),
+            Instruction::FloatSwap => execute_floatswap(self),
+            Instruction::FloatTan => execute_floattan(self),
+            Instruction::FloatYankDup => execute_floatyankdup(self),
+            Instruction::FloatYank => execute_floatyank(self),
+            Instruction::IntegerDefine => execute_integerdefine(self),
+            Instruction::IntegerDifference => execute_integerdifference(self),
+            Instruction::IntegerDup => execute_integerdup(self),
+            Instruction::IntegerEqual => execute_integerequal(self),
+            Instruction::IntegerFlush => execute_integerflush(self),
+            Instruction::IntegerFromBoolean => execute_integerfromboolean(self),
+            Instruction::IntegerFromFloat => execute_integerfromfloat(self),
+            Instruction::IntegerGreater => execute_integergreater(self),
+            Instruction::IntegerLess => execute_integerless(self),
+            Instruction::IntegerMax => execute_integermax(self),
+            Instruction::IntegerMin => execute_integermin(self),
+            Instruction::IntegerModulo => execute_integermodulo(self),
+            Instruction::IntegerPop => execute_integerpop(self),
+            Instruction::IntegerProduct => execute_integerproduct(self),
+            Instruction::IntegerQuotient => execute_integerquotient(self),
+            Instruction::IntegerRand => execute_integerrand(self),
+            Instruction::IntegerRot => execute_integerrot(self),
+            Instruction::IntegerShove => execute_integershove(self),
+            Instruction::IntegerStackdepth => execute_integerstackdepth(self),
+            Instruction::IntegerSum => execute_integersum(self),
+            Instruction::IntegerSwap => execute_integerswap(self),
+            Instruction::IntegerYankDup => execute_integeryankdup(self),
+            Instruction::IntegerYank => execute_integeryank(self),
+            Instruction::NameDup => execute_namedup(self),
+            Instruction::NameEqual => execute_nameequal(self),
+            Instruction::NameFlush => execute_nameflush(self),
+            Instruction::NamePop => execute_namepop(self),
+            Instruction::NameQuote => execute_namequote(self),
+            Instruction::NameRandBoundName => execute_namerandboundname(self),
+            Instruction::NameRand => execute_namerand(self),
+            Instruction::NameRot => execute_namerot(self),
+            Instruction::NameShove => execute_nameshove(self),
+            Instruction::NameStackdepth => execute_namestackdepth(self),
+            Instruction::NameSwap => execute_nameswap(self),
+            Instruction::NameYankDup => execute_nameyankdup(self),
+            Instruction::NameYank => execute_nameyank(self),
         }
     }
 }

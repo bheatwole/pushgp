@@ -95,10 +95,12 @@ pub fn execute_boolstackdepth(context: &mut Context) {
 }
 
 pub fn execute_boolswap(context: &mut Context) {
-    let a = context.bool_stack.pop().unwrap();
-    let b = context.bool_stack.pop().unwrap();
-    context.bool_stack.push(a);
-    context.bool_stack.push(b);
+    if context.bool_stack.len() >= 2 {
+        let a = context.bool_stack.pop().unwrap();
+        let b = context.bool_stack.pop().unwrap();
+        context.bool_stack.push(a);
+        context.bool_stack.push(b);
+    }
 }
 
 pub fn execute_boolyank(context: &mut Context) {

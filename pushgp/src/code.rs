@@ -20,6 +20,7 @@ pub enum Code {
 
     // Code can be an instruction
     Instruction(Instruction),
+    InstructionByName(String),
 }
 
 impl Code {
@@ -150,6 +151,7 @@ impl Code {
             Code::LiteralInteger(i) => vec![Code::LiteralInteger(i)],
             Code::LiteralName(n) => vec![Code::LiteralName(n)],
             Code::Instruction(inst) => vec![Code::Instruction(inst)],
+            Code::InstructionByName(name) => vec![Code::InstructionByName(name)],
         }
     }
 
@@ -261,6 +263,7 @@ impl Display for Code {
                 write!(f, "{}", b64)
             }
             Code::Instruction(v) => write!(f, "{}", v),
+            Code::InstructionByName(v) => write!(f, "{}", v),
         }
     }
 }

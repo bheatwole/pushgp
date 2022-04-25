@@ -1,4 +1,11 @@
-use crate::{Code, Context};
+use crate::{Code, Context, InstructionTrait, Stack};
+
+pub trait BoolStack {
+    fn bool_stack_len(&self) -> usize;
+    fn bool_stack_pop(&mut self) -> Option<bool>;
+    fn bool_stack_push(&mut self, value: bool);
+    fn get_bool_stack(&mut self) -> &mut Stack<bool>;
+}
 
 pub fn execute_booland(context: &mut Context) {
     if context.bool_stack.len() >= 2 {
@@ -7,6 +14,26 @@ pub fn execute_booland(context: &mut Context) {
         context.bool_stack.push(a && b);
     }
 }
+
+pub struct BoolAnd {}
+
+impl<C: BoolStack> InstructionTrait<C> for BoolAnd {
+    fn name() -> &'static str {
+        "BOOL.AND"
+    }
+
+    fn execute(context: &mut C) {
+        if context.bool_stack_len() >= 2 {
+            let a = context.bool_stack_pop().unwrap();
+            let b = context.bool_stack_pop().unwrap();
+            context.bool_stack_push(a && b);
+        }
+    }
+}
+
+// pub fn internal_booland<T: HasBoolStack>(context: &mut T, a: bool, b: bool) {
+//     context.get_bool_stack().push(a && b);
+// }
 
 pub fn execute_booldefine(context: &mut Context) {
     if context.bool_stack.len() >= 1 && context.name_stack.len() >= 1 {

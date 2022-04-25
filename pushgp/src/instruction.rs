@@ -16,6 +16,14 @@ pub trait ConfigureAllInstructions {
     fn configure_all_instructions(config: &mut Configuration, default_weight: u8);
 }
 
+pub trait InstructionTrait<C> {
+    fn name() -> &'static str;
+
+    // Instructions are pure functions on a Context. All parameters are read from the Context and all outputs are
+    // updates to the Context
+    fn execute(context: &mut C);
+}
+
 /// Each Instruction performs a different operation to the stacks of a Context. The bulk of the repeative definitions
 /// are handled by macros.
 #[derive(Clone, ConfigureAllInstructions, Copy, Debug, Display, Eq, ExecuteInstruction, Hash, NomTag, PartialEq)]

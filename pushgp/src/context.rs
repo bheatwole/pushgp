@@ -1,5 +1,7 @@
-use crate::{Code, Configuration};
+use crate::{Code, Configuration, InstructionTrait, Stack};
+use crate::execute_bool::{BoolAnd, BoolStack};
 use crate::instruction::execute_instruction;
+use crate::instruction_table::InstructionTable;
 use fnv::FnvHashMap;
 use log::*;
 use rust_decimal::Decimal;
@@ -7,6 +9,7 @@ use rust_decimal::Decimal;
 #[derive(Debug, PartialEq)]
 pub struct Context {
     pub(crate) bool_stack: Vec<bool>,
+    pub(crate) bool_stack_two: Stack<bool>,
     pub(crate) code_stack: Vec<Code>,
     pub(crate) exec_stack: Vec<Code>,
     pub(crate) float_stack: Vec<Decimal>,
@@ -15,6 +18,8 @@ pub struct Context {
     pub(crate) quote_next_name: bool,
     pub(crate) defined_names: FnvHashMap<u64, Code>,
     pub(crate) config: Configuration,
+
+    pub(crate) vtable: InstructionTable<Context>,
 }
 
 impl Iterator for Context {
@@ -48,6 +53,9 @@ impl Iterator for Context {
                     }
                 }
                 Code::Instruction(inst) => execute_instruction(self, inst),
+                Code::InstructionByName(_name) => {
+                    // TODO: Lookup 'name' in a vtable and execute that instruction
+                }
             }
 
             // Return the number of points required to perform that action
@@ -61,8 +69,9 @@ impl Iterator for Context {
 
 impl Context {
     pub fn new(config: Configuration) -> Context {
-        Context {
+        let mut context = Context {
             bool_stack: vec![],
+            bool_stack_two: Stack::new(),
             code_stack: vec![],
             exec_stack: vec![],
             float_stack: vec![],
@@ -71,7 +80,10 @@ impl Context {
             quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: config,
-        }
+            vtable: InstructionTable::new(),
+        };
+        context.vtable.set("BOOL.AND", BoolAnd::execute);
+        context
     }
 
     pub fn clear(&mut self) {
@@ -97,14 +109,33 @@ impl Context {
     }
 }
 
+impl BoolStack for Context {
+    fn bool_stack_len(&self) -> usize {
+        self.bool_stack_two.len()
+    }
+
+    fn bool_stack_pop(&mut self) -> Option<bool> {
+        self.bool_stack_two.pop()
+    }
+    fn bool_stack_push(&mut self, value: bool) {
+        self.bool_stack_two.push(value)
+    }
+    fn get_bool_stack(&mut self) -> &mut Stack<bool> {
+        &mut self.bool_stack_two
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{Code, Configuration, Context, Instruction};
+    use crate::{Code, Configuration, Context, Instruction, Stack};
+    use crate::instruction_table::InstructionTable;
     use fnv::FnvHashMap;
 
     fn load_and_run(src: &str) -> Context {
         let mut context = Context {
             bool_stack: vec![],
+            bool_stack_two: Stack::new(),
             code_stack: vec![],
             exec_stack: vec![Code::new(src)],
             float_stack: vec![],
@@ -113,6 +144,7 @@ mod tests {
             quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
+            vtable: InstructionTable::new(),
         };
         context.config.set_seed(Some(1));
         context.run(1000);
@@ -137,6 +169,7 @@ mod tests {
 
     context_tests! {
         test_bool_and: ("( TRUE FALSE BOOLAND )", "( FALSE )"),
+        test_bool_dot_and: ("( TRUE FALSE BOOL.AND )", "( FALSE )"),
         test_bool_define: ("( KMu7 TRUE BOOLDEFINE KMu7 )", "( TRUE )"),
         test_bool_dup: ("( TRUE BOOLDUP )", "( TRUE TRUE )"),
         test_bool_equal: ("( TRUE FALSE BOOLEQUAL )", "( FALSE )"),
@@ -367,6 +400,7 @@ mod tests {
     fn code_instructions() {
         let mut context = Context {
             bool_stack: vec![],
+            bool_stack_two: Stack::new(),
             code_stack: vec![],
             exec_stack: vec![Code::new("CODEINSTRUCTIONS")],
             float_stack: vec![],
@@ -375,6 +409,7 @@ mod tests {
             quote_next_name: false,
             defined_names: FnvHashMap::default(),
             config: Configuration::new(),
+            vtable: InstructionTable::new(),
         };
 
         // These instructions should appear in the output in any order

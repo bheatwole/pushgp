@@ -1,5 +1,5 @@
 use fnv::FnvHashMap;
-use std::pin::Pin;
+use log::*;
 
 pub struct InstructionTable<C> {
     table: FnvHashMap<String, fn (&mut C)>
@@ -14,6 +14,30 @@ impl<C> InstructionTable<C> {
 
     pub fn set(&mut self, name: &str, call: fn(&mut C)) {
         self.table.insert(name.to_owned(), call);
+    }
+
+    pub fn execute(&self, name: &String, context: &mut C) {
+        trace!("executing instruction {}", name);
+        if let Some(func) = self.table.get(name) {
+            func(context)
+        } else {
+            debug!("unable to find function for {} in instruction table", name);
+        }
+    }
+
+    /// Returns a sorted list of the names of all instructions. This list is suitable for a binary search. It does make
+    /// a copy of each key, so do not call this function very often
+    pub fn all_instruction_names(&self) -> Vec<String> {
+        self.all_instruction_names_borrowed().iter().map(|n| (*n).clone()).collect()
+    }
+
+    /// Returns a sorted list of the names of all instructions. The items are borrowed from the instruction table. This
+    ///  list is suitable for a binary search. 
+    pub fn all_instruction_names_borrowed(&self) -> Vec<&String> {
+        let mut self_keys: Vec<&String> = self.table.keys().collect();
+        self_keys.sort();
+
+        self_keys
     }
 }
 

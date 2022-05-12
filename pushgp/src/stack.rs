@@ -5,6 +5,9 @@ pub struct Stack<T: Clone> {
     stack: Vec<T>,
 }
 
+// NOTE! Every Stack has a unique type, but not every stack has a Literal. For example, the Exec stack has the type
+// of Exec which is an alias of Code, but neither Exec or Code have a literal.
+
 impl<T: Clone> Stack<T> {
     pub fn new() -> Stack<T> {
         Stack {

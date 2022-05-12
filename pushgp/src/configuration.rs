@@ -1,174 +1,218 @@
-use crate::{Code, Instruction, InstructionType, RandomType};
-use fnv::FnvHashMap;
+use crate::{Code, GeneticOperation, Literal, Name, SupportsLiteralNames};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-#[derive(Debug, PartialEq)]
-pub struct Configuration {
-    instruction_weights: FnvHashMap<Instruction, u8>,
-    ephemeral_bool_weight: u8,
-    ephemeral_float_weight: u8,
-    min_random_float: f64,
-    max_random_float: f64,
-    ephemeral_int_weight: u8,
-    min_random_int: i64,
-    max_random_int: i64,
-    ephemeral_name_weight: u8,
-    defined_name_weight: u8,
-    random_seed: Option<u64>,
-    max_points_in_random_expressions: usize,
-    runtime_instruction_limit: usize,
+/// A Configuration is a Vec of u8 where each u8 represents the weight of one of the possible randomly generated items
+/// for Code<L>. The first u8 is the likelihood of picking an already defined name. The next set of u8s is the chance of
+/// picking a new random literal value. The last set of u8s is the chance of picking each of the instructions.  Any
+/// weight set to zero means the random code generator will not pick that item. An item with a weight of '2' is twice as
+/// likely to be picked as an item with a weight of '1'.
+/// 
+/// A Vec<u8> is used to allow for running an island where the random code generator itself is optimized by genetic
+/// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
+/// a few generations on the main island. The Configuration that produces the most fit population is the winner.
+
+pub struct Configuration<L: Literal<L>> {
     rng: SmallRng,
-    types: Vec<RandomType>,
+    max_points_in_random_expressions: usize,
+
+    crossover_rate: u8,
+    mutation_rate: u8,
+
+    defined_name_weight: usize,
+
+    ephemeral_total: usize,
+    ephemeral_weights: Vec<EphemeralEntry<L>>,
+
+    instruction_total: usize,
+    instruction_weights: Vec<InstructionEntry>,
 }
 
-impl Configuration {
-    pub fn new() -> Configuration {
+pub type LiteralConstructor<L> = fn (&mut SmallRng) -> L;
+
+struct EphemeralEntry<L: Literal<L>> {
+    pub weight: usize,
+    pub call: LiteralConstructor<L>,
+}
+
+struct InstructionEntry {
+    pub weight: usize,
+    pub instruction: String,
+}
+
+pub trait EphemeralConfiguration<L: Literal<L>> {
+    fn get_all_literal_types() -> Vec<String>;
+    fn make_literal_constructor_for_type(literal_type: &str) -> LiteralConstructor<L>;
+}
+
+pub trait InstructionConfiguration {
+    fn get_all_instructions() -> Vec<String>;
+}
+
+impl<L: Literal<L> + EphemeralConfiguration<L> + InstructionConfiguration + SupportsLiteralNames<L>> Configuration<L> {
+    pub fn new(rng_seed: Option<u64>, max_points_in_random_expressions: usize, weights: &[u8]) -> Configuration<L> {
+        let (crossover_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
+        let (mutation_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
+        let (defined_name_weight, weights)  = pop_front_weight_or_one_and_return_rest(weights);
+        let (ephemeral_total, ephemeral_weights, weights) = Self::make_ephemeral_weights(weights);
+        let (instruction_total, instruction_weights, _) = Self::make_instruction_weights(weights);
+
         Configuration {
-            instruction_weights: FnvHashMap::default(),
-            ephemeral_bool_weight: 1,
-            ephemeral_float_weight: 1,
-            ephemeral_int_weight: 1,
-            ephemeral_name_weight: 1,
-            defined_name_weight: 1,
-            random_seed: None,
-            runtime_instruction_limit: 10000,
-            rng: SmallRng::from_entropy(),
-            types: vec![],
-            min_random_float: -1.0,
-            max_random_float: 1.0,
-            min_random_int: std::i64::MIN,
-            max_random_int: std::i64::MAX,
-            max_points_in_random_expressions: 1000,
+            rng: small_rng_from_optional_seed(rng_seed),
+            max_points_in_random_expressions,
+            crossover_rate,
+            mutation_rate,
+            defined_name_weight: defined_name_weight as usize,
+            ephemeral_total,
+            ephemeral_weights,
+            instruction_total,
+            instruction_weights,
         }
     }
 
-    /// Sets to zero the weights of all instructions that use the specified type as an operand or as a destination. This
-    /// will prevent that type of instruction from appearing in randomly generated code.
-    /// 
-    /// For example if you didn't want your program to define any variables, you could call
-    /// context.disallow_type(InstructionType::Name)
-    pub fn disallow_type(&mut self, disallowed: InstructionType) {
-        // Loop through all instructions and set the weight to zero for any that use the specified type
-        for (inst, weight) in self.instruction_weights.iter_mut() {
-            if inst.types().contains(&disallowed) {
-                *weight = 0;
-                self.types.clear();
-            }
+    fn make_ephemeral_weights(mut weights: &[u8]) -> (usize, Vec<EphemeralEntry<L>>, &[u8]) {
+        let mut ephemeral_types = L::get_all_literal_types();
+        let mut total = 0;
+        let mut entries = vec![];
+
+        for literal_type in ephemeral_types.drain(..) {
+            let (literal_weight, rest_weights) = pop_front_weight_or_one_and_return_rest(weights);
+            weights = rest_weights;
+
+            total += literal_weight as usize;
+            entries.push(EphemeralEntry {
+                weight: total,
+                call: L::make_literal_constructor_for_type(literal_type.as_str()),
+            });
         }
+
+        (total, entries, weights)
     }
 
-    /// Sets the weight of the specified instruction. Set to zero to prevent the instruction from being used in random
-    /// code generation. The weight will be the relative likelihood of the instruction being selected.
-    pub fn set_instruction_weight(&mut self, allow: Instruction, weight: u8) {
-        self.instruction_weights.insert(allow, weight);
-        self.types.clear();
+    fn make_instruction_weights(mut weights: &[u8]) -> (usize, Vec<InstructionEntry>, &[u8]) {
+        let mut instructions = L::get_all_instructions();
+        let mut total = 0;
+        let mut entries = vec![];
+
+        for instruction in instructions.drain(..) {
+            let (instruction_weight, rest_weights) = pop_front_weight_or_one_and_return_rest(weights);
+            weights = rest_weights;
+
+            total += instruction_weight as usize;
+            entries.push(InstructionEntry {
+                weight: total,
+                instruction: instruction,
+            });
+        }
+
+        (total, entries, weights)
     }
 
     /// Returns a list of all instructions that have a weight > 0
-    pub fn allowed_instructions(&self) -> Vec<Instruction> {
-        self.instruction_weights.iter().filter(|pair| *pair.1 != 0).map(|pair| *pair.0).collect()
+    pub fn allowed_instructions(&self) -> Vec<String> {
+        self.instruction_weights.iter().filter(|entry| entry.weight != 0).map(|entry| entry.instruction.clone()).collect()
     }
 
     /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
     /// the generator with a truly random value ensuring unique results.
     pub fn set_seed(&mut self, seed: Option<u64>) {
-        self.random_seed = seed;
-        self.rng = if let Some(seed) = seed { SmallRng::seed_from_u64(seed) } else { SmallRng::from_entropy() }
+        self.rng = small_rng_from_optional_seed(seed);
     }
 
-    fn append_type(&mut self, rand_type: RandomType, weight: u8) {
-        for _ in 0..weight {
-            self.types.push(rand_type);
-        }
-    }
+    /// Returns a random genetic operation
+    pub fn random_genetic_operation(&mut self) -> GeneticOperation {
+        let total: usize = self.mutation_rate as usize + self.crossover_rate as usize;
+        let pick = self.rng.gen_range(0..total);
 
-    /// Returns a random boolean value
-    pub fn random_bool(&mut self) -> bool {
-        if 0 == self.rng.gen_range(0..=1) {
-            false
+        if pick < self.mutation_rate as usize {
+            GeneticOperation::Mutation
         } else {
-            true
+            GeneticOperation::Crossover
         }
     }
 
-    /// Returns a random float value in the range (context.min_random_float..context.max_random_float)
-    pub fn random_float(&mut self) -> Decimal {
-        let float: f64 = self.rng.gen_range(self.min_random_float..self.max_random_float);
-        Decimal::from_f64(float).unwrap()
+    // /// Returns a random name in the format "RND.<base64 of random number>"
+    // pub fn random_name(&mut self) -> Code<L> {
+    //     let random_value = self.rng.gen_range(0..=u64::MAX);
+
+    //     let slice: [u64; 1] = [random_value];
+    //     let b64 = encode(slice.as_byte_slice());
+    //     let name = "RND.".to_owned() + &b64;
+
+    //     Code::Literal(L::make_literal_name(name))
+    // }
+
+    /// Returns one random atom
+    pub fn random_atom(&mut self, defined_names: &[String]) -> Code<L> {
+        // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
+        let defined_names_total = if L::supports_literal_names() {
+            self.defined_name_weight * defined_names.len()
+        } else {
+            0
+        };
+        let random_total = defined_names_total + self.ephemeral_total + self.instruction_total;
+
+        // Pick one
+        let mut pick = self.rng.gen_range(0..random_total);
+
+        // Is it a defined name?
+        if pick < defined_names_total {
+            return self.random_defined_name(defined_names);
+        }
+        pick -= defined_names_total;
+
+        // Is it a new literal value?
+        if pick < self.ephemeral_total {
+            return self.random_literal_from_ephemeral(pick);
+        }
+        pick -= self.ephemeral_total;
+
+        // Must be an instruction
+        self.random_instruction(pick)
     }
 
-    /// Returns a random int value in the range (context.min_random_int..context.max_random_int)
-    pub fn random_int(&mut self) -> i64 {
-        self.rng.gen_range(self.min_random_int..=self.max_random_int)
+    /// Returns one random defined name
+    pub fn random_defined_name(&mut self, defined_names: &[Name]) -> Code<L> {
+        let pick = self.rng.gen_range(0..defined_names.len());
+        Code::Literal(L::make_literal_name(defined_names[pick].clone()))
     }
 
-    /// Returns a random int value using the range passed int
-    pub fn random_int_in_range(&mut self, range: std::ops::Range<i64>) -> i64 {
-        self.rng.gen_range(range)
+    /// Returns a new random literal based upon one of the ephemeral random constructors
+    pub fn random_literal_from_ephemeral(&mut self, pick: usize) -> Code<L> {
+        let index = self.ephemeral_weights.partition_point(|entry| entry.weight < pick);
+        let entry = self.ephemeral_weights.get(index).unwrap();
+        Code::Literal((entry.call)(&mut self.rng))
     }
 
-    /// Returns a random name
-    pub fn random_name(&mut self) -> u64 {
-        self.rng.gen_range(0..=u64::MAX)
+    /// Returns a new random instruction
+    pub fn random_instruction(&mut self, pick: usize) -> Code<L> {
+        let index = self.instruction_weights.partition_point(|entry| entry.weight < pick);
+        let entry = self.instruction_weights.get(index).unwrap();
+        Code::Instruction(entry.instruction.clone())
     }
 
     /// Generates some random code using the context parameters for how often random bool, ints, floats and names are
-    /// choosen. You may also pass in pre-defined names that could be selected randomly as well. The weights table for
+    /// chosen. You may also pass in pre-defined names that could be selected randomly as well. The weights table for
     /// all instructions will be considered as well.
     /// 
-    /// The generated code will have at least one code point and as many as `context.max_points_in_random_expressions`.
+    /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
-    pub fn generate_random_code(&mut self, defined_names: &[u64]) -> Code {
-        if 0 == self.types.len() {
-            // Define the ephemal constants types
-            self.append_type(RandomType::EphemeralBool, self.ephemeral_bool_weight);
-            self.append_type(RandomType::EphemeralFloat, self.ephemeral_float_weight);
-            self.append_type(RandomType::EphemeralInt, self.ephemeral_int_weight);
-            self.append_type(RandomType::EphemeralName, self.ephemeral_name_weight);
-
-            // Define all the names we know about
-            for &name in defined_names {
-                self.append_type(RandomType::DefinedName(name), self.defined_name_weight);
-            }
-
-            // Define all the instructions we know about. We need to copy the weights for immutable/mutable borrowing
-            let weights: Vec<(Instruction, u8)> =
-                self.instruction_weights.iter().map(|(&key, &weight)| (key, weight)).collect();
-            for (inst, weight) in weights {
-                self.append_type(RandomType::Instruction(inst), weight);
-            }
-        }
-
-        // Generate some code!
-        self.generate()
-    }
-
-    fn generate(&mut self) -> Code {
+    pub fn generate_random_code(&mut self, defined_names: &[Name]) -> Code<L> {
         let actual_points = self.rng.gen_range(1..=self.max_points_in_random_expressions);
-        self.random_code_with_size(actual_points)
+        self.random_code_with_size(actual_points, defined_names)
     }
 
-    fn random_code_with_size(&mut self, points: usize) -> Code {
+    fn random_code_with_size(&mut self, points: usize, defined_names: &[Name]) -> Code<L> {
         if 1 == points {
             // We need a leaf, so pick one of the atoms
-            let index = self.rng.gen_range(0..self.types.len());
-            match self.types.get(index).unwrap() {
-                RandomType::EphemeralBool => Code::LiteralBool(self.random_bool()),
-                RandomType::EphemeralFloat => Code::LiteralFloat(self.random_float()),
-                RandomType::EphemeralInt => Code::LiteralInteger(self.random_int()),
-                RandomType::EphemeralName => Code::LiteralName(self.random_name()),
-                RandomType::DefinedName(name) => Code::LiteralName(*name),
-                RandomType::Instruction(inst) => Code::Instruction(*inst),
-            }
+            self.random_atom(defined_names)
         } else {
             // Break this level down into a list of lists, or possibly specific leaf atoms.
             let mut sizes_this_level = self.decompose(points - 1, points - 1);
             sizes_this_level.shuffle(&mut self.rng);
             let mut list = vec![];
             for size in sizes_this_level {
-                list.push(self.random_code_with_size(size));
+                list.push(self.random_code_with_size(size, defined_names));
             }
             Code::List(list)
         }
@@ -182,5 +226,39 @@ impl Configuration {
         let mut result = vec![this_part];
         result.extend_from_slice(&self.decompose(number - this_part, max_parts - 1));
         result
+    }
+}
+
+fn small_rng_from_optional_seed(rng_seed: Option<u64>) -> SmallRng {
+    if let Some(seed) = rng_seed {
+        SmallRng::seed_from_u64(seed)
+    } else {
+        SmallRng::from_entropy()
+    }
+}
+
+fn pop_front_weight_or_one_and_return_rest(weights: &[u8]) -> (u8, &[u8]) {
+    if weights.len() == 0 {
+        (1, weights)
+    } else {
+        (weights[0], &weights[1..])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn verify_partition_point_function() {
+        // Both the ephemeral entries and instruction entries table depend upon the following behavior from
+        // partition_point. If it ever stops working like this, we need to know. Specifically only the first of a series
+        // of identical values is ever returned
+        let entries = [1, 5, 5, 5, 10];
+        assert_eq!(0, entries.partition_point(|&x| x < 1));
+        assert_eq!(1, entries.partition_point(|&x| x < 2));
+        assert_eq!(1, entries.partition_point(|&x| x < 3));
+        assert_eq!(1, entries.partition_point(|&x| x < 4));
+        assert_eq!(1, entries.partition_point(|&x| x < 5));
+        assert_eq!(4, entries.partition_point(|&x| x < 6));
     }
 }

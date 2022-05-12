@@ -1,19 +1,19 @@
-use crate::Code;
+use crate::{Code, Literal};
 
-pub struct Individual<S> {
-    code: Code,
+pub struct Individual<S, L: Literal<L>> {
+    code: Code<L>,
     state: S,
 }
 
-impl<S> Individual<S> {
-    pub fn new(code: Code, initial_state: S) -> Individual<S> {
+impl<S, L: Literal<L>> Individual<S, L> {
+    pub fn new(code: Code<L>, initial_state: S) -> Individual<S, L> {
         Individual {
             code,
             state: initial_state,
         }
     }
 
-    pub fn get_code(&self) -> Code {
+    pub fn get_code(&self) -> Code<L> {
         self.code.clone()
     }
 

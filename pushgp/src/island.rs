@@ -1,6 +1,6 @@
-use crate::{Individual, Literal};
+use crate::{Individual, LiteralEnum};
 
-pub trait Island<C, S, L: Literal<L>> {
+pub trait Island<C, S, L: LiteralEnum<L>> {
     fn name() -> &'static str;
     fn pre_generation_run(&mut self);
     fn post_generation_run(&mut self);

@@ -1,11 +1,11 @@
-use crate::{Code, Literal};
+use crate::{Code, LiteralEnum};
 
-pub struct Individual<S, L: Literal<L>> {
+pub struct Individual<S, L: LiteralEnum<L>> {
     code: Code<L>,
     state: S,
 }
 
-impl<S, L: Literal<L>> Individual<S, L> {
+impl<S, L: LiteralEnum<L>> Individual<S, L> {
     pub fn new(code: Code<L>, initial_state: S) -> Individual<S, L> {
         Individual {
             code,

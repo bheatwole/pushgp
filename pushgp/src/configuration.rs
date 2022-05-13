@@ -1,4 +1,4 @@
-use crate::{Code, GeneticOperation, Literal, Name, SupportsLiteralNames};
+use crate::{Code, GeneticOperation, LiteralEnum, LiteralEnumHasLiteralValue, Name};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 
 /// A Configuration is a Vec of u8 where each u8 represents the weight of one of the possible randomly generated items
@@ -11,7 +11,7 @@ use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
 /// a few generations on the main island. The Configuration that produces the most fit population is the winner.
 
-pub struct Configuration<L: Literal<L>> {
+pub struct Configuration<L: LiteralEnum<L>> {
     rng: SmallRng,
     max_points_in_random_expressions: usize,
 
@@ -29,7 +29,7 @@ pub struct Configuration<L: Literal<L>> {
 
 pub type LiteralConstructor<L> = fn (&mut SmallRng) -> L;
 
-struct EphemeralEntry<L: Literal<L>> {
+struct EphemeralEntry<L: LiteralEnum<L>> {
     pub weight: usize,
     pub call: LiteralConstructor<L>,
 }
@@ -39,7 +39,7 @@ struct InstructionEntry {
     pub instruction: String,
 }
 
-pub trait EphemeralConfiguration<L: Literal<L>> {
+pub trait EphemeralConfiguration<L: LiteralEnum<L>> {
     fn get_all_literal_types() -> Vec<String>;
     fn make_literal_constructor_for_type(literal_type: &str) -> LiteralConstructor<L>;
 }
@@ -48,7 +48,7 @@ pub trait InstructionConfiguration {
     fn get_all_instructions() -> Vec<String>;
 }
 
-impl<L: Literal<L> + EphemeralConfiguration<L> + InstructionConfiguration + SupportsLiteralNames<L>> Configuration<L> {
+impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + LiteralEnumHasLiteralValue<L, Name>> Configuration<L> {
     pub fn new(rng_seed: Option<u64>, max_points_in_random_expressions: usize, weights: &[u8]) -> Configuration<L> {
         let (crossover_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
         let (mutation_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
@@ -144,7 +144,7 @@ impl<L: Literal<L> + EphemeralConfiguration<L> + InstructionConfiguration + Supp
     /// Returns one random atom
     pub fn random_atom(&mut self, defined_names: &[String]) -> Code<L> {
         // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
-        let defined_names_total = if L::supports_literal_names() {
+        let defined_names_total = if <L as LiteralEnumHasLiteralValue<L, Name>>::supports_literal_type() {
             self.defined_name_weight * defined_names.len()
         } else {
             0
@@ -173,7 +173,7 @@ impl<L: Literal<L> + EphemeralConfiguration<L> + InstructionConfiguration + Supp
     /// Returns one random defined name
     pub fn random_defined_name(&mut self, defined_names: &[Name]) -> Code<L> {
         let pick = self.rng.gen_range(0..defined_names.len());
-        Code::Literal(L::make_literal_name(defined_names[pick].clone()))
+        Code::Literal(<L as LiteralEnumHasLiteralValue<L, Name>>::make_from_value(defined_names[pick].clone()))
     }
 
     /// Returns a new random literal based upon one of the ephemeral random constructors

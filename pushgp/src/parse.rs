@@ -1,4 +1,4 @@
-use crate::{Code, Literal};
+use crate::{Code, Literal, LiteralEnum};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -9,7 +9,7 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub trait Parser<L: Literal<L>> {
+pub trait Parser<L: LiteralEnum<L>> {
     fn parse_code_instruction(input: &str) -> IResult<&str, Code<L>>;
 
     fn parse(input: &str) -> Code<L> {

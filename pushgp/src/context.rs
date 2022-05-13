@@ -1,4 +1,4 @@
-use crate::{Code, Literal, Name, Stack};
+use crate::{Code, LiteralEnum, Name, Stack};
 use log::*;
 use std::fmt::Debug;
 
@@ -26,7 +26,7 @@ pub trait ContextStack<StackValue: Clone + Debug + PartialEq> {
     fn get_stack(&mut self) -> &mut Stack<StackValue>;
 }
 
-pub trait SupportsDefinedNames<L: Literal<L>> {
+pub trait SupportsDefinedNames<L: LiteralEnum<L>> {
     fn clear_defined_names(&mut self);
     fn define_name(&mut self, name: Name, code: Code<L>);
     fn definition_for(&self, name: &Name) -> Option<Code<L>>;

@@ -36,7 +36,7 @@ pub use individual::Individual;
 pub use instruction::InstructionTrait;
 pub use instruction_type::InstructionType;
 pub use island::Island;
-pub use literal::{Literal, SupportsLiteralNames};
+pub use literal::{Literal, LiteralEnum, LiteralEnumHasLiteralValue};
 pub use parse::Parser;
 pub use selection_curve::SelectionCurve;
 pub use stack::Stack;

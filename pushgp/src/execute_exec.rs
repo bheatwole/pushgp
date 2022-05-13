@@ -1,11 +1,11 @@
-use crate::{Code, Context, Literal};
+use crate::{Code, Context, LiteralEnum};
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Exec<L: Literal<L>> {
+pub struct Exec<L: LiteralEnum<L>> {
     code: Code<L>,
 }
 
-impl<L: Literal<L>> From<Code<L>> for Exec<L> {
+impl<L: LiteralEnum<L>> From<Code<L>> for Exec<L> {
     fn from(code: Code<L>) -> Exec<L> {
         Exec {
             code,
@@ -13,7 +13,7 @@ impl<L: Literal<L>> From<Code<L>> for Exec<L> {
     }
 }
 
-impl<L: Literal<L>> Into<Code<L>> for Exec<L> {
+impl<L: LiteralEnum<L>> Into<Code<L>> for Exec<L> {
     fn into(self) -> Code<L> {
         self.code
     }

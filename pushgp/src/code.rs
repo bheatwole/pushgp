@@ -1,4 +1,4 @@
-use crate::Literal;
+use crate::LiteralEnum;
 use fnv::FnvHashMap;
 use std::fmt::{Display, Formatter, Result};
 use std::hash::Hash;
@@ -8,7 +8,7 @@ use std::hash::Hash;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Code<L>
 where
-    L: Literal<L>,
+    L: LiteralEnum<L>,
 {
     // A list is just a list containing other code (which can be lists) and may also be empty (len() == 0)
     List(Vec<Code<L>>),
@@ -21,7 +21,7 @@ where
     Instruction(String),
 }
 
-impl<L: Literal<L>> Code<L> {
+impl<L: LiteralEnum<L>> Code<L> {
     /// Returns true if this code is a List
     pub fn is_list(&self) -> bool {
         match &self {
@@ -233,7 +233,7 @@ impl<L: Literal<L>> Code<L> {
     }
 }
 
-impl<L: Literal<L>> Display for Code<L> {
+impl<L: LiteralEnum<L>> Display for Code<L> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match &self {
             Code::List(x) => {
@@ -253,7 +253,7 @@ impl<L: Literal<L>> Display for Code<L> {
 #[derive(Debug, PartialEq)]
 pub enum Extraction<L>
 where
-    L: Literal<L>,
+    L: LiteralEnum<L>,
 {
     Extracted(Code<L>),
     Used(i64),

@@ -1,4 +1,4 @@
-use crate::{Code, Context, ContextStack, InstructionTrait, Literal, Name, SupportsDefinedNames};
+use crate::{Code, Context, ContextStack, InstructionTrait, Literal, LiteralEnum, LiteralEnumHasLiteralValue, Name, SupportsDefinedNames};
 use std::marker::PhantomData;
 
 pub type Bool = bool;
@@ -22,20 +22,23 @@ impl Literal<Bool> for Bool {
     }
 }
 
-pub trait MakeBoolLiteral<L: Literal<L>> {
-    fn make_bool_literal(b: Bool) -> L;
+/// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
+pub struct BoolAnd<C, L> {
+    c: PhantomData<C>,
+    l: PhantomData<L>,
 }
 
-/// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
-pub struct BoolAnd {}
-
-impl<C: Context + ContextStack<Bool>> InstructionTrait<C> for BoolAnd {
+impl<C, L> InstructionTrait<C> for BoolAnd<C, L>
+where
+    C: Context + ContextStack<Bool> + ContextStack<Name>,
+    L: LiteralEnum<L>,
+{
     fn name() -> &'static str {
         "BOOL.AND"
     }
 
     fn execute(context: &mut C) {
-        if context.len() >= 2 {
+        if <C as ContextStack<Bool>>::len(context) >= 2 {
             let a = context.pop().unwrap();
             let b = context.pop().unwrap();
             context.push(a && b);
@@ -52,7 +55,7 @@ pub struct BoolDefine<C, L> {
 impl<C, L> InstructionTrait<C> for BoolDefine<C, L>
 where
     C: Context + ContextStack<Bool> + ContextStack<Name> + SupportsDefinedNames<L>,
-    L: Literal<L> + MakeBoolLiteral<L>,
+    L: LiteralEnum<L> + LiteralEnumHasLiteralValue<L, Bool>,
 {
     fn name() -> &'static str {
         "BOOL.DEFINE"
@@ -62,7 +65,7 @@ where
         if <C as ContextStack<Bool>>::len(context) >= 1 && <C as ContextStack<Name>>::len(context) >= 1 {
             let a: Bool = context.pop().unwrap();
             let b: Name = context.pop().unwrap();
-            context.define_name(b, Code::Literal(L::make_bool_literal(a)));
+            context.define_name(b, Code::Literal(<L as LiteralEnumHasLiteralValue<L, Bool>>::make_from_value(a)));
         }
     }
 }

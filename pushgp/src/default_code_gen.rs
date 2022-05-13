@@ -1,7 +1,7 @@
 use crate::instruction_table::InstructionTable;
 use crate::{
     Bool, Code, Configuration, Context, ContextStack, EphemeralConfiguration, Exec, Float, InstructionConfiguration,
-    InstructionTrait, Integer, Literal, LiteralConstructor, Name, Parser, Stack, SupportsDefinedNames, SupportsLiteralNames,
+    InstructionTrait, Integer, Literal, LiteralConstructor, LiteralEnum, LiteralEnumHasLiteralValue, Name, Parser, Stack, SupportsDefinedNames,
 };
 use fnv::FnvHashMap;
 use nom::IResult;
@@ -23,14 +23,14 @@ impl Display for BaseLiteral {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match &self {
             BaseLiteral::Bool(v) => v.nom_fmt(f),
-            BaseLiteral::Float(v) => write!(f, "{}", v),
-            BaseLiteral::Integer(v) => write!(f, "{}", v),
-            BaseLiteral::Name(v) => write!(f, "{}", v),
+            BaseLiteral::Float(v) => v.nom_fmt(f),
+            BaseLiteral::Integer(v) => v.nom_fmt(f),
+            BaseLiteral::Name(v) => v.nom_fmt(f),
         }
     }
 }
 
-impl Literal<BaseLiteral> for BaseLiteral {
+impl LiteralEnum<BaseLiteral> for BaseLiteral {
     fn parse(input: &str) -> IResult<&str, BaseLiteral> {
         if let Ok((rest, value)) = Bool::parse(input) {
             return Ok((rest, BaseLiteral::Bool(value)));
@@ -47,22 +47,45 @@ impl Literal<BaseLiteral> for BaseLiteral {
 
         Err(nom::Err::Error(nom::error::Error::new(input, nom::error::ErrorKind::Complete)))
     }
+}
 
-    fn random_value<R: rand::Rng>(rng: &mut R) -> BaseLiteral {
-        let index: usize = rng.gen_range(0..4);
-        match index {
-            0 => BaseLiteral::Bool(Bool::random_value(rng)),
-            1 => BaseLiteral::Float(Float::random_value(rng)),
-            2 => BaseLiteral::Integer(Integer::random_value(rng)),
-            3 => BaseLiteral::Name(Name::random_value(rng)),
-            _ => panic!("indicates an error in macro code")
-        }
+impl LiteralEnumHasLiteralValue<BaseLiteral, Bool> for BaseLiteral {
+    fn supports_literal_type() -> bool {
+        true
+    }
+
+    fn make_from_value(value: Bool) -> BaseLiteral {
+        BaseLiteral::Bool(value)
     }
 }
 
-impl crate::execute_bool::MakeBoolLiteral<BaseLiteral> for BaseLiteral {
-    fn make_bool_literal(b: Bool) -> BaseLiteral {
-        BaseLiteral::Bool(b)
+impl LiteralEnumHasLiteralValue<BaseLiteral, Float> for BaseLiteral {
+    fn supports_literal_type() -> bool {
+        true
+    }
+
+    fn make_from_value(value: Float) -> BaseLiteral {
+        BaseLiteral::Float(value)
+    }
+}
+
+impl LiteralEnumHasLiteralValue<BaseLiteral, Integer> for BaseLiteral {
+    fn supports_literal_type() -> bool {
+        true
+    }
+
+    fn make_from_value(value: Integer) -> BaseLiteral {
+        BaseLiteral::Integer(value)
+    }
+}
+
+impl LiteralEnumHasLiteralValue<BaseLiteral, Name> for BaseLiteral {
+    fn supports_literal_type() -> bool {
+        true
+    }
+
+    fn make_from_value(value: Name) -> BaseLiteral {
+        BaseLiteral::Name(value)
     }
 }
 
@@ -88,15 +111,15 @@ impl InstructionConfiguration for BaseLiteral {
     }
 }
 
-impl SupportsLiteralNames<BaseLiteral> for BaseLiteral {
-    fn supports_literal_names() -> bool {
-        true
-    }
+// impl SupportsLiteralNames<BaseLiteral> for BaseLiteral {
+//     fn supports_literal_names() -> bool {
+//         true
+//     }
 
-    fn make_literal_name(name: Name) -> BaseLiteral {
-        BaseLiteral::Name(name)
-    }
-}
+//     fn make_literal_name(name: Name) -> BaseLiteral {
+//         BaseLiteral::Name(name)
+//     }
+// }
 
 pub struct BaseLiteralParser {}
 impl Parser<BaseLiteral> for BaseLiteralParser {
@@ -129,7 +152,7 @@ pub struct BaseContext {
 impl BaseContext {
     pub fn new(_config: Configuration<BaseLiteral>) -> BaseContext {
         let mut instructions = InstructionTable::new();
-        crate::execute_bool::BoolAnd::add_to_table(&mut instructions);
+        crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
         crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
 
         BaseContext {

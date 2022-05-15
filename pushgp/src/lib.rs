@@ -34,6 +34,7 @@ pub use execute_name::Name;
 pub use genetic_operation::GeneticOperation;
 pub use individual::Individual;
 pub use instruction::InstructionTrait;
+pub use instruction_table::{new_instruction_table_with_all_instructions, InstructionTable};
 pub use instruction_type::InstructionType;
 pub use island::Island;
 pub use literal::{Literal, LiteralEnum, LiteralEnumHasLiteralValue};

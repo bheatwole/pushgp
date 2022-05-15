@@ -1,15 +1,16 @@
+use crate::{
+    Bool, Context, ContextStack, InstructionTrait, LiteralEnum, LiteralEnumHasLiteralValue, Name, SupportsDefinedNames,
+};
 use fnv::FnvHashMap;
 use log::*;
 
 pub struct InstructionTable<C> {
-    table: FnvHashMap<String, fn (&mut C)>
+    table: FnvHashMap<String, fn(&mut C)>,
 }
 
 impl<C> InstructionTable<C> {
     pub fn new() -> InstructionTable<C> {
-        InstructionTable {
-            table: FnvHashMap::default(),
-        }
+        InstructionTable { table: FnvHashMap::default() }
     }
 
     pub fn set(&mut self, name: &str, call: fn(&mut C)) {
@@ -32,7 +33,7 @@ impl<C> InstructionTable<C> {
     }
 
     /// Returns a sorted list of the names of all instructions. The items are borrowed from the instruction table. This
-    ///  list is suitable for a binary search. 
+    /// list is suitable for a binary search.
     pub fn all_instruction_names_borrowed(&self) -> Vec<&String> {
         let mut self_keys: Vec<&String> = self.table.keys().collect();
         self_keys.sort();
@@ -60,4 +61,19 @@ impl<C> PartialEq for InstructionTable<C> {
 
         self_keys == other_keys
     }
+}
+
+/// Creates a new instruction table that contains every instruction known in the base library. This is suitable for
+/// appending your custom instructions. This will fail to compile if your Context does not include stacks for all
+/// base library types.
+pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
+where
+    C: Context + ContextStack<Bool> + ContextStack<Name> + SupportsDefinedNames<L>,
+    L: LiteralEnum<L> + LiteralEnumHasLiteralValue<L, Bool>,
+{
+    let mut instructions = InstructionTable::new();
+    crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
+    crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
+
+    instructions
 }

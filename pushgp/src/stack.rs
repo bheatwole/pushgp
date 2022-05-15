@@ -11,15 +11,11 @@ pub struct Stack<T: Clone> {
 
 impl<T: Clone> Stack<T> {
     pub fn new() -> Stack<T> {
-        Stack {
-            stack: RefCell::new(vec![]),
-        }
+        Stack { stack: RefCell::new(vec![]) }
     }
 
     pub fn new_from_vec(stack: Vec<T>) -> Stack<T> {
-        Stack {
-            stack: RefCell::new(stack),
-        }
+        Stack { stack: RefCell::new(stack) }
     }
 
     /// Returns the top item from the Stack or None if the stack is empty
@@ -71,7 +67,7 @@ impl<T: Clone> Stack<T> {
     /// Pops the top item of the stack and pushes it down the specified number of positions. Thus `shove(0)` has no
     /// effect. The position is taken modulus the original size of the stack. I.E. `shove(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
-    /// 
+    ///
     /// Returns true if a shove was performed (even if it had no effect)
     pub fn shove(&self, position: i64) -> bool {
         if self.stack.borrow().len() > 0 {
@@ -97,7 +93,7 @@ impl<T: Clone> Stack<T> {
     /// Removes an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
     /// the original size of the stack. I.E. `yank(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
-    /// 
+    ///
     /// Returns true if a yank was performed (even if it had no effect)
     pub fn yank(&self, position: i64) -> bool {
         if self.stack.borrow().len() > 0 {
@@ -113,7 +109,7 @@ impl<T: Clone> Stack<T> {
     /// Copies an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
     /// the original size of the stack. I.E. `yank_duplicate(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
-    /// 
+    ///
     /// Returns true if a yank was performed (even if it had no effect)
     pub fn yank_duplicate(&self, position: i64) -> bool {
         if self.stack.borrow().len() > 0 {
@@ -126,7 +122,6 @@ impl<T: Clone> Stack<T> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

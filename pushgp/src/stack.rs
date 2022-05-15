@@ -1,8 +1,9 @@
 use crate::util::stack_to_vec;
+use std::cell::RefCell;
 
 #[derive(Debug, PartialEq)]
 pub struct Stack<T: Clone> {
-    stack: Vec<T>,
+    stack: RefCell<Vec<T>>,
 }
 
 // NOTE! Every Stack has a unique type, but not every stack has a Literal. For example, the Exec stack has the type
@@ -11,53 +12,53 @@ pub struct Stack<T: Clone> {
 impl<T: Clone> Stack<T> {
     pub fn new() -> Stack<T> {
         Stack {
-            stack: vec![],
+            stack: RefCell::new(vec![]),
         }
     }
 
     pub fn new_from_vec(stack: Vec<T>) -> Stack<T> {
         Stack {
-            stack,
+            stack: RefCell::new(stack),
         }
     }
 
     /// Returns the top item from the Stack or None if the stack is empty
-    pub fn pop(&mut self) -> Option<T> {
-        self.stack.pop()
+    pub fn pop(&self) -> Option<T> {
+        self.stack.borrow_mut().pop()
     }
 
     /// Pushes the specified item onto the top of the stack
-    pub fn push(&mut self, item: T) {
-        self.stack.push(item)
+    pub fn push(&self, item: T) {
+        self.stack.borrow_mut().push(item)
     }
 
     /// Returns the length of the Stack
     pub fn len(&self) -> usize {
-        self.stack.len()
+        self.stack.borrow().len()
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    pub fn duplicate_top_item(&mut self) {
+    pub fn duplicate_top_item(&self) {
         let mut duplicate = None;
 
         // This patten avoid mutable and immutable borrow of stack at the same time
-        if let Some(top_item) = self.stack.last() {
+        if let Some(top_item) = self.stack.borrow().last() {
             duplicate = Some(top_item.clone());
         }
         if let Some(new_item) = duplicate {
-            self.stack.push(new_item);
+            self.stack.borrow_mut().push(new_item);
         }
     }
 
     /// Deletes all items from the Stack
-    pub fn clear(&mut self) {
-        self.stack.clear()
+    pub fn clear(&self) {
+        self.stack.borrow_mut().clear()
     }
 
     /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
     /// modify the stack if there are fewer than three items
-    pub fn rotate(&mut self) {
-        if self.stack.len() >= 3 {
+    pub fn rotate(&self) {
+        if self.stack.borrow().len() >= 3 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             let third = self.pop().unwrap();
@@ -72,11 +73,11 @@ impl<T: Clone> Stack<T> {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
     /// 
     /// Returns true if a shove was performed (even if it had no effect)
-    pub fn shove(&mut self, position: i64) -> bool {
-        if self.stack.len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.len());
-            let item = self.stack.pop().unwrap();
-            self.stack.insert(vec_index, item);
+    pub fn shove(&self, position: i64) -> bool {
+        if self.stack.borrow().len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.borrow().len());
+            let item = self.stack.borrow_mut().pop().unwrap();
+            self.stack.borrow_mut().insert(vec_index, item);
             true
         } else {
             false
@@ -84,8 +85,8 @@ impl<T: Clone> Stack<T> {
     }
 
     /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    pub fn swap(&mut self) {
-        if self.stack.len() >= 2 {
+    pub fn swap(&self) {
+        if self.stack.borrow().len() >= 2 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             self.push(first);
@@ -98,11 +99,11 @@ impl<T: Clone> Stack<T> {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
     /// 
     /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank(&mut self, position: i64) -> bool {
-        if self.stack.len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.len());
-            let item = self.stack.remove(vec_index);
-            self.stack.push(item);
+    pub fn yank(&self, position: i64) -> bool {
+        if self.stack.borrow().len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.borrow().len());
+            let item = self.stack.borrow_mut().remove(vec_index);
+            self.stack.borrow_mut().push(item);
             true
         } else {
             false
@@ -114,11 +115,11 @@ impl<T: Clone> Stack<T> {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
     /// 
     /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank_duplicate(&mut self, position: i64) -> bool {
-        if self.stack.len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.len());
-            let duplicate = self.stack.get(vec_index).unwrap().clone();
-            self.stack.push(duplicate);
+    pub fn yank_duplicate(&self, position: i64) -> bool {
+        if self.stack.borrow().len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.borrow().len());
+            let duplicate = self.stack.borrow().get(vec_index).unwrap().clone();
+            self.stack.borrow_mut().push(duplicate);
             true
         } else {
             false
@@ -134,7 +135,7 @@ mod tests {
     #[test]
     fn stack_push_pop() {
         // Start with an empty stack
-        let mut stack = Stack::<i32>::new();
+        let stack = Stack::<i32>::new();
         assert_eq!(0, stack.len());
 
         // Push an item and ensure it got there
@@ -151,7 +152,7 @@ mod tests {
 
     #[test]
     fn stack_duplicate_top_item() {
-        let mut stack = Stack::<i32>::new();
+        let stack = Stack::<i32>::new();
         assert_eq!(0, stack.len());
 
         // Duplicating an empty stack has no effect
@@ -172,7 +173,7 @@ mod tests {
 
     #[test]
     fn stack_clear() {
-        let mut stack = Stack::<i32>::new();
+        let stack = Stack::<i32>::new();
         assert_eq!(0, stack.len());
 
         // Add some items
@@ -189,7 +190,7 @@ mod tests {
 
     #[test]
     fn stack_rotate() {
-        let mut stack = Stack::<i32>::new();
+        let stack = Stack::<i32>::new();
         assert_eq!(0, stack.len());
 
         // Add two items
@@ -234,7 +235,7 @@ mod tests {
 
     #[test]
     fn stack_shove() {
-        let mut stack = Stack::<char>::new();
+        let stack = Stack::<char>::new();
         assert_eq!(0, stack.len());
 
         // Shoving an empty stack returns zero
@@ -243,7 +244,7 @@ mod tests {
         assert_eq!(false, stack.shove(-1));
 
         // Shoving a single value succeeds but has no effect
-        let mut stack = Stack::new_from_vec(vec!['A']);
+        let stack = Stack::new_from_vec(vec!['A']);
         let expected = Stack::new_from_vec(vec!['A']);
         assert_eq!(true, stack.shove(1));
         assert_eq!(expected, stack);
@@ -253,31 +254,31 @@ mod tests {
         assert_eq!(expected, stack);
 
         // Perform some shoves
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.shove(0));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.shove(1));
         assert_eq!(Stack::new_from_vec(vec!['C', 'A', 'B']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.shove(2));
         assert_eq!(Stack::new_from_vec(vec!['A', 'C', 'B']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.shove(3));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A']), stack);
 
         // Negative works too
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.shove(-1));
         assert_eq!(Stack::new_from_vec(vec!['A', 'C', 'B']), stack);
     }
 
     #[test]
     fn stack_swap() {
-        let mut stack = Stack::<i32>::new();
+        let stack = Stack::<i32>::new();
         assert_eq!(0, stack.len());
 
         // Add an item
@@ -316,7 +317,7 @@ mod tests {
 
     #[test]
     fn stack_yank() {
-        let mut stack = Stack::<char>::new();
+        let stack = Stack::<char>::new();
         assert_eq!(0, stack.len());
 
         // Yanking an empty stack returns false
@@ -325,7 +326,7 @@ mod tests {
         assert_eq!(false, stack.yank(-1));
 
         // Yanking a single value succeeds but has no effect
-        let mut stack = Stack::new_from_vec(vec!['A']);
+        let stack = Stack::new_from_vec(vec!['A']);
         let expected = Stack::new_from_vec(vec!['A']);
         assert_eq!(true, stack.yank(1));
         assert_eq!(expected, stack);
@@ -335,31 +336,31 @@ mod tests {
         assert_eq!(expected, stack);
 
         // Perform some yanks
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank(0));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank(1));
         assert_eq!(Stack::new_from_vec(vec!['C', 'A', 'B']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank(2));
         assert_eq!(Stack::new_from_vec(vec!['B', 'A', 'C']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank(3));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A']), stack);
 
         // Negative works too
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank(-1));
         assert_eq!(Stack::new_from_vec(vec!['B', 'A', 'C']), stack);
     }
 
     #[test]
     fn stack_yank_duplicate() {
-        let mut stack = Stack::<char>::new();
+        let stack = Stack::<char>::new();
         assert_eq!(0, stack.len());
 
         // Yanking an empty stack returns false
@@ -368,33 +369,33 @@ mod tests {
         assert_eq!(false, stack.yank_duplicate(-1));
 
         // Yanking a single value is easy
-        let mut stack = Stack::new_from_vec(vec!['A']);
+        let stack = Stack::new_from_vec(vec!['A']);
         assert_eq!(true, stack.yank_duplicate(1));
         assert_eq!(Stack::new_from_vec(vec!['A', 'A']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['A']);
+        let stack = Stack::new_from_vec(vec!['A']);
         assert_eq!(true, stack.yank_duplicate(500));
         assert_eq!(Stack::new_from_vec(vec!['A', 'A']), stack);
 
         // Perform some more complicated yanks
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank_duplicate(0));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A', 'A']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank_duplicate(1));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A', 'B']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank_duplicate(2));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A', 'C']), stack);
 
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank_duplicate(3));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A', 'A']), stack);
 
         // Negative works too
-        let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
+        let stack = Stack::new_from_vec(vec!['C', 'B', 'A']);
         assert_eq!(true, stack.yank_duplicate(-1));
         assert_eq!(Stack::new_from_vec(vec!['C', 'B', 'A', 'C']), stack);
     }

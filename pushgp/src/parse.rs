@@ -1,4 +1,4 @@
-use crate::{Code, Literal, LiteralEnum};
+use crate::{Code, LiteralEnum};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -15,13 +15,8 @@ pub trait Parser<L: LiteralEnum<L>> {
     fn parse(input: &str) -> Code<L> {
         Self::parse_one_code(input).unwrap().1
     }
-    
     fn parse_one_code(input: &str) -> IResult<&str, Code<L>> {
-        alt((
-            Self::parse_code_instruction,
-            Self::parse_code_literal,
-            Self::parse_code_list,
-        ))(input)
+        alt((Self::parse_code_instruction, Self::parse_code_literal, Self::parse_code_list))(input)
     }
 
     fn parse_code_literal(input: &str) -> IResult<&str, Code<L>> {
@@ -34,7 +29,6 @@ pub trait Parser<L: LiteralEnum<L>> {
         let (input, _) = start_list(input)?;
         let (input, codes) = many0(Self::parse_one_code)(input)?;
         let (input, _) = end_list(input)?;
-    
         Ok((input, Code::List(codes)))
     }
 }
@@ -127,18 +121,15 @@ pub fn parse_code_name(input: &str) -> IResult<&str, String> {
     // Grab anything that is not a space, tab, line ending or list marker
     let (input, name_chars) = many1(none_of(" \t\r\n()"))(input)?;
     let (input, _) = space_or_end(input)?;
-    
     let name: String = name_chars.iter().collect();
     Ok((input, name))
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Code, Parser};
     use crate::default_code_gen::{BaseLiteral, BaseLiteralParser};
-    use crate::parse::{
-        parse_code_bool, parse_code_float, parse_code_integer, parse_code_name,
-    };
+    use crate::parse::{parse_code_bool, parse_code_float, parse_code_integer, parse_code_name};
+    use crate::{Code, Parser};
     use rust_decimal::Decimal;
 
     #[test]
@@ -188,7 +179,8 @@ mod tests {
     fn parse_list() {
         let expected = Code::<BaseLiteral>::List(vec![]);
         assert_eq!(BaseLiteralParser::parse_code_list("( )").unwrap().1, expected);
-        let expected = Code::List(vec![Code::Literal(BaseLiteral::Bool(true)), Code::Literal(BaseLiteral::Integer(123))]);
+        let expected =
+            Code::List(vec![Code::Literal(BaseLiteral::Bool(true)), Code::Literal(BaseLiteral::Integer(123))]);
         assert_eq!(BaseLiteralParser::parse_code_list("( TRUE 123 )").unwrap().1, expected);
 
         let expected = Code::<BaseLiteral>::List(vec![Code::Instruction("BOOL.AND".to_owned())]);

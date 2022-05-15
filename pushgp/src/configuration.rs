@@ -6,7 +6,7 @@ use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 /// picking a new random literal value. The last set of u8s is the chance of picking each of the instructions.  Any
 /// weight set to zero means the random code generator will not pick that item. An item with a weight of '2' is twice as
 /// likely to be picked as an item with a weight of '1'.
-/// 
+///
 /// A Vec<u8> is used to allow for running an island where the random code generator itself is optimized by genetic
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
 /// a few generations on the main island. The Configuration that produces the most fit population is the winner.
@@ -27,7 +27,7 @@ pub struct Configuration<L: LiteralEnum<L>> {
     instruction_weights: Vec<InstructionEntry>,
 }
 
-pub type LiteralConstructor<L> = fn (&mut SmallRng) -> L;
+pub type LiteralConstructor<L> = fn(&mut SmallRng) -> L;
 
 struct EphemeralEntry<L: LiteralEnum<L>> {
     pub weight: usize,
@@ -48,11 +48,14 @@ pub trait InstructionConfiguration {
     fn get_all_instructions() -> Vec<String>;
 }
 
-impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + LiteralEnumHasLiteralValue<L, Name>> Configuration<L> {
+impl<
+        L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + LiteralEnumHasLiteralValue<L, Name>,
+    > Configuration<L>
+{
     pub fn new(rng_seed: Option<u64>, max_points_in_random_expressions: usize, weights: &[u8]) -> Configuration<L> {
-        let (crossover_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
-        let (mutation_rate, weights)  = pop_front_weight_or_one_and_return_rest(weights);
-        let (defined_name_weight, weights)  = pop_front_weight_or_one_and_return_rest(weights);
+        let (crossover_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
+        let (mutation_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
+        let (defined_name_weight, weights) = pop_front_weight_or_one_and_return_rest(weights);
         let (ephemeral_total, ephemeral_weights, weights) = Self::make_ephemeral_weights(weights);
         let (instruction_total, instruction_weights, _) = Self::make_instruction_weights(weights);
 
@@ -98,10 +101,7 @@ impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + 
             weights = rest_weights;
 
             total += instruction_weight as usize;
-            entries.push(InstructionEntry {
-                weight: total,
-                instruction: instruction,
-            });
+            entries.push(InstructionEntry { weight: total, instruction: instruction });
         }
 
         (total, entries, weights)
@@ -109,7 +109,11 @@ impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + 
 
     /// Returns a list of all instructions that have a weight > 0
     pub fn allowed_instructions(&self) -> Vec<String> {
-        self.instruction_weights.iter().filter(|entry| entry.weight != 0).map(|entry| entry.instruction.clone()).collect()
+        self.instruction_weights
+            .iter()
+            .filter(|entry| entry.weight != 0)
+            .map(|entry| entry.instruction.clone())
+            .collect()
     }
 
     /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
@@ -129,17 +133,6 @@ impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + 
             GeneticOperation::Crossover
         }
     }
-
-    // /// Returns a random name in the format "RND.<base64 of random number>"
-    // pub fn random_name(&mut self) -> Code<L> {
-    //     let random_value = self.rng.gen_range(0..=u64::MAX);
-
-    //     let slice: [u64; 1] = [random_value];
-    //     let b64 = encode(slice.as_byte_slice());
-    //     let name = "RND.".to_owned() + &b64;
-
-    //     Code::Literal(L::make_literal_name(name))
-    // }
 
     /// Returns one random atom
     pub fn random_atom(&mut self, defined_names: &[String]) -> Code<L> {
@@ -193,7 +186,7 @@ impl<L: LiteralEnum<L> + EphemeralConfiguration<L> + InstructionConfiguration + 
     /// Generates some random code using the context parameters for how often random bool, ints, floats and names are
     /// chosen. You may also pass in pre-defined names that could be selected randomly as well. The weights table for
     /// all instructions will be considered as well.
-    /// 
+    ///
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.

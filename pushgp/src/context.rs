@@ -259,6 +259,8 @@ mod tests {
 
     #[test]
     fn code_instructions() {
+        use crate::StackTrait;
+        
         let mut to_run = load_and_run("( CODE.INSTRUCTIONS )");
         let code_stack: &mut Stack<Code<BaseLiteral>> = to_run.get_stack();
         assert!(code_stack.len() > 200);

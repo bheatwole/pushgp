@@ -1,7 +1,8 @@
 use crate::instruction_table::InstructionTable;
 use crate::{
     Bool, Code, Configuration, Context, ContextStack, EphemeralConfiguration, Exec, Float, InstructionConfiguration,
-    InstructionTrait, Integer, Literal, LiteralConstructor, LiteralEnum, LiteralEnumHasLiteralValue, Name, Parser, Stack, SupportsDefinedNames,
+    InstructionTrait, Integer, Literal, LiteralConstructor, LiteralEnum, LiteralEnumHasLiteralValue, Name, Parser,
+    Stack, StackTrait, SupportsDefinedNames,
 };
 use fnv::FnvHashMap;
 use nom::IResult;
@@ -96,11 +97,11 @@ impl EphemeralConfiguration<BaseLiteral> for BaseLiteral {
 
     fn make_literal_constructor_for_type(literal_type: &str) -> LiteralConstructor<BaseLiteral> {
         match literal_type {
-            "Bool" => |rng| { BaseLiteral::Bool(Bool::random_value(rng)) },
-            "Float" => |rng| { BaseLiteral::Float(Float::random_value(rng)) },
-            "Integer" => |rng| { BaseLiteral::Integer(Integer::random_value(rng)) },
-            "Name" => |rng| { BaseLiteral::Name(Name::random_value(rng)) },
-            _ => panic!("unknown literal type")
+            "Bool" => |rng| BaseLiteral::Bool(Bool::random_value(rng)),
+            "Float" => |rng| BaseLiteral::Float(Float::random_value(rng)),
+            "Integer" => |rng| BaseLiteral::Integer(Integer::random_value(rng)),
+            "Name" => |rng| BaseLiteral::Name(Name::random_value(rng)),
+            _ => panic!("unknown literal type"),
         }
     }
 }
@@ -110,16 +111,6 @@ impl InstructionConfiguration for BaseLiteral {
         vec!["BOOL.AND".to_owned(), "BOOL.DEFINE".to_owned()]
     }
 }
-
-// impl SupportsLiteralNames<BaseLiteral> for BaseLiteral {
-//     fn supports_literal_names() -> bool {
-//         true
-//     }
-
-//     fn make_literal_name(name: Name) -> BaseLiteral {
-//         BaseLiteral::Name(name)
-//     }
-// }
 
 pub struct BaseLiteralParser {}
 impl Parser<BaseLiteral> for BaseLiteralParser {
@@ -179,7 +170,7 @@ impl SupportsDefinedNames<BaseLiteral> for BaseContext {
         self.defined_names.insert(name, code);
     }
 
-    fn definition_for(&self, name: &Name) -> Option<Code<BaseLiteral>>{
+    fn definition_for(&self, name: &Name) -> Option<Code<BaseLiteral>> {
         match self.defined_names.get(name) {
             None => None,
             Some(code) => Some(code.clone()),
@@ -228,7 +219,7 @@ impl Context for BaseContext {
                 Code::Instruction(name) => {
                     let instructions = self.instructions.clone();
                     instructions.execute(&name, self)
-                },
+                }
             }
 
             // Return the number of points required to perform that action

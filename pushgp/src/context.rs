@@ -26,7 +26,7 @@ mod tests {
     fn load_and_run(src: &str) -> BaseContext {
         let weights = vec![];
         let config = Configuration::<BaseLiteral>::new(Some(1), 100, &weights[..]);
-        let mut context = BaseContext::new(config);
+        let mut context = BaseContext::new(config, new_instruction_table_with_all_instructions());
         let code = BaseLiteralParser::parse(src);
         context.exec().push(code);
         context.run(1000);

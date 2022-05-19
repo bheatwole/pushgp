@@ -60,19 +60,3 @@ impl<C> PartialEq for InstructionTable<C> {
         self_keys == other_keys
     }
 }
-
-/// Creates a new instruction table that contains every instruction known in the base library. This is suitable for
-/// appending your custom instructions. This will fail to compile if your Context does not include stacks for all
-/// base library types.
-pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
-where
-    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
-    L: LiteralEnum<L>,
-{
-    let mut instructions = InstructionTable::new();
-    crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
-    crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
-    crate::execute_bool::BoolDup::<C, L>::add_to_table(&mut instructions);
-
-    instructions
-}

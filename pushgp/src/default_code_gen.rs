@@ -126,6 +126,21 @@ impl Parser<BaseLiteral> for BaseLiteralParser {
     }
 }
 
+/// Creates a new instruction table that contains every instruction known in the base library. This will fail to compile
+/// if your Context does not include stacks for all base library types.
+pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
+where
+    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
+    L: LiteralEnum<L>,
+{
+    let mut instructions = InstructionTable::new();
+    crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
+    crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
+    crate::execute_bool::BoolDup::<C, L>::add_to_table(&mut instructions);
+
+    instructions
+}
+
 #[derive(Debug, PartialEq)]
 pub struct BaseContext {
     exec_stack: Stack<Exec<BaseLiteral>>,
@@ -142,11 +157,7 @@ pub struct BaseContext {
 }
 
 impl BaseContext {
-    pub fn new(_config: Configuration<BaseLiteral>) -> BaseContext {
-        let mut instructions = InstructionTable::new();
-        crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
-        crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
-        crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
+    pub fn new(_config: Configuration<BaseLiteral>, instructions: InstructionTable<BaseContext>) -> BaseContext {
 
         BaseContext {
             exec_stack: Stack::new(),

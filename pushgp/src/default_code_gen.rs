@@ -103,7 +103,11 @@ impl EphemeralConfiguration<BaseLiteral> for BaseLiteral {
 
 impl InstructionConfiguration for BaseLiteral {
     fn get_all_instructions() -> Vec<String> {
-        vec!["BOOL.AND".to_owned(), "BOOL.DEFINE".to_owned()]
+        vec![
+            crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name().to_owned(),
+            crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name().to_owned(),
+            crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name().to_owned(),
+        ]
     }
 }
 
@@ -111,7 +115,11 @@ pub struct BaseLiteralParser {}
 impl Parser<BaseLiteral> for BaseLiteralParser {
     fn parse_code_instruction(input: &str) -> IResult<&str, Code<BaseLiteral>> {
         use nom::{branch::alt, bytes::complete::tag};
-        let (input, instruction) = alt((tag("BOOL.AND"), tag("BOOL.DEFINE"), tag("BOOL.DUP")))(input)?;
+        let (input, instruction) = alt((
+            tag(crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name()),
+            tag(crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name()),
+            tag(crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name())
+        ))(input)?;
         let (input, _) = crate::parse::space_or_end(input)?;
 
         Ok((input, Code::Instruction(instruction.to_owned())))

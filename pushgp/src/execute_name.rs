@@ -1,6 +1,8 @@
 use base64::*;
 use byte_slice_cast::*;
-use crate::{Bool, Context, ContextStack, Literal};
+use crate::*;
+use fnv::FnvHashMap;
+use std::cell::RefCell;
 
 pub type Name = String;
 
@@ -18,6 +20,56 @@ impl Literal<Name> for Name {
 
         name
     }
+}
+
+pub trait ContextHasNameStack<L: LiteralEnum<L>> {
+    fn name(&self) -> &NameStack<L>;
+    fn make_literal_name(value: Name) -> Code<L>;
+}
+
+#[derive(Debug, PartialEq)]
+pub struct NameStack<L: LiteralEnum<L>> {
+    stack: Stack<Name>,
+    quote_next_name: RefCell<bool>,
+    defined_names: RefCell<FnvHashMap<String, Code<L>>>
+}
+
+impl <L: LiteralEnum<L>> NameStack<L> {
+    pub fn should_quote_next_name(&self) -> bool {
+        *self.quote_next_name.borrow()
+    }
+
+    pub fn set_should_quote_next_name(&self, quote_next_name: bool) {
+        *self.quote_next_name.borrow_mut() = quote_next_name
+    }
+
+    pub fn definition_for_name(&self, name: &String) -> Option<Code<L>> {
+        self.defined_names.borrow().get(name).map(|c| c.clone())
+    }
+
+    pub fn define_name(&self, name: String, code: Code<L>) {
+        self.defined_names.borrow_mut().insert(name, code);
+    }
+}
+
+impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
+    fn new() -> NameStack<L> {
+        NameStack {
+            stack: Stack::new(),
+            quote_next_name: RefCell::new(false),
+            defined_names: RefCell::new(FnvHashMap::default()),
+        }
+    }
+    fn pop(&self) -> Option<Name> { self.stack.pop() }
+    fn push(&self, item: Name) { self.stack.push(item) }
+    fn len(&self) -> usize { self.stack.len() }
+    fn duplicate_top_item(&self) { self.stack.duplicate_top_item() }
+    fn clear(&self) { self.stack.clear() }
+    fn rotate(&self) { self.stack.rotate() }
+    fn shove(&self, position: i64) -> bool { self.stack.shove(position) }
+    fn swap(&self) { self.stack.swap() }
+    fn yank(&self, position: i64) -> bool { self.stack.yank(position) }
+    fn yank_duplicate(&self, position: i64) -> bool { self.stack.yank_duplicate(position) }
 }
 
 // pub fn execute_namedup<C: Context + ContextStack<Name>>(context: &mut C) {

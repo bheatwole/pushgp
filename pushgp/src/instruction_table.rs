@@ -1,6 +1,4 @@
-use crate::{
-    Bool, Context, ContextStack, InstructionTrait, LiteralEnum, LiteralEnumHasLiteralValue, Name, SupportsDefinedNames,
-};
+use crate::*;
 use fnv::FnvHashMap;
 use log::*;
 
@@ -68,12 +66,13 @@ impl<C> PartialEq for InstructionTable<C> {
 /// base library types.
 pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
 where
-    C: Context + ContextStack<Bool> + ContextStack<Name> + SupportsDefinedNames<L>,
-    L: LiteralEnum<L> + LiteralEnumHasLiteralValue<L, Bool>,
+    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
+    L: LiteralEnum<L>,
 {
     let mut instructions = InstructionTable::new();
     crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
     crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
+    crate::execute_bool::BoolDup::<C, L>::add_to_table(&mut instructions);
 
     instructions
 }

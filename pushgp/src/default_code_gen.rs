@@ -1,10 +1,5 @@
 use crate::instruction_table::InstructionTable;
-use crate::{
-    Bool, Code, Configuration, Context, ContextStack, EphemeralConfiguration, Exec, Float, InstructionConfiguration,
-    InstructionTrait, Integer, Literal, LiteralConstructor, LiteralEnum, LiteralEnumHasLiteralValue, Name, Parser,
-    Stack, StackTrait, SupportsDefinedNames,
-};
-use fnv::FnvHashMap;
+use crate::*;
 use nom::IResult;
 use std::fmt::{Display, Formatter, Result};
 use std::rc::Rc;
@@ -116,7 +111,7 @@ pub struct BaseLiteralParser {}
 impl Parser<BaseLiteral> for BaseLiteralParser {
     fn parse_code_instruction(input: &str) -> IResult<&str, Code<BaseLiteral>> {
         use nom::{branch::alt, bytes::complete::tag};
-        let (input, instruction) = alt((tag("BOOL.AND"), tag("BOOL.DEFINE")))(input)?;
+        let (input, instruction) = alt((tag("BOOL.AND"), tag("BOOL.DEFINE"), tag("BOOL.DUP")))(input)?;
         let (input, _) = crate::parse::space_or_end(input)?;
 
         Ok((input, Code::Instruction(instruction.to_owned())))
@@ -132,9 +127,7 @@ pub struct BaseContext {
     float_stack: Stack<Float>,
     integer_stack: Stack<Integer>,
 
-    name_stack: Stack<Name>,
-    quote_next_name: bool,
-    defined_names: FnvHashMap<Name, Code<BaseLiteral>>,
+    name_stack: NameStack<BaseLiteral>,
 
     //config: Configuration<BaseLiteral>,
     instructions: Rc<InstructionTable<BaseContext>>,
@@ -145,6 +138,7 @@ impl BaseContext {
         let mut instructions = InstructionTable::new();
         crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
         crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
+        crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::add_to_table(&mut instructions);
 
         BaseContext {
             exec_stack: Stack::new(),
@@ -152,28 +146,9 @@ impl BaseContext {
             code_stack: Stack::new(),
             float_stack: Stack::new(),
             integer_stack: Stack::new(),
-            name_stack: Stack::new(),
-            quote_next_name: false,
-            defined_names: FnvHashMap::default(),
+            name_stack: NameStack::new(),
             //config,
             instructions: Rc::new(instructions),
-        }
-    }
-}
-
-impl SupportsDefinedNames<BaseLiteral> for BaseContext {
-    fn clear_defined_names(&mut self) {
-        self.defined_names.clear();
-    }
-
-    fn define_name(&mut self, name: Name, code: Code<BaseLiteral>) {
-        self.defined_names.insert(name, code);
-    }
-
-    fn definition_for(&self, name: &Name) -> Option<Code<BaseLiteral>> {
-        match self.defined_names.get(name) {
-            None => None,
-            Some(code) => Some(code.clone()),
         }
     }
 }
@@ -186,8 +161,6 @@ impl Context for BaseContext {
         self.float_stack.clear();
         self.integer_stack.clear();
         self.name_stack.clear();
-        self.quote_next_name = false;
-        self.defined_names.clear();
     }
 
     fn next(&mut self) -> Option<usize> {
@@ -205,13 +178,13 @@ impl Context for BaseContext {
                     BaseLiteral::Float(v) => self.float_stack.push(v),
                     BaseLiteral::Integer(v) => self.integer_stack.push(v),
                     BaseLiteral::Name(v) => {
-                        if self.quote_next_name {
+                        if self.name_stack.should_quote_next_name() {
                             self.name_stack.push(v);
-                            self.quote_next_name = false;
+                            self.name_stack.set_should_quote_next_name(false);
                         } else {
-                            match self.defined_names.get(&v) {
+                            match self.name_stack.definition_for_name(&v) {
                                 None => self.name_stack.push(v),
-                                Some(code) => self.exec_stack.push(code.clone().into()),
+                                Some(code) => self.exec_stack.push(code.into()),
                             }
                         }
                     }
@@ -231,110 +204,51 @@ impl Context for BaseContext {
     }
 }
 
-impl ContextStack<Exec<BaseLiteral>> for BaseContext {
-    fn len(&self) -> usize {
-        self.exec_stack.len()
-    }
-
-    fn pop(&mut self) -> Option<Exec<BaseLiteral>> {
-        self.exec_stack.pop()
-    }
-
-    fn push(&mut self, value: Exec<BaseLiteral>) {
-        self.exec_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Exec<BaseLiteral>> {
-        &mut self.exec_stack
+impl ContextHasExecStack<BaseLiteral> for BaseContext {
+    fn exec(&self) -> &Stack<Exec<BaseLiteral>> {
+        &self.exec_stack
     }
 }
 
-impl ContextStack<Bool> for BaseContext {
-    fn len(&self) -> usize {
-        self.bool_stack.len()
+impl ContextHasBoolStack<BaseLiteral> for BaseContext {
+    fn bool(&self) -> &Stack<Bool> {
+        &self.bool_stack
     }
 
-    fn pop(&mut self) -> Option<Bool> {
-        self.bool_stack.pop()
-    }
-
-    fn push(&mut self, value: Bool) {
-        self.bool_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Bool> {
-        &mut self.bool_stack
+    fn make_literal_bool(value: Bool) -> Code<BaseLiteral> {
+        Code::Literal(BaseLiteral::Bool(value))
     }
 }
 
-impl ContextStack<Code<BaseLiteral>> for BaseContext {
-    fn len(&self) -> usize {
-        self.code_stack.len()
-    }
-
-    fn pop(&mut self) -> Option<Code<BaseLiteral>> {
-        self.code_stack.pop()
-    }
-
-    fn push(&mut self, value: Code<BaseLiteral>) {
-        self.code_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Code<BaseLiteral>> {
-        &mut self.code_stack
+impl ContextHasCodeStack<BaseLiteral> for BaseContext {
+    fn code(&self) -> &Stack<Code<BaseLiteral>> {
+        &self.code_stack
     }
 }
 
-impl ContextStack<Float> for BaseContext {
-    fn len(&self) -> usize {
-        self.float_stack.len()
+impl ContextHasFloatStack<BaseLiteral> for BaseContext {
+    fn float(&self) -> &Stack<Float> {
+        &self.float_stack
     }
-
-    fn pop(&mut self) -> Option<Float> {
-        self.float_stack.pop()
-    }
-
-    fn push(&mut self, value: Float) {
-        self.float_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Float> {
-        &mut self.float_stack
+    fn make_literal_float(value: Float) -> Code<BaseLiteral> {
+        Code::Literal(BaseLiteral::Float(value))
     }
 }
 
-impl ContextStack<Integer> for BaseContext {
-    fn len(&self) -> usize {
-        self.integer_stack.len()
+impl ContextHasIntegerStack<BaseLiteral> for BaseContext {
+    fn integer(&self) -> &Stack<Integer> {
+        &self.integer_stack
     }
-
-    fn pop(&mut self) -> Option<Integer> {
-        self.integer_stack.pop()
-    }
-
-    fn push(&mut self, value: Integer) {
-        self.integer_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Integer> {
-        &mut self.integer_stack
+    fn make_literal_integer(value: Integer) -> Code<BaseLiteral> {
+        Code::Literal(BaseLiteral::Integer(value))
     }
 }
 
-impl ContextStack<Name> for BaseContext {
-    fn len(&self) -> usize {
-        self.name_stack.len()
+impl ContextHasNameStack<BaseLiteral> for BaseContext {
+    fn name(&self) -> &NameStack<BaseLiteral> {
+        &self.name_stack
     }
-
-    fn pop(&mut self) -> Option<Name> {
-        self.name_stack.pop()
-    }
-
-    fn push(&mut self, value: Name) {
-        self.name_stack.push(value)
-    }
-
-    fn get_stack(&mut self) -> &mut Stack<Name> {
-        &mut self.name_stack
+    fn make_literal_name(value: Name) -> Code<BaseLiteral> {
+        Code::Literal(BaseLiteral::Name(value))
     }
 }

@@ -1,4 +1,4 @@
-use crate::{Code, Context, Literal};
+use crate::*;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -15,6 +15,11 @@ impl Literal<Float> for Float {
         let float: f64 = rng.gen_range(f64::MIN..=f64::MAX);
         Decimal::from_f64(float).unwrap()
     }
+}
+
+pub trait ContextHasFloatStack<L: LiteralEnum<L>> {
+    fn float(&self) -> &Stack<Float>;
+    fn make_literal_float(value: Float) -> Code<L>;
 }
 
 // pub fn execute_floatcos(context: &mut Context) {

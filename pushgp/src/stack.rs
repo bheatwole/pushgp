@@ -3,6 +3,9 @@ use std::cell::RefCell;
 
 /// Defines a stack of values that uses interior mutability for all operations
 pub trait StackTrait<T: Clone> {
+    /// Creates a new instance of the Stack
+    fn new() -> Self;
+
     /// Returns the top item from the Stack or None if the stack is empty
     fn pop(&self) -> Option<T>;
 
@@ -56,16 +59,16 @@ pub struct Stack<T: Clone> {
 // of Exec which is an alias of Code, but neither Exec or Code have a literal.
 
 impl<T: Clone> Stack<T> {
-    pub fn new() -> Stack<T> {
-        Stack { stack: RefCell::new(vec![]) }
-    }
-
     pub fn new_from_vec(stack: Vec<T>) -> Stack<T> {
         Stack { stack: RefCell::new(stack) }
     }
 }
 
 impl<T: Clone> StackTrait<T> for Stack<T> {
+    fn new() -> Stack<T> {
+        Stack { stack: RefCell::new(vec![]) }
+    }
+
     /// Returns the top item from the Stack or None if the stack is empty
     fn pop(&self) -> Option<T> {
         self.stack.borrow_mut().pop()

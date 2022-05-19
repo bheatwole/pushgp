@@ -1,4 +1,3 @@
-use crate::{Code, LiteralEnum, Name, Stack};
 use log::*;
 use std::fmt::Debug;
 
@@ -19,22 +18,9 @@ pub trait Context: Debug {
     }
 }
 
-pub trait ContextStack<StackValue: Clone + Debug + PartialEq> {
-    fn len(&self) -> usize;
-    fn pop(&mut self) -> Option<StackValue>;
-    fn push(&mut self, value: StackValue);
-    fn get_stack(&mut self) -> &mut Stack<StackValue>;
-}
-
-pub trait SupportsDefinedNames<L: LiteralEnum<L>> {
-    fn clear_defined_names(&mut self);
-    fn define_name(&mut self, name: Name, code: Code<L>);
-    fn definition_for(&self, name: &Name) -> Option<Code<L>>;
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{Bool, Code, Configuration, Context, ContextStack, Exec, Parser, Stack, SupportsDefinedNames};
+    use crate::*;
     use crate::default_code_gen::{BaseContext, BaseLiteral, BaseLiteralParser};
 
     fn load_and_run(src: &str) -> BaseContext {
@@ -42,7 +28,7 @@ mod tests {
         let config = Configuration::<BaseLiteral>::new(Some(1), 100, &weights[..]);
         let mut context = BaseContext::new(config);
         let code = BaseLiteralParser::parse(src);
-        <BaseContext as ContextStack<Exec<BaseLiteral>>>::push(&mut context, code.into());
+        context.exec().push(code);
         context.run(1000);
         context
     }
@@ -54,12 +40,12 @@ mod tests {
             fn $name() {
                 let (input, expected, mut expected_definitions): (&str, &str, Vec<(&str, &str)>) = $value;
                 let input_run = load_and_run(input);
-                let mut expected_run = load_and_run(expected);
+                let expected_run = load_and_run(expected);
 
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
                     let code = BaseLiteralParser::parse(src);
-                    expected_run.define_name(name.to_owned(), code);
+                    expected_run.name().define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
             }
@@ -70,7 +56,7 @@ mod tests {
     context_tests! {
         test_bool_and: ("( TRUE FALSE BOOL.AND )", "( FALSE )", vec![]),
         test_bool_define: ("( KMu7 TRUE BOOL.DEFINE KMu7 )", "( TRUE )", vec![("KMu7", "TRUE")]),
-        // test_bool_dup: ("( TRUE BOOL.DUP )", "( TRUE TRUE )", vec![]),
+        test_bool_dup: ("( TRUE BOOL.DUP )", "( TRUE TRUE )", vec![]),
         // test_bool_equal: ("( TRUE FALSE BOOL.EQUAL )", "( FALSE )", vec![]),
         // test_bool_flush: ("( TRUE FALSE BOOL.FLUSH )", "( )", vec![]),
         // test_bool_fromfloat: ("( 0.0 0.00001 BOOL.FROMFLOAT BOOL.FROMFLOAT )", "( TRUE FALSE )", vec![]),
@@ -251,22 +237,21 @@ mod tests {
 
     #[test]
     fn code_quote() {
-        let mut to_run = load_and_run("( CODE.QUOTE TRUE )");
-        assert_eq!(0, <BaseContext as ContextStack<Exec<BaseLiteral>>>::len(&to_run));
-        assert_eq!(0, <BaseContext as ContextStack<Bool>>::len(&to_run));
-        assert_eq!(Some(true), <BaseContext as ContextStack<Bool>>::pop(&mut to_run));
+        let to_run = load_and_run("( CODE.QUOTE TRUE )");
+        assert_eq!(0, to_run.exec().len());
+        assert_eq!(0, to_run.bool().len());
+        assert_eq!(Some(true), to_run.bool().pop());
     }
 
     #[test]
     fn code_instructions() {
         use crate::StackTrait;
-        
-        let mut to_run = load_and_run("( CODE.INSTRUCTIONS )");
-        let code_stack: &mut Stack<Code<BaseLiteral>> = to_run.get_stack();
-        assert!(code_stack.len() > 200);
+
+        let to_run = load_and_run("( CODE.INSTRUCTIONS )");
+        assert!(to_run.code().len() > 200);
 
         let mut all_entries = vec![];
-        while let Some(c) = code_stack.pop() {
+        while let Some(c) = to_run.code().pop() {
             all_entries.push(c);
         }
         assert!(all_entries.contains(&Code::Instruction("BOOL.AND".to_owned())));

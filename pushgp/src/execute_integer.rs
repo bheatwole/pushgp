@@ -1,4 +1,4 @@
-use crate::{Code, Context, Literal};
+use crate::*;
 
 pub type Integer = i64;
 
@@ -10,6 +10,11 @@ impl Literal<Integer> for Integer {
     fn random_value<R: rand::Rng>(rng: &mut R) -> Integer {
         rng.gen_range(i64::MIN..=i64::MAX)
     }
+}
+
+pub trait ContextHasIntegerStack<L: LiteralEnum<L>> {
+    fn integer(&self) -> &Stack<Integer>;
+    fn make_literal_integer(value: Integer) -> Code<L>;
 }
 
 // pub fn execute_integerdefine(context: &mut Context) {

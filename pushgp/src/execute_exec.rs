@@ -1,22 +1,9 @@
-use crate::{Code, Context, LiteralEnum};
+use crate::*;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Exec<L: LiteralEnum<L>> {
-    code: Code<L>,
-}
+pub type Exec<L> = Code<L>;
 
-impl<L: LiteralEnum<L>> From<Code<L>> for Exec<L> {
-    fn from(code: Code<L>) -> Exec<L> {
-        Exec {
-            code,
-        }
-    }
-}
-
-impl<L: LiteralEnum<L>> Into<Code<L>> for Exec<L> {
-    fn into(self) -> Code<L> {
-        self.code
-    }
+pub trait ContextHasExecStack<L: LiteralEnum<L>> {
+    fn exec(&self) -> &Stack<Exec<L>>;
 }
 
 // pub fn execute_execdefine(context: &mut Context) {

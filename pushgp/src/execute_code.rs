@@ -1,5 +1,9 @@
 use crate::code::Extraction;
-use crate::{Code, Context};
+use crate::*;
+
+pub trait ContextHasCodeStack<L: LiteralEnum<L>> {
+    fn code(&self) -> &Stack<Code<L>>;
+}
 
 // pub fn execute_codeappend(context: &mut Context) {
 //     if context.code_stack.len() >= 2 {

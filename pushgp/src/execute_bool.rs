@@ -1,4 +1,4 @@
-use crate::{Code, Context, ContextStack, InstructionTrait, Literal, LiteralEnum, LiteralEnumHasLiteralValue, Name, SupportsDefinedNames};
+use crate::*;
 use std::marker::PhantomData;
 
 pub type Bool = bool;
@@ -22,6 +22,11 @@ impl Literal<Bool> for Bool {
     }
 }
 
+pub trait ContextHasBoolStack<L: LiteralEnum<L>> {
+    fn bool(&self) -> &Stack<Bool>;
+    fn make_literal_bool(value: Bool) -> Code<L>;
+}
+
 /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
 pub struct BoolAnd<C, L> {
     c: PhantomData<C>,
@@ -30,7 +35,7 @@ pub struct BoolAnd<C, L> {
 
 impl<C, L> InstructionTrait<C> for BoolAnd<C, L>
 where
-    C: Context + ContextStack<Bool> + ContextStack<Name>,
+    C: Context + ContextHasBoolStack<L>,
     L: LiteralEnum<L>,
 {
     fn name() -> &'static str {
@@ -38,10 +43,10 @@ where
     }
 
     fn execute(context: &mut C) {
-        if <C as ContextStack<Bool>>::len(context) >= 2 {
-            let a = context.pop().unwrap();
-            let b = context.pop().unwrap();
-            context.push(a && b);
+        if context.bool().len() >= 2 {
+            let a = context.bool().pop().unwrap();
+            let b = context.bool().pop().unwrap();
+            context.bool().push(a && b);
         }
     }
 }
@@ -54,19 +59,40 @@ pub struct BoolDefine<C, L> {
 
 impl<C, L> InstructionTrait<C> for BoolDefine<C, L>
 where
-    C: Context + ContextStack<Bool> + ContextStack<Name> + SupportsDefinedNames<L>,
-    L: LiteralEnum<L> + LiteralEnumHasLiteralValue<L, Bool>,
+    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
+    L: LiteralEnum<L>,
 {
     fn name() -> &'static str {
         "BOOL.DEFINE"
     }
 
     fn execute(context: &mut C) {
-        if <C as ContextStack<Bool>>::len(context) >= 1 && <C as ContextStack<Name>>::len(context) >= 1 {
-            let a: Bool = context.pop().unwrap();
-            let b: Name = context.pop().unwrap();
-            context.define_name(b, Code::Literal(<L as LiteralEnumHasLiteralValue<L, Bool>>::make_from_value(a)));
+        if context.bool().len() >= 1 && context.name().len() >= 1 {
+            let value = context.bool().pop().unwrap();
+            let name = context.name().pop().unwrap();
+            context.name().define_name(name, C::make_literal_bool(value));
         }
+    }
+}
+
+/// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
+/// effect of the duplication!)
+pub struct BoolDup<C, L> {
+    c: PhantomData<C>,
+    l: PhantomData<L>,
+}
+
+impl<C, L> InstructionTrait<C> for BoolDup<C, L>
+where
+    C: Context + ContextHasBoolStack<L>,
+    L: LiteralEnum<L>,
+{
+    fn name() -> &'static str {
+        "BOOL.DUP"
+    }
+
+    fn execute(context: &mut C) {
+        context.bool().duplicate_top_item();
     }
 }
 

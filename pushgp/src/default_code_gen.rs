@@ -1,6 +1,7 @@
 use crate::instruction_table::InstructionTable;
 use crate::*;
 use nom::IResult;
+use pushgp_macros::*;
 use std::fmt::{Display, Formatter, Result};
 use std::rc::Rc;
 
@@ -101,45 +102,62 @@ impl EphemeralConfiguration<BaseLiteral> for BaseLiteral {
     }
 }
 
-impl InstructionConfiguration for BaseLiteral {
-    fn get_all_instructions() -> Vec<String> {
-        vec![
-            crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name().to_owned(),
-            crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name().to_owned(),
-            crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name().to_owned(),
-        ]
-    }
+instruction_list! {
+    context_name: BaseContext,
+    literal_name: BaseLiteral,
+    stacks: [
+        Bool,
+        Code,
+        Exec,
+        Float,
+        Integer,
+        Name,
+    ],
+    instructions: [
+        crate::execute_bool::BoolAnd,
+        crate::execute_bool::BoolDefine,
+        crate::execute_bool::BoolDup,
+    ],
 }
+// impl InstructionConfiguration for BaseLiteral {
+//     fn get_all_instructions() -> Vec<String> {
+//         vec![
+//             crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name().to_owned(),
+//             crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name().to_owned(),
+//             crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name().to_owned(),
+//         ]
+//     }
+// // }
 
-pub struct BaseLiteralParser {}
-impl Parser<BaseLiteral> for BaseLiteralParser {
-    fn parse_code_instruction(input: &str) -> IResult<&str, Code<BaseLiteral>> {
-        use nom::{branch::alt, bytes::complete::tag};
-        let (input, instruction) = alt((
-            tag(crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name()),
-            tag(crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name()),
-            tag(crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name())
-        ))(input)?;
-        let (input, _) = crate::parse::space_or_end(input)?;
+// pub struct BaseLiteralParser {}
+// impl Parser<BaseLiteral> for BaseLiteralParser {
+//     fn parse_code_instruction(input: &str) -> IResult<&str, Code<BaseLiteral>> {
+//         use nom::{branch::alt, bytes::complete::tag};
+//         let (input, instruction) = alt((
+//             tag(crate::execute_bool::BoolAnd::<BaseContext, BaseLiteral>::name()),
+//             tag(crate::execute_bool::BoolDefine::<BaseContext, BaseLiteral>::name()),
+//             tag(crate::execute_bool::BoolDup::<BaseContext, BaseLiteral>::name()),
+//         ))(input)?;
+//         let (input, _) = crate::parse::space_or_end(input)?;
 
-        Ok((input, Code::Instruction(instruction.to_owned())))
-    }
-}
+//         Ok((input, Code::Instruction(instruction.to_owned())))
+//     }
+// }
 
 /// Creates a new instruction table that contains every instruction known in the base library. This will fail to compile
-/// if your Context does not include stacks for all base library types.
-pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
-where
-    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
-    L: LiteralEnum<L>,
-{
-    let mut instructions = InstructionTable::new();
-    crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
-    crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
-    crate::execute_bool::BoolDup::<C, L>::add_to_table(&mut instructions);
+// /// if your Context does not include stacks for all base library types.
+// pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
+// where
+//     C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
+//     L: LiteralEnum<L>,
+// {
+//     let mut instructions = InstructionTable::new();
+//     crate::execute_bool::BoolAnd::<C, L>::add_to_table(&mut instructions);
+//     crate::execute_bool::BoolDefine::<C, L>::add_to_table(&mut instructions);
+//     crate::execute_bool::BoolDup::<C, L>::add_to_table(&mut instructions);
 
-    instructions
-}
+//     instructions
+// }
 
 #[derive(Debug, PartialEq)]
 pub struct BaseContext {
@@ -158,7 +176,6 @@ pub struct BaseContext {
 
 impl BaseContext {
     pub fn new(_config: Configuration<BaseLiteral>, instructions: InstructionTable<BaseContext>) -> BaseContext {
-
         BaseContext {
             exec_stack: Stack::new(),
             bool_stack: Stack::new(),
@@ -269,5 +286,18 @@ impl ContextHasNameStack<BaseLiteral> for BaseContext {
     }
     fn make_literal_name(value: Name) -> Code<BaseLiteral> {
         Code::Literal(BaseLiteral::Name(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::*;
+
+    #[test]
+    fn base_literal_has_get_all_instructions() {
+        let all_instructions = BaseLiteral::get_all_instructions();
+        assert!(all_instructions.contains(&"BOOL.AND".to_owned()));
+        assert!(all_instructions.contains(&"BOOL.DEFINE".to_owned()));
+        assert!(all_instructions.contains(&"BOOL.DUP".to_owned()));
     }
 }

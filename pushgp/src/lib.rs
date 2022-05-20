@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate pushgp_macros;
 
 mod code;

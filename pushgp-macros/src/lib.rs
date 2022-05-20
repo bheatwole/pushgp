@@ -1,5 +1,14 @@
+extern crate quote;
+
 use proc_macro::TokenStream;
 use quote::*;
+
+mod instruction_list;
+
+#[proc_macro]
+pub fn instruction_list(input: TokenStream) -> TokenStream {
+    instruction_list::make_instruction_list(input)
+}
 
 #[proc_macro_derive(Display)]
 #[doc(hidden)]

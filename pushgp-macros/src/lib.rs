@@ -2,12 +2,22 @@ extern crate quote;
 
 use proc_macro::TokenStream;
 use quote::*;
+use syn::{parse_macro_input, ItemFn};
 
+mod instruction;
 mod instruction_list;
 
 #[proc_macro]
 pub fn instruction_list(input: TokenStream) -> TokenStream {
-    instruction_list::make_instruction_list(input)
+    instruction_list::make_instruction_list(input).into()
+}
+
+#[proc_macro]
+pub fn instruction(input: TokenStream) -> TokenStream {
+    let mut item_fn = parse_macro_input!(input as ItemFn);
+    instruction::handle_instruction_macro(&mut item_fn)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 #[proc_macro_derive(Display)]
@@ -87,7 +97,10 @@ fn impl_execute_instruction(name: &syn::Ident, data: &syn::DataEnum) -> proc_mac
     }
 }
 
-fn impl_execute_instruction_for_variant(name: &syn::Ident, variant: &syn::Variant) -> proc_macro2::TokenStream {
+fn impl_execute_instruction_for_variant(
+    name: &syn::Ident,
+    variant: &syn::Variant,
+) -> proc_macro2::TokenStream {
     let id = &variant.ident;
     let lower = syn::Ident::new(&format!("execute_{}", id).to_lowercase(), id.span());
     match variant.fields {

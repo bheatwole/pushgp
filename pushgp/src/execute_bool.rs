@@ -1,4 +1,5 @@
 use crate::*;
+use pushgp_macros::*;
 use std::marker::PhantomData;
 
 pub type Bool = bool;
@@ -96,12 +97,13 @@ where
     }
 }
 
-// pub fn execute_booldup(context: &mut Context) {
-//     if context.bool_stack.len() >= 1 {
-//         let &b = context.bool_stack.last().unwrap();
-//         context.bool_stack.push(b);
-//     }
-// }
+instruction! {
+    /// Pushes TRUE if the top two BOOLEANs are equal, or FALSE otherwise
+    #[stack(Bool)]
+    fn equal(context: &mut Context, a: Bool, b: Bool) {
+        context.bool().push(a == b);
+    }
+}
 
 // pub fn execute_boolequal(context: &mut Context) {
 //     if context.bool_stack.len() >= 2 {

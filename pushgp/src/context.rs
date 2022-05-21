@@ -57,7 +57,7 @@ mod tests {
         test_bool_and: ("( TRUE FALSE BOOL.AND )", "( FALSE )", vec![]),
         test_bool_define: ("( KMu7 TRUE BOOL.DEFINE KMu7 )", "( TRUE )", vec![("KMu7", "TRUE")]),
         test_bool_dup: ("( TRUE BOOL.DUP )", "( TRUE TRUE )", vec![]),
-        // test_bool_equal: ("( TRUE FALSE BOOL.EQUAL )", "( FALSE )", vec![]),
+        test_bool_equal: ("( TRUE FALSE BOOL.EQUAL )", "( FALSE )", vec![]),
         // test_bool_flush: ("( TRUE FALSE BOOL.FLUSH )", "( )", vec![]),
         // test_bool_fromfloat: ("( 0.0 0.00001 BOOL.FROMFLOAT BOOL.FROMFLOAT )", "( TRUE FALSE )", vec![]),
         // test_bool_fromint: ("( 0 1 BOOL.FROMINT BOOL.FROMINT )", "( TRUE FALSE )", vec![]),

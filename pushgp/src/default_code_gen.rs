@@ -117,6 +117,7 @@ instruction_list! {
         crate::execute_bool::BoolAnd,
         crate::execute_bool::BoolDefine,
         crate::execute_bool::BoolDup,
+        crate::execute_bool::BoolEqual,
     ],
 }
 // impl InstructionConfiguration for BaseLiteral {

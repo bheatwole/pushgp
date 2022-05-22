@@ -1,6 +1,5 @@
 use crate::*;
 use pushgp_macros::*;
-use std::marker::PhantomData;
 
 pub type Bool = bool;
 
@@ -28,71 +27,27 @@ pub trait ContextHasBoolStack<L: LiteralEnum<L>> {
     fn make_literal_bool(value: Bool) -> Code<L>;
 }
 
-/// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
-pub struct BoolAnd<C, L> {
-    c: PhantomData<C>,
-    l: PhantomData<L>,
-}
-
-impl<C, L> InstructionTrait<C> for BoolAnd<C, L>
-where
-    C: Context + ContextHasBoolStack<L>,
-    L: LiteralEnum<L>,
-{
-    fn name() -> &'static str {
-        "BOOL.AND"
-    }
-
-    fn execute(context: &mut C) {
-        if context.bool().len() >= 2 {
-            let a = context.bool().pop().unwrap();
-            let b = context.bool().pop().unwrap();
-            context.bool().push(a && b);
-        }
+instruction! {
+    /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
+    #[stack(Bool)]
+    fn and(context: &mut Context, a: Bool, b: Bool) {
+        context.bool().push(a && b);
     }
 }
 
-/// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
-pub struct BoolDefine<C, L> {
-    c: PhantomData<C>,
-    l: PhantomData<L>,
-}
-
-impl<C, L> InstructionTrait<C> for BoolDefine<C, L>
-where
-    C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
-    L: LiteralEnum<L>,
-{
-    fn name() -> &'static str {
-        "BOOL.DEFINE"
-    }
-
-    fn execute(context: &mut C) {
-        if context.bool().len() >= 1 && context.name().len() >= 1 {
-            let value = context.bool().pop().unwrap();
-            let name = context.name().pop().unwrap();
-            context.name().define_name(name, C::make_literal_bool(value));
-        }
+instruction! {
+    /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
+    #[stack(Bool)]
+    fn define(context: &mut Context, value: Bool, name: Name) {
+        context.name().define_name(name, C::make_literal_bool(value));
     }
 }
 
-/// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
-/// effect of the duplication!)
-pub struct BoolDup<C, L> {
-    c: PhantomData<C>,
-    l: PhantomData<L>,
-}
-
-impl<C, L> InstructionTrait<C> for BoolDup<C, L>
-where
-    C: Context + ContextHasBoolStack<L>,
-    L: LiteralEnum<L>,
-{
-    fn name() -> &'static str {
-        "BOOL.DUP"
-    }
-
-    fn execute(context: &mut C) {
+instruction! {
+    /// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
+    /// effect of the duplication!)
+    #[stack(Bool)]
+    fn dup(context: &mut Context) {
         context.bool().duplicate_top_item();
     }
 }
@@ -105,100 +60,111 @@ instruction! {
     }
 }
 
-// pub fn execute_boolequal(context: &mut Context) {
-//     if context.bool_stack.len() >= 2 {
-//         let a = context.bool_stack.pop().unwrap();
-//         let b = context.bool_stack.pop().unwrap();
-//         context.bool_stack.push(a == b);
-//     }
-// }
+instruction! {
+    /// Empties the BOOLEAN stack
+    #[stack(Bool)]
+    fn flush(context: &mut Context) {
+        context.bool().clear();
+    }
+}
 
-// pub fn execute_boolflush(context: &mut Context) {
-//     context.bool_stack.clear();
-// }
+instruction! {
+    /// Pushes FALSE if the top FLOAT is 0.0, or TRUE otherwise
+    #[stack(Bool)]
+    fn from_float(context: &mut Context, f: Float) {
+        context.bool().push(!f.is_zero());
+    }
+}
 
-// pub fn execute_boolfromfloat(context: &mut Context) {
-//     if context.float_stack.len() >= 1 {
-//         let f = context.float_stack.pop().unwrap();
-//         context.bool_stack.push(!f.is_zero());
-//     }
-// }
+instruction! {
+    /// Pushes FALSE if the top INTEGER is 0, or TRUE otherwise
+    #[stack(Bool)]
+    fn from_int(context: &mut Context, i: Integer) {
+        context.bool().push(i != 0);
+    }
+}
+instruction! {
+    /// Pushes the logical NOT of the top BOOLEAN
+    #[stack(Bool)]
+    fn not(context: &mut Context, b: Bool) {
+        context.bool().push(!b);
+    }
+}
+instruction! {
+    /// Pushes the logical OR of the top two BOOLEANs
+    #[stack(Bool)]
+    fn or(context: &mut Context, a: Bool, b: Bool) {
+        context.bool().push(a || b);
+    }
+}
+instruction! {
+    /// Pops the BOOLEAN stack
+    #[stack(Bool)]
+    fn pop(context: &mut Context, _a: Bool) {
+    }
+}
 
-// pub fn execute_boolfromint(context: &mut Context) {
-//     if context.int_stack.len() >= 1 {
-//         let i = context.int_stack.pop().unwrap();
-//         context.bool_stack.push(i != 0);
-//     }
-// }
+instruction! {
+    /// Pushes a random BOOLEAN
+    #[stack(Bool)]
+    fn rand(context: &mut Context) {
+        //context.bool().push(Bool::random_value());
+    }
+}
 
-// pub fn execute_boolnot(context: &mut Context) {
-//     if context.bool_stack.len() >= 1 {
-//         let b = context.bool_stack.pop().unwrap();
-//         context.bool_stack.push(!b);
-//     }
-// }
+instruction! {
+    /// Rotates the top three items on the BOOLEAN stack, pulling the third item out and pushing it on top. This is
+    /// equivalent to "2 BOOLEAN.YANK"
+    #[stack(Bool)]
+    fn rot(context: &mut Context) {
+        context.bool().rotate();
+    }
+}
+instruction! {
+    /// Inserts the top BOOLEAN "deep" in the stack, at the position indexed by the top INTEGER
+    #[stack(Bool)]
+    fn shove(context: &mut Context, position: Integer) {
+        if !context.bool().shove(position) {
+            context.integer().push(position);
+        }
+    }
+}
 
-// pub fn execute_boolor(context: &mut Context) {
-//     if context.bool_stack.len() >= 2 {
-//         let a = context.bool_stack.pop().unwrap();
-//         let b = context.bool_stack.pop().unwrap();
-//         context.bool_stack.push(a || b);
-//     }
-// }
+instruction! {
+    /// Pushes the stack depth onto the INTEGER stack
+    #[stack(Bool)]
+    fn stack_depth(context: &mut Context) {
+        context.integer().push(context.bool().len() as i64);
+    }
+}
 
-// pub fn execute_boolpop(context: &mut Context) {
-//     context.bool_stack.pop();
-// }
+instruction! {
+    /// Swaps the top two BOOLEANs
+    #[stack(Bool)]
+    fn swap(context: &mut Context) {
+        context.bool().swap();
 
-// pub fn execute_boolrand(context: &mut Context) {
-//     context.bool_stack.push(context.config.random_bool())
-// }
+    }
+}
 
-// pub fn execute_boolrot(context: &mut Context) {
-//     let a = context.bool_stack.pop().unwrap();
-//     let b = context.bool_stack.pop().unwrap();
-//     let c = context.bool_stack.pop().unwrap();
-//     context.bool_stack.push(b);
-//     context.bool_stack.push(a);
-//     context.bool_stack.push(c);
-// }
+instruction! {
+    /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
+    /// The index is taken from the INTEGER stack
+    #[stack(Bool)]
+    fn yank_dup(context: &mut Context, position: Integer) {
+        if !context.bool().yank_duplicate(position) {
+            context.integer().push(position);
+        }
+    }
+}
 
-// pub fn execute_boolshove(context: &mut Context) {
-//     if context.bool_stack.len() >= 1 && context.int_stack.len() >= 1 {
-//         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.bool_stack.len());
-//         let b = context.bool_stack.pop().unwrap();
-//         context.bool_stack.insert(vec_index, b);
-//     }
-// }
-
-// pub fn execute_boolstackdepth(context: &mut Context) {
-//     context.int_stack.push(context.bool_stack.len() as i64);
-// }
-
-// pub fn execute_boolswap(context: &mut Context) {
-//     if context.bool_stack.len() >= 2 {
-//         let a = context.bool_stack.pop().unwrap();
-//         let b = context.bool_stack.pop().unwrap();
-//         context.bool_stack.push(a);
-//         context.bool_stack.push(b);
-//     }
-// }
-
-// pub fn execute_boolyank(context: &mut Context) {
-//     if context.bool_stack.len() >= 1 && context.int_stack.len() >= 1 {
-//         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.bool_stack.len());
-//         let b = context.bool_stack.remove(vec_index);
-//         context.bool_stack.push(b);
-//     }
-// }
-
-// pub fn execute_boolyankdup(context: &mut Context) {
-//     if context.bool_stack.len() >= 1 && context.int_stack.len() >= 1 {
-//         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.bool_stack.len());
-//         let &b = context.bool_stack.get(vec_index).unwrap();
-//         context.bool_stack.push(b);
-//     }
-// }
+instruction! {
+    /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from theF
+    /// INTEGER stack
+    #[stack(Bool)]
+    fn yank(context: &mut Context, position: Integer) {
+        if !context.bool().yank(position) {
+            context.integer().push(position);
+        }
+    }
+}

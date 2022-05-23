@@ -537,9 +537,10 @@ instruction! {
     /// Pushes the stack depth onto the INTEGER stack.
     #[stack(Code)]
     fn stack_depth(context: &mut Context) {
-
+        context.integer().push(context.code().len() as i64);
     }
 }
+
 instruction! {
     /// Pushes the result of substituting the third item on the code stack for the second item in the first item.
     #[stack(Code)]
@@ -574,13 +575,6 @@ instruction! {
 // pub fn execute_coderand(context: &mut Context) {
 //     let names: Vec<u64> = context.defined_names.keys().map(|n| *n).collect();
 //     context.code().push(context.config.generate_random_code(&names[..]));
-// }
-
-// pub fn execute_codesize(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         context.integer().push(code.points());
-//     }
 // }
 
 // pub fn execute_codestackdepth(context: &mut Context) {

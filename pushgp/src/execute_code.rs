@@ -108,8 +108,8 @@ instruction! {
     /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CODE stack onto
     /// the EXEC stack.
     #[stack(Code)]
-    fn define(context: &mut Context) {
-
+    fn define(context: &mut Context, code: Code, name: Name) {
+        context.name().define_name(name, code);
     }
 }
 instruction! {
@@ -431,14 +431,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codecontains(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let look_for = context.code().pop().unwrap();
-//         let look_in = context.code().pop().unwrap();
-//         context.bool().push(look_in.contains(&look_for));
-//     }
-// }
 
 // pub fn execute_codedefine(context: &mut Context) {
 //     if context.code().len() >= 1 && context.name().len() >= 1 {

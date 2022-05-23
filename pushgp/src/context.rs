@@ -74,9 +74,9 @@ mod tests {
         test_bool_swap_not_enough: ("( FALSE BOOL.SWAP )", "( FALSE )", vec![]),
         test_bool_yank: ("( FALSE TRUE FALSE FALSE 2 BOOL.YANK )", "( FALSE FALSE FALSE TRUE )", vec![]),
         test_bool_yank_dup: ("( FALSE TRUE FALSE FALSE 2 BOOL.YANKDUP )", "( FALSE TRUE FALSE FALSE TRUE )", vec![]),
-        // test_code_append: ("( CODE.QUOTE 1 CODE.QUOTE 2 CODE.APPEND )", "( CODE.QUOTE ( 1 2 ) )", vec![]),
-        // test_code_atom_true: ("( CODE.QUOTE -12 CODE.ATOM )", "( CODE.QUOTE -12 TRUE )", vec![]),
-        // test_code_atom_false: ("( CODE.QUOTE ( ) CODE.ATOM )", "( CODE.QUOTE ( ) FALSE )", vec![]),
+        test_code_append: ("( CODE.QUOTE 1 CODE.QUOTE 2 CODE.APPEND )", "( CODE.QUOTE ( 1 2 ) )", vec![]),
+        test_code_atom_true: ("( CODE.QUOTE -12 CODE.ATOM )", "( CODE.QUOTE -12 TRUE )", vec![]),
+        test_code_atom_false: ("( CODE.QUOTE ( ) CODE.ATOM )", "( CODE.QUOTE ( ) FALSE )", vec![]),
         // test_code_car: ("( CODE.QUOTE ( -12 2 ) CODE.CAR )", "( CODE.QUOTE -12 )", vec![]),
         // test_code_cdr: ("( CODE.QUOTE ( -12 2 ) CODE.CDR )", "( CODE.QUOTE ( 2 ) )", vec![]),
         // test_code_cdr_atom: ("( CODE.QUOTE A CODE.CDR )", "( CODE.QUOTE ( ) )", vec![]),
@@ -240,7 +240,7 @@ mod tests {
         let to_run = load_and_run("( CODE.QUOTE TRUE )");
         assert_eq!(0, to_run.exec().len());
         assert_eq!(0, to_run.bool().len());
-        assert_eq!(Some(true), to_run.bool().pop());
+        assert_eq!(Some(Code::Literal(BaseLiteral::Bool(true))), to_run.code().pop());
     }
 
     #[test]

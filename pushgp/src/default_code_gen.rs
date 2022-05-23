@@ -131,6 +131,10 @@ instruction_list! {
         crate::execute_bool::BoolSwap,
         crate::execute_bool::BoolYankDup,
         crate::execute_bool::BoolYank,
+        crate::execute_code::CodeAppend,
+        crate::execute_code::CodeAtom,
+        
+        crate::execute_code::CodeQuote,
     ],
 }
 // impl InstructionConfiguration for BaseLiteral {

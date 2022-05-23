@@ -90,10 +90,13 @@ instruction! {
     /// "( B ( C ( A ) ) ( D ( A ) ) )" and the second piece of code is "( A )" then this pushes ( C ( A ) ). Pushes an
     /// empty list if there is no such container.
     #[stack(Code)]
-    fn container(context: &mut Context) {
-
+    fn container(context: &mut Context, look_for: Code, look_in: Code) {
+        if let Some(code) = look_in.container(&look_for) {
+            context.code().push(code);
+        }
     }
 }
+
 instruction! {
     /// Pushes TRUE on the BOOLEAN stack if the second CODE stack item contains the first CODE stack item anywhere
     /// (e.g. in a sub-list).
@@ -429,29 +432,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codecons(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let top = context.code().pop().unwrap();
-//         let c = context.code().pop().unwrap();
-//         context.code().push(match top {
-//             Code::List(mut list) => {
-//                 list.insert(0, c);
-//                 Code::List(list)
-//             }
-//             x => Code::List(vec![c, x]),
-//         })
-//     }
-// }
-// pub fn execute_codecontainer(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let look_for = context.code().pop().unwrap();
-//         let look_in = context.code().pop().unwrap();
-//         if let Some(code) = look_in.container(&look_for) {
-//             context.code().push(code);
-//         }
-//     }
-// }
 
 // pub fn execute_codecontains(context: &mut Context) {
 //     if context.code().len() >= 2 {

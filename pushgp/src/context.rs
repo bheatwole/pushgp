@@ -81,7 +81,7 @@ mod tests {
         test_code_cdr: ("( CODE.QUOTE ( -12 2 ) CODE.CDR )", "( CODE.QUOTE ( 2 ) )", vec![]),
         test_code_cdr_atom: ("( CODE.QUOTE A CODE.CDR )", "( CODE.QUOTE ( ) )", vec![]),
         test_code_cons: ("( CODE.QUOTE TRUE CODE.QUOTE ( 1 2 ) CODE.CONS )", "( CODE.QUOTE ( TRUE 1 2 ) )", vec![]),
-        // test_code_container: ("( CODE.QUOTE ( B ( C ( A ) ) ( D ( A ) ) ) CODE.QUOTE ( A ) CODE.CONTAINER )", "( CODE.QUOTE ( C ( A ) ) )", vec![]),
+        test_code_container: ("( CODE.QUOTE ( B ( C ( A ) ) ( D ( A ) ) ) CODE.QUOTE ( A ) CODE.CONTAINER )", "( CODE.QUOTE ( C ( A ) ) )", vec![]),
         // test_code_contains_true: ("( CODE.QUOTE ( 4 ( 3 ( 2 ) ) ) CODE.QUOTE 3 CODE.CONTAINS )", "( TRUE )", vec![]),
         // test_code_contains_false: ("( CODE.QUOTE ( 4 ( 3 ( 2 ) ) ) CODE.QUOTE 1 CODE.CONTAINS )", "( FALSE )", vec![]),
         // test_code_contains_list: ("( CODE.QUOTE ( 4 ( 3 ( 2 ) ) ) CODE.QUOTE ( 2 ) CODE.CONTAINS )", "( TRUE )", vec![]),

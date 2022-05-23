@@ -47,16 +47,26 @@ instruction! {
         });
     }
 }
+
 instruction! {
     /// Pushes a version of the list from the top of the CODE stack without its first element. For example, if the top
     /// piece of code is "( A B )" then this pushes "( B )" (after popping the argument). If the code on top of the
     /// stack is not a list then this pushes the empty list ("( )"). The name derives from the similar Lisp function; a
     /// more generic name would be "REST".
     #[stack(Code)]
-    fn cdr(context: &mut Context) {
-
+    fn cdr(context: &mut Context, code: Code) {
+        context.code().push(match code {
+            Code::List(mut list) => {
+                if list.len() > 0 {
+                    list.remove(0);
+                }
+                Code::List(list)
+            }
+            _ => Code::List(vec![]),
+        })
     }
 }
+
 instruction! {
     /// Pushes the result of "consing" (in the Lisp sense) the second stack item onto the first stack item (which is
     /// coerced to a list if necessary). For example, if the top piece of code is "( A B )" and the second piece of code
@@ -412,21 +422,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codecdr(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let c = context.code().pop().unwrap();
-//         context.code().push(match c {
-//             Code::List(mut list) => {
-//                 if list.len() > 0 {
-//                     list.remove(0);
-//                 }
-//                 Code::List(list)
-//             }
-//             _ => Code::List(vec![]),
-//         })
-//     }
-// }
 
 // pub fn execute_codecons(context: &mut Context) {
 //     if context.code().len() >= 2 {

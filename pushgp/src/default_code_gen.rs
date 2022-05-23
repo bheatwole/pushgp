@@ -134,6 +134,7 @@ instruction_list! {
         crate::execute_code::CodeAppend,
         crate::execute_code::CodeAtom,
         crate::execute_code::CodeCar,
+        crate::execute_code::CodeCdr,
 
         crate::execute_code::CodeQuote,
     ],

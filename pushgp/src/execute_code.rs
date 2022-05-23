@@ -360,10 +360,11 @@ instruction! {
     /// otherwise it recursively executes the first item of the CODE stack. Either way both elements of the CODE stack
     /// (and the BOOLEAN value upon which the decision was made) are popped.
     #[stack(Code)]
-    fn if(context: &mut Context) {
-
+    fn if(context: &mut Context, false_branch: Code, true_branch: Code, switch_on: Bool) {
+        context.exec().push(if switch_on { true_branch } else { false_branch });
     }
 }
+
 instruction! {
     /// Pushes the result of inserting the second item of the CODE stack into the first item, at the position indexed by
     /// the top item of the INTEGER stack (and replacing whatever was there formerly). The indexing is computed as in

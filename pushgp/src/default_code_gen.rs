@@ -176,6 +176,8 @@ instruction_list! {
         crate::execute_code::CodeSwap,
         crate::execute_code::CodeYankDup,
         crate::execute_code::CodeYank,
+
+        crate::execute_integer::IntegerPop,
     ],
 }
 // impl InstructionConfiguration for BaseLiteral {

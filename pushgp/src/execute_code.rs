@@ -233,8 +233,26 @@ instruction! {
     /// tacked on to the front of the loop body code in the call to CODE.DO*RANGE. This call to INTEGER.POP will remove
     /// the loop counter, which will have been pushed by CODE.DO*RANGE, prior to the execution of the loop body.
     #[stack(Code)]
-    fn do_n_times(context: &mut Context) {
+    fn do_n_times(context: &mut Context, code: Code, count: Integer) {
+        // NOOP if count <= 0
+        if count <= 0 {
+            context.code().push(code);
+            context.integer().push(count);
+        } else {
+            // The difference between Count and Times is that the 'current index' is not available to
+            // the loop body. Pop that value first
+            let code = Code::List(vec![Code::instruction("INTEGER.POP"), code]);
 
+            // Turn into DoNRange with (Count - 1) as destination
+            let next = Code::List(vec![
+                C::make_literal_integer(0),
+                C::make_literal_integer(count - 1),
+                Code::instruction("CODE.QUOTE"),
+                code,
+                Code::instruction("CODE.DONRANGE"),
+            ]);
+            context.exec().push(next);
+        }
     }
 }
 
@@ -402,12 +420,14 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Pops the CODE stack.
     #[stack(Code)]
     fn pop(context: &mut Context, _popped: Code) {
     }
 }
+
 instruction! {
     /// Pushes onto the INTEGER stack the position of the second item on the CODE stack within the first item (which is
     /// coerced to a list if necessary). Pushes -1 if no match is found.
@@ -495,33 +515,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codedontimes(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         let count = context.integer().pop().unwrap();
-
-//         // NOOP if count <= 0
-//         if count <= 0 {
-//             context.code().push(code);
-//             context.integer().push(count);
-//         } else {
-//             // The difference between Count and Times is that the 'current index' is not available to
-//             // the loop body. Pop that value first
-//             let code = Code::List(vec![Code::Instruction(Instruction::IntegerPop), code]);
-
-//             // Turn into DoNRange with (Count - 1) as destination
-//             let next = Code::List(vec![
-//                 Code::LiteralInteger(0),
-//                 Code::LiteralInteger(count - 1),
-//                 Code::Instruction(Instruction::CodeQuote),
-//                 code,
-//                 Code::Instruction(Instruction::CodeDoNRange),
-//             ]);
-//             context.exec().push(next);
-//         }
-//     }
-// }
 
 // pub fn execute_codedup(context: &mut Context) {
 //     if context.code().len() >= 1 {

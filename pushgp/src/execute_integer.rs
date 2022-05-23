@@ -1,4 +1,5 @@
 use crate::*;
+use pushgp_macros::*;
 
 pub type Integer = i64;
 
@@ -15,6 +16,13 @@ impl Literal<Integer> for Integer {
 pub trait ContextHasIntegerStack<L: LiteralEnum<L>> {
     fn integer(&self) -> &Stack<Integer>;
     fn make_literal_integer(value: Integer) -> Code<L>;
+}
+
+instruction! {
+    /// Pops the INTEGER stack.
+    #[stack(Integer)]
+    fn pop(context: &mut Context, _popped: Integer) {
+    }
 }
 
 // pub fn execute_integerdefine(context: &mut Context) {

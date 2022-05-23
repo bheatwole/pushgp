@@ -509,7 +509,7 @@ instruction! {
     /// equivalent to "2 CODE.YANK".
     #[stack(Code)]
     fn rot(context: &mut Context) {
-
+        context.code().rotate();
     }
 }
 instruction! {

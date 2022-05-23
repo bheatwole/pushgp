@@ -126,7 +126,7 @@ mod tests {
         // test_code_null_false: ("( CODE.QUOTE ( A ) CODE.NULL )", "( FALSE )", vec![]),
         // test_code_null_atom: ("( CODE.QUOTE A CODE.NULL )", "( FALSE )", vec![]),
         // test_code_null_true: ("( CODE.QUOTE ( ) CODE.NULL )", "( TRUE )", vec![]),
-        // test_code_pop: ("( CODE.QUOTE TRUE CODE.POP )", "( )", vec![]),
+        test_code_pop: ("( CODE.QUOTE TRUE CODE.POP )", "( )", vec![]),
         // test_code_position: ("( CODE.QUOTE ( B ) CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( 1 )", vec![]),
         // test_code_position_not_found: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( -1 )", vec![]),
         // test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),

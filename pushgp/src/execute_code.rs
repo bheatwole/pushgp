@@ -160,6 +160,7 @@ instruction! {
         context.integer().push(discrepancy);
     }
 }
+
 instruction! {
     /// An iteration instruction that performs a loop (the body of which is taken from the CODE stack) the number of
     /// times indicated by the INTEGER argument, pushing an index (which runs from zero to one less than the number of
@@ -173,6 +174,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// An iteration instruction that executes the top item on the CODE stack a number of times that depends on the top
     /// two integers, while also pushing the loop counter onto the INTEGER stack for possible access during the
@@ -191,6 +193,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Like CODE.DO*COUNT but does not push the loop counter. This should be implemented as a macro that expands into
     /// CODE.DO*RANGE, similarly to the implementation of CODE.DO*COUNT, except that a call to INTEGER.POP should be
@@ -201,6 +204,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Like CODE.DO but pops the stack before, rather than after, the recursive execution.
     #[stack(Code)]
@@ -208,6 +212,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Recursively invokes the interpreter on the program on top of the CODE stack. After evaluation the CODE stack is
     /// popped; normally this pops the program that was just executed, but if the expression itself manipulates the
@@ -217,6 +222,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Duplicates the top item on the CODE stack. Does not pop its argument (which, if it did, would negate the effect
     /// of the duplication!).
@@ -364,8 +370,7 @@ instruction! {
 instruction! {
     /// Pops the CODE stack.
     #[stack(Code)]
-    fn pop(context: &mut Context) {
-
+    fn pop(context: &mut Context, _popped: Code) {
     }
 }
 instruction! {
@@ -694,12 +699,6 @@ instruction! {
 //         // This relies on the behavior that code.len() returns 1 for atoms
 //         let code = context.code().pop().unwrap();
 //         context.bool().push(0 == code.len());
-//     }
-// }
-
-// pub fn execute_codepop(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         context.code().pop();
 //     }
 // }
 

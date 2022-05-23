@@ -62,6 +62,7 @@ impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
     }
     fn pop(&self) -> Option<Name> { self.stack.pop() }
     fn push(&self, item: Name) { self.stack.push(item) }
+    fn peek(&self) -> Option<Name> { self.stack.peek() }
     fn len(&self) -> usize { self.stack.len() }
     fn duplicate_top_item(&self) { self.stack.duplicate_top_item() }
     fn clear(&self) { self.stack.clear() }

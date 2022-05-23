@@ -12,6 +12,9 @@ pub trait StackTrait<T: Clone> {
     /// Pushes the specified item onto the top of the stack
     fn push(&self, item: T);
 
+    /// Returns a clone of the top item from the Stack or None if the stack is empty
+    fn peek(&self) -> Option<T>;
+
     /// Returns the length of the Stack
     fn len(&self) -> usize;
 
@@ -77,6 +80,11 @@ impl<T: Clone> StackTrait<T> for Stack<T> {
     /// Pushes the specified item onto the top of the stack
     fn push(&self, item: T) {
         self.stack.borrow_mut().push(item)
+    }
+
+    /// Returns a clone of the top item from the Stack or None if the stack is empty
+    fn peek(&self) -> Option<T> {
+        self.stack.borrow_mut().last().map(|item| item.clone())
     }
 
     /// Returns the length of the Stack

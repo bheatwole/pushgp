@@ -478,8 +478,11 @@ instruction! {
     /// Pushes onto the INTEGER stack the position of the second item on the CODE stack within the first item (which is
     /// coerced to a list if necessary). Pushes -1 if no match is found.
     #[stack(Code)]
-    fn position(context: &mut Context) {
-
+    fn position(context: &mut Context, look_in: Code, look_for: Code) {
+        match look_in.position_of(&look_for) {
+            Some(index) => context.integer().push(index as i64),
+            None => context.integer().push(-1),
+        }
     }
 }
 
@@ -561,17 +564,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeposition(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let look_in = context.code().pop().unwrap();
-//         let look_for = context.code().pop().unwrap();
-//         match look_in.position_of(&look_for) {
-//             Some(index) => context.integer().push(index as i64),
-//             None => context.integer().push(-1),
-//         }
-//     }
-// }
 
 // pub fn execute_codequote(context: &mut Context) {
 //     if context.exec().len() >= 1 {

@@ -135,7 +135,7 @@ mod tests {
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),
         test_code_shove_zero: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 0 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),
         test_code_shove_wrap: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 3 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),
-        // test_code_size: ("( CODE.QUOTE ( A ( B ) C ) CODE.SIZE )", "( 5 )", vec![]),
+        test_code_size: ("( CODE.QUOTE ( A ( B ) C ) CODE.SIZE )", "( 5 )", vec![]),
         // test_code_stack_depth: ("( CODE.QUOTE A CODE.QUOTE B CODE.STACKDEPTH )", "( CODE.QUOTE A CODE.QUOTE B 2 )", vec![]),
         // test_code_substitute: ("( CODE.QUOTE A CODE.QUOTE ( B ) CODE.QUOTE ( A ( B ) ( A ( B ) ) ) CODE.SUBSTITUTE )", "( CODE.QUOTE ( A A ( A A ) ) )", vec![]),
         // test_code_swap: ("( CODE.QUOTE A CODE.QUOTE B CODE.SWAP )", "( CODE.QUOTE B CODE.QUOTE A )", vec![]),

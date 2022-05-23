@@ -528,10 +528,11 @@ instruction! {
     /// Pushes the number of "points" in the top piece of CODE onto the INTEGER stack. Each instruction, literal, and
     /// pair of parentheses counts as a point.
     #[stack(Code)]
-    fn size(context: &mut Context) {
-
+    fn size(context: &mut Context, code: Code) {
+        context.integer().push(code.points());
     }
 }
+
 instruction! {
     /// Pushes the stack depth onto the INTEGER stack.
     #[stack(Code)]
@@ -573,15 +574,6 @@ instruction! {
 // pub fn execute_coderand(context: &mut Context) {
 //     let names: Vec<u64> = context.defined_names.keys().map(|n| *n).collect();
 //     context.code().push(context.config.generate_random_code(&names[..]));
-// }
-
-// pub fn execute_codeshove(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let stack_index = context.integer().pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.code().len());
-//         let b = context.code().pop().unwrap();
-//         context.code().insert(vec_index, b);
-//     }
 // }
 
 // pub fn execute_codesize(context: &mut Context) {

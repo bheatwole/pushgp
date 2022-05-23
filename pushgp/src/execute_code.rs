@@ -370,10 +370,13 @@ instruction! {
     /// the top item of the INTEGER stack (and replacing whatever was there formerly). The indexing is computed as in
     /// CODE.EXTRACT.
     #[stack(Code)]
-    fn insert(context: &mut Context) {
-
+    fn insert(context: &mut Context, search_in: Code, replace_with: Code, point: Integer) {
+        let total_points = search_in.points();
+        let point = point.abs() % total_points;
+        context.code().push(search_in.replace_point(point, &replace_with).0);
     }
 }
+
 instruction! {
     /// Pushes a list of all active instructions in the interpreter's current configuration.
     #[stack(Code)]
@@ -533,24 +536,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeif(context: &mut Context) {
-//     if context.code().len() >= 2 && context.bool().len() >= 1 {
-//         let false_branch = context.code().pop().unwrap();
-//         let true_branch = context.code().pop().unwrap();
-//         context.exec().push(if context.bool().pop().unwrap() { true_branch } else { false_branch });
-//     }
-// }
-
-// pub fn execute_codeinsert(context: &mut Context) {
-//     if context.code().len() >= 2 && context.integer().len() >= 1 {
-//         let search_in = context.code().pop().unwrap();
-//         let replace_with = context.code().pop().unwrap();
-//         let total_points = search_in.points();
-//         let point = context.integer().pop().unwrap().abs() % total_points;
-//         context.code().push(search_in.replace_point(point, &replace_with).0);
-//     }
-// }
 
 // pub fn execute_codeinstructions(context: &mut Context) {
 //     for inst in context.config.allowed_instructions() {

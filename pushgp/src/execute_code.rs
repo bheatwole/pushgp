@@ -504,6 +504,7 @@ instruction! {
 
     }
 }
+
 instruction! {
     /// Rotates the top three items on the CODE stack, pulling the third item out and pushing it on top. This is
     /// equivalent to "2 CODE.YANK".
@@ -512,13 +513,17 @@ instruction! {
         context.code().rotate();
     }
 }
+
 instruction! {
     /// Inserts the top piece of CODE "deep" in the stack, at the position indexed by the top INTEGER.
     #[stack(Code)]
-    fn shove(context: &mut Context) {
-
+    fn shove(context: &mut Context, position: Integer) {
+        if !context.code().shove(position) {
+            context.integer().push(position);
+        }
     }
 }
+
 instruction! {
     /// Pushes the number of "points" in the top piece of CODE onto the INTEGER stack. Each instruction, literal, and
     /// pair of parentheses counts as a point.
@@ -565,24 +570,9 @@ instruction! {
     }
 }
 
-// pub fn execute_codequote(context: &mut Context) {
-//     if context.exec().len() >= 1 {
-//         context.code().push(context.exec().pop().unwrap());
-//     }
-// }
-
 // pub fn execute_coderand(context: &mut Context) {
 //     let names: Vec<u64> = context.defined_names.keys().map(|n| *n).collect();
 //     context.code().push(context.config.generate_random_code(&names[..]));
-// }
-
-// pub fn execute_coderot(context: &mut Context) {
-//     let a = context.code().pop().unwrap();
-//     let b = context.code().pop().unwrap();
-//     let c = context.code().pop().unwrap();
-//     context.code().push(b);
-//     context.code().push(a);
-//     context.code().push(c);
 // }
 
 // pub fn execute_codeshove(context: &mut Context) {

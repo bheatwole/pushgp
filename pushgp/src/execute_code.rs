@@ -396,13 +396,15 @@ instruction! {
         context.integer().push(code.len() as i64);
     }
 }
+
 instruction! {
     /// Pushes a list of the top two items of the CODE stack onto the CODE stack.
     #[stack(Code)]
-    fn list(context: &mut Context) {
-
+    fn list(context: &mut Context, a: Code, b: Code) {
+        context.code().push(Code::List(vec![b, a]));
     }
 }
+
 instruction! {
     /// Pushes TRUE onto the BOOLEAN stack if the second item of the CODE stack is a member of the first item (which is
     /// coerced to a list if necessary). Pushes FALSE onto the BOOLEAN stack otherwise.
@@ -539,14 +541,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codelist(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let a = context.code().pop().unwrap();
-//         let b = context.code().pop().unwrap();
-//         context.code().push(Code::List(vec![b, a]));
-//     }
-// }
 
 // pub fn execute_codemember(context: &mut Context) {
 //     if context.code().len() >= 2 {

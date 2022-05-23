@@ -7,8 +7,7 @@ use std::collections::{HashMap, HashSet};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 use syn::{
-    Block, Error, Expr, FnArg, Ident, Meta, NestedMeta, Pat, Path, Stmt, Type,
-    TypeParamBound,
+    Block, Error, Expr, FnArg, Ident, Meta, NestedMeta, Pat, Path, Stmt, Type, TypeParamBound,
 };
 
 struct FunctionParseResults {
@@ -269,9 +268,15 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
         Expr::MethodCall(expr) => {
             if let Some(receiver) = expr_path_ident(expr.receiver.as_ref()) {
                 if receiver == "context" {
-                    parse_results
-                        .stacks
-                        .insert(expr.method.to_string().to_case(Case::Pascal));
+                    // There are certain methods we need to skip
+                    let method: String = expr.method.to_string();
+                    if !(method == "run"
+                        || method == "clear"
+                        || method == "next"
+                        || method == "all_instruction_names")
+                    {
+                        parse_results.stacks.insert(method.to_case(Case::Pascal));
+                    }
                 }
             } else {
                 find_stack_in_expr(expr.receiver.as_ref(), parse_results);

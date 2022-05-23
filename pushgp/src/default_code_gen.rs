@@ -260,6 +260,10 @@ impl Context for BaseContext {
         self.name_stack.clear();
     }
 
+    fn all_instruction_names(&self) -> Vec<String> {
+        self.instructions.all_instruction_names()
+    }
+
     fn next(&mut self) -> Option<usize> {
         // Pop the top piece of code from the exec stack and execute it.
         if let Some(exec) = self.exec_stack.pop() {

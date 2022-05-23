@@ -381,7 +381,9 @@ instruction! {
     /// Pushes a list of all active instructions in the interpreter's current configuration.
     #[stack(Code)]
     fn instructions(context: &mut Context) {
-
+        for inst in context.all_instruction_names() {
+            context.code().push(Code::instruction(inst));
+        }
     }
 }
 instruction! {

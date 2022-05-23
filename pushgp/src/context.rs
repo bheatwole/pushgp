@@ -4,6 +4,7 @@ use std::fmt::Debug;
 pub trait Context: Debug {
     fn clear(&mut self);
     fn next(&mut self) -> Option<usize>;
+    fn all_instruction_names(&self) -> Vec<String>;
 
     fn run(&mut self, max: usize) -> usize {
         trace!("{:?}", self);

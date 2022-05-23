@@ -103,7 +103,7 @@ mod tests {
         test_code_extract_2: ("( CODE.QUOTE ( 1 ( 2 ) ) 2 CODE.EXTRACT )", "( CODE.QUOTE ( 2 ) )", vec![]),
         test_code_extract_3: ("( CODE.QUOTE ( 1 ( 2 ) ) 3 CODE.EXTRACT )", "( CODE.QUOTE 2 )", vec![]),
         test_code_extract_modulo: ("( CODE.QUOTE ( 1 ( 2 ) ) 4 CODE.EXTRACT )", "( CODE.QUOTE ( 1 ( 2 ) ) )", vec![]),
-        // test_code_flush: ("( CODE.QUOTE ( 1 ( 2 ) ) CODE.FLUSH )", "( )", vec![]),
+        test_code_flush: ("( CODE.QUOTE ( 1 ( 2 ) ) CODE.FLUSH )", "( )", vec![]),
         // test_code_from_boolean: ("( TRUE CODE.FROMBOOLEAN )", "( CODE.QUOTE TRUE )", vec![]),
         // test_code_from_float: ("( 1.5 CODE.FROMFLOAT )", "( CODE.QUOTE 1.5 )", vec![]),
         // test_code_from_integer: ("( 42 CODE.FROMINTEGER )", "( CODE.QUOTE 42 )", vec![]),

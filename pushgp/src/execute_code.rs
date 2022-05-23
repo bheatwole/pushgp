@@ -319,9 +319,10 @@ instruction! {
     /// Empties the CODE stack.
     #[stack(Code)]
     fn flush(context: &mut Context) {
-
+        context.code().clear();
     }
 }
+
 instruction! {
     /// Pops the BOOLEAN stack and pushes the popped item (TRUE or FALSE) onto the CODE stack.
     #[stack(Code)]

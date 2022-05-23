@@ -303,10 +303,18 @@ instruction! {
     /// number of points in the overall expression (and its absolute value is taken in case it is negative) to ensure
     /// that it is within the meaningful range.
     #[stack(Code)]
-    fn extract(context: &mut Context) {
-
+    fn extract(context: &mut Context, code: Code, point: Integer) {
+        let total_points = code.points();
+        let point = point.abs() % total_points;
+        match code.extract_point(point) {
+            Extraction::Extracted(code) => context.code().push(code),
+            Extraction::Used(_) => {
+                panic!("should always be able to extract some code because of abs() and modulo")
+            }
+        }
     }
 }
+
 instruction! {
     /// Empties the CODE stack.
     #[stack(Code)]
@@ -519,20 +527,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeextract(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         let total_points = code.points();
-//         let point = context.integer().pop().unwrap().abs() % total_points;
-//         match code.extract_point(point) {
-//             Extraction::Extracted(code) => context.code().push(code),
-//             Extraction::Used(_) => {
-//                 panic!("should always be able to extract some code because of abs() and modulo")
-//             }
-//         }
-//     }
-// }
 
 // pub fn execute_codeflush(context: &mut Context) {
 //     context.code().clear();

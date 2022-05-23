@@ -1,11 +1,14 @@
 extern crate quote;
 
+use crate::item_fn::ItemFn;
 use proc_macro::TokenStream;
 use quote::*;
-use syn::{parse_macro_input, ItemFn};
+use syn::{parse_macro_input};
 
 mod instruction;
 mod instruction_list;
+mod item_fn;
+mod signature;
 
 #[proc_macro]
 pub fn instruction_list(input: TokenStream) -> TokenStream {

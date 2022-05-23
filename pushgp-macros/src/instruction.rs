@@ -1,3 +1,4 @@
+use crate::item_fn::ItemFn;
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -6,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use syn::parse::Result;
 use syn::spanned::Spanned;
 use syn::{
-    Block, Error, Expr, FnArg, Ident, ItemFn, Meta, NestedMeta, Pat, Path, Stmt, Type,
+    Block, Error, Expr, FnArg, Ident, Meta, NestedMeta, Pat, Path, Stmt, Type,
     TypeParamBound,
 };
 

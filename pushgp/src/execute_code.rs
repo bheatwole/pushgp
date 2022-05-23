@@ -208,8 +208,8 @@ instruction! {
 instruction! {
     /// Like CODE.DO but pops the stack before, rather than after, the recursive execution.
     #[stack(Code)]
-    fn do_n(context: &mut Context) {
-
+    fn do_n(context: &mut Context, code: Code) {
+        context.exec().push(code)
     }
 }
 
@@ -462,15 +462,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codedo(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         context.exec().push(Code::Instruction(Instruction::CodePop));
-//         context.exec().push(code.clone());
-//         context.code().push(code);
-//     }
-// }
 
 // pub fn execute_codedon(context: &mut Context) {
 //     if context.code().len() >= 1 {

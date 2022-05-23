@@ -427,19 +427,37 @@ instruction! {
     /// INTEGER stack and is taken modulo the length of the expression into which it is indexing. A "CDR" of a list is
     /// the list without its first element.
     #[stack(Code)]
-    fn nth_cdr(context: &mut Context) {
-
+    fn nth_cdr(context: &mut Context, index: Integer, list: Code) {
+        let index = index.abs() as usize;
+        let mut list = list.to_list();
+        if 0 == list.len() {
+            context.code().push(Code::List(list));
+        } else {
+            let index = index % list.len();
+            list.remove(index);
+            context.code().push(Code::List(list));
+        }
     }
 }
+
 instruction! {
     /// Pushes the nth element of the expression on top of the CODE stack (which is coerced to a list first if
     /// necessary). If the expression is an empty list then the result is an empty list. N is taken from the INTEGER
     /// stack and is taken modulo the length of the expression into which it is indexing.
     #[stack(Code)]
-    fn nth(context: &mut Context) {
-
+    fn nth(context: &mut Context, index: Integer, list: Code) {
+        let index = index.abs() as usize;
+        let mut list = list.to_list();
+        if 0 == list.len() {
+            context.code().push(Code::List(list));
+        } else {
+            let index = index % list.len();
+            list.truncate(index + 1);
+            context.code().push(list.pop().unwrap());
+        }
     }
 }
+
 instruction! {
     /// Pushes TRUE onto the BOOLEAN stack if the top item of the CODE stack is an empty list, or FALSE otherwise.
     #[stack(Code)]
@@ -542,46 +560,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codemember(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let look_in = context.code().pop().unwrap();
-//         let look_for = context.code().pop().unwrap();
-//         context.bool().push(look_in.has_member(&look_for));
-//     }
-// }
-
-// pub fn execute_codenoop(_context: &mut Context) {
-//     // Intentionally blank
-// }
-
-// pub fn execute_codenth(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let index = context.integer().pop().unwrap().abs() as usize;
-//         let mut list = context.code().pop().unwrap().to_list();
-//         if 0 == list.len() {
-//             context.code().push(Code::List(list));
-//         } else {
-//             let index = index % list.len();
-//             list.truncate(index + 1);
-//             context.code().push(list.pop().unwrap());
-//         }
-//     }
-// }
-
-// pub fn execute_codenthcdr(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let index = context.integer().pop().unwrap().abs() as usize;
-//         let mut list = context.code().pop().unwrap().to_list();
-//         if 0 == list.len() {
-//             context.code().push(Code::List(list));
-//         } else {
-//             let index = index % list.len();
-//             list.remove(index);
-//             context.code().push(Code::List(list));
-//         }
-//     }
-// }
 
 // pub fn execute_codenull(context: &mut Context) {
 //     if context.code().len() >= 1 {

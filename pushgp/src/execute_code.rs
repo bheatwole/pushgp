@@ -6,7 +6,6 @@ pub trait ContextHasCodeStack<L: LiteralEnum<L>> {
     fn code(&self) -> &Stack<Code<L>>;
 }
 
-
 instruction! {
     /// Pushes the result of appending the top two pieces of code. If one of the pieces of code is a single instruction
     /// or literal (that is, something not surrounded by parentheses) then it is surrounded by parentheses first.
@@ -101,8 +100,8 @@ instruction! {
     /// Pushes TRUE on the BOOLEAN stack if the second CODE stack item contains the first CODE stack item anywhere
     /// (e.g. in a sub-list).
     #[stack(Code)]
-    fn contains(context: &mut Context) {
-
+    fn contains(context: &mut Context, look_for: Code, look_in: Code) {
+        context.bool().push(look_in.contains(&look_for));
     }
 }
 instruction! {

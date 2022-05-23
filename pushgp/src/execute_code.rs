@@ -137,8 +137,27 @@ instruction! {
     ///      in the two pieces of code.
     ///   4. Push the result.
     #[stack(Code)]
-    fn discrepancy(context: &mut Context) {
+    fn discrepancy(context: &mut Context, a: Code, b: Code) {
+        // Determine all the unique code items along with the count that each appears
+        let a_items = a.discrepancy_items();
+        let b_items = b.discrepancy_items();
 
+        // Count up all the difference from a to b
+        let mut discrepancy = 0;
+        for (key, &a_count) in a_items.iter() {
+            let b_count = *b_items.get(&key).unwrap_or(&0);
+            discrepancy += (a_count - b_count).abs();
+        }
+
+        // Count up the difference from b to a for only the keys we didn't use already
+        for (key, &b_count) in b_items.iter() {
+            if a_items.get(&key).is_none() {
+                discrepancy += b_count;
+            }
+        }
+
+        // Push that value
+        context.integer().push(discrepancy);
     }
 }
 instruction! {
@@ -437,34 +456,6 @@ instruction! {
     }
 }
 
-// pub fn execute_codediscrepancy(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let a = context.code().pop().unwrap();
-//         let b = context.code().pop().unwrap();
-
-//         // Determine all the unique code items along with the count that each appears
-//         let a_items = a.discrepancy_items();
-//         let b_items = b.discrepancy_items();
-
-//         // Count up all the difference from a to b
-//         let mut discrepancy = 0;
-//         for (key, &a_count) in a_items.iter() {
-//             let b_count = *b_items.get(&key).unwrap_or(&0);
-//             discrepancy += (a_count - b_count).abs();
-//         }
-
-//         // Count up the difference from b to a for only the keys we didn't use already
-//         for (key, &b_count) in b_items.iter() {
-//             if a_items.get(&key).is_none() {
-//                 discrepancy += b_count;
-//             }
-//         }
-
-//         // Push that value
-//         context.int().push(discrepancy);
-//     }
-// }
-
 // pub fn execute_codedo(context: &mut Context) {
 //     if context.code().len() >= 1 {
 //         let code = context.code().pop().unwrap();
@@ -483,13 +474,13 @@ instruction! {
 // }
 
 // pub fn execute_codedoncount(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
 //         let code = context.code().pop().unwrap();
-//         let count = context.int().pop().unwrap();
+//         let count = context.integer().pop().unwrap();
 //         // NOOP if count <= 0
 //         if count <= 0 {
 //             context.code().push(code);
-//             context.int().push(count);
+//             context.integer().push(count);
 //         } else {
 //             // Turn into DoNRange with (Count - 1) as destination
 //             let next = Code::List(vec![
@@ -505,10 +496,10 @@ instruction! {
 // }
 
 // pub fn execute_codedonrange(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 2 {
+//     if context.code().len() >= 1 && context.integer().len() >= 2 {
 //         let code = context.code().pop().unwrap();
-//         let dest = context.int().pop().unwrap();
-//         let cur = context.int().pop().unwrap();
+//         let dest = context.integer().pop().unwrap();
+//         let cur = context.integer().pop().unwrap();
 
 //         // If we haven't reached the destination yet, push the next iteration onto the stack first.
 //         if cur != dest {
@@ -524,7 +515,7 @@ instruction! {
 //         }
 
 //         // Push the current index onto the int stack so its accessible in the loop
-//         context.int().push(cur);
+//         context.integer().push(cur);
 
 //         // Push the code to run onto the exec stack
 //         context.exec().push(code);
@@ -532,14 +523,14 @@ instruction! {
 // }
 
 // pub fn execute_codedontimes(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
 //         let code = context.code().pop().unwrap();
-//         let count = context.int().pop().unwrap();
+//         let count = context.integer().pop().unwrap();
 
 //         // NOOP if count <= 0
 //         if count <= 0 {
 //             context.code().push(code);
-//             context.int().push(count);
+//             context.integer().push(count);
 //         } else {
 //             // The difference between Count and Times is that the 'current index' is not available to
 //             // the loop body. Pop that value first
@@ -574,10 +565,10 @@ instruction! {
 // }
 
 // pub fn execute_codeextract(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
 //         let code = context.code().pop().unwrap();
 //         let total_points = code.points();
-//         let point = context.int().pop().unwrap().abs() % total_points;
+//         let point = context.integer().pop().unwrap().abs() % total_points;
 //         match code.extract_point(point) {
 //             Extraction::Extracted(code) => context.code().push(code),
 //             Extraction::Used(_) => {
@@ -606,8 +597,8 @@ instruction! {
 // }
 
 // pub fn execute_codefrominteger(context: &mut Context) {
-//     if context.int().len() >= 1 {
-//         let value = context.int().pop().unwrap();
+//     if context.integer().len() >= 1 {
+//         let value = context.integer().pop().unwrap();
 //         context.code().push(Code::LiteralInteger(value));
 //     }
 // }
@@ -628,11 +619,11 @@ instruction! {
 // }
 
 // pub fn execute_codeinsert(context: &mut Context) {
-//     if context.code().len() >= 2 && context.int().len() >= 1 {
+//     if context.code().len() >= 2 && context.integer().len() >= 1 {
 //         let search_in = context.code().pop().unwrap();
 //         let replace_with = context.code().pop().unwrap();
 //         let total_points = search_in.points();
-//         let point = context.int().pop().unwrap().abs() % total_points;
+//         let point = context.integer().pop().unwrap().abs() % total_points;
 //         context.code().push(search_in.replace_point(point, &replace_with).0);
 //     }
 // }
@@ -646,7 +637,7 @@ instruction! {
 // pub fn execute_codelength(context: &mut Context) {
 //     if context.code().len() >= 1 {
 //         let code = context.code().pop().unwrap();
-//         context.int().push(code.len() as i64);
+//         context.integer().push(code.len() as i64);
 //     }
 // }
 
@@ -671,8 +662,8 @@ instruction! {
 // }
 
 // pub fn execute_codenth(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
-//         let index = context.int().pop().unwrap().abs() as usize;
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
+//         let index = context.integer().pop().unwrap().abs() as usize;
 //         let mut list = context.code().pop().unwrap().to_list();
 //         if 0 == list.len() {
 //             context.code().push(Code::List(list));
@@ -685,8 +676,8 @@ instruction! {
 // }
 
 // pub fn execute_codenthcdr(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
-//         let index = context.int().pop().unwrap().abs() as usize;
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
+//         let index = context.integer().pop().unwrap().abs() as usize;
 //         let mut list = context.code().pop().unwrap().to_list();
 //         if 0 == list.len() {
 //             context.code().push(Code::List(list));
@@ -717,8 +708,8 @@ instruction! {
 //         let look_in = context.code().pop().unwrap();
 //         let look_for = context.code().pop().unwrap();
 //         match look_in.position_of(&look_for) {
-//             Some(index) => context.int().push(index as i64),
-//             None => context.int().push(-1),
+//             Some(index) => context.integer().push(index as i64),
+//             None => context.integer().push(-1),
 //         }
 //     }
 // }
@@ -744,8 +735,8 @@ instruction! {
 // }
 
 // pub fn execute_codeshove(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
-//         let stack_index = context.int().pop().unwrap();
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
+//         let stack_index = context.integer().pop().unwrap();
 //         let vec_index = crate::util::stack_to_vec(stack_index, context.code().len());
 //         let b = context.code().pop().unwrap();
 //         context.code().insert(vec_index, b);
@@ -755,12 +746,12 @@ instruction! {
 // pub fn execute_codesize(context: &mut Context) {
 //     if context.code().len() >= 1 {
 //         let code = context.code().pop().unwrap();
-//         context.int().push(code.points());
+//         context.integer().push(code.points());
 //     }
 // }
 
 // pub fn execute_codestackdepth(context: &mut Context) {
-//     context.int().push(context.code().len() as i64);
+//     context.integer().push(context.code().len() as i64);
 // }
 
 // pub fn execute_codesubstitute(context: &mut Context) {
@@ -780,8 +771,8 @@ instruction! {
 // }
 
 // pub fn execute_codeyank(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
-//         let stack_index = context.int().pop().unwrap();
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
+//         let stack_index = context.integer().pop().unwrap();
 //         let vec_index = crate::util::stack_to_vec(stack_index, context.code().len());
 //         let b = context.code().remove(vec_index);
 //         context.code().push(b);
@@ -789,8 +780,8 @@ instruction! {
 // }
 
 // pub fn execute_codeyankdup(context: &mut Context) {
-//     if context.code().len() >= 1 && context.int().len() >= 1 {
-//         let stack_index = context.int().pop().unwrap();
+//     if context.code().len() >= 1 && context.integer().len() >= 1 {
+//         let stack_index = context.integer().pop().unwrap();
 //         let vec_index = crate::util::stack_to_vec(stack_index, context.code().len());
 //         let b = context.code().get(vec_index).unwrap().clone();
 //         context.code().push(b);

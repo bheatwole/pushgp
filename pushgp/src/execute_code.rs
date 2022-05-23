@@ -461,8 +461,9 @@ instruction! {
 instruction! {
     /// Pushes TRUE onto the BOOLEAN stack if the top item of the CODE stack is an empty list, or FALSE otherwise.
     #[stack(Code)]
-    fn null(context: &mut Context) {
-
+    fn null(context: &mut Context, code: Code) {
+        // This relies on the behavior that code.len() returns 1 for atoms
+        context.bool().push(0 == code.len());
     }
 }
 
@@ -560,14 +561,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codenull(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         // This relies on the behavior that code.len() returns 1 for atoms
-//         let code = context.code().pop().unwrap();
-//         context.bool().push(0 == code.len());
-//     }
-// }
 
 // pub fn execute_codeposition(context: &mut Context) {
 //     if context.code().len() >= 2 {

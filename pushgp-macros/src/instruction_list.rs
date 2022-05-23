@@ -139,12 +139,13 @@ pub fn make_instruction_list(tokens: TokenStream) -> TokenStream {
         }
     });
     let parser_name: Ident = syn::parse_str(&format!("{}Parser", literal_name)).unwrap();
-    let all_tags = parse.instructions.instructions.iter().map(|inst| {
+    let mut all_tags: Vec<proc_macro2::TokenStream> = parse.instructions.instructions.iter().map(|inst| {
         let path = &inst.instruction;
         quote! {
             tag(#path::<#context_name, #literal_name>::name())
         }
-    });
+    }).collect();
+    all_tags = make_nom_alt_tree(all_tags);
     let all_context_has = parse.stacks.stack_names.iter().map(|s| {
         let context_name: Ident = syn::parse_str(&format!("ContextHas{}Stack", s)).unwrap();
         quote!(#context_name<L>)
@@ -190,4 +191,26 @@ pub fn make_instruction_list(tokens: TokenStream) -> TokenStream {
         }
     }
     .into()
+}
+
+/// In the `nom` crate, the `alt` list can only hold 21 items and must hold at least two items. However, it can hold
+/// `alt` sub-lists allowing us to make a tree of alt(alt(20), alt(2))
+fn make_nom_alt_tree(mut all_tags: Vec<proc_macro2::TokenStream>) -> Vec<proc_macro2::TokenStream> {
+    while all_tags.len() > 21 {
+        // Determine what grouping we need for the tags because we can't have a remainder of 1.
+        let mut grouping = 21;
+        while 1 == all_tags.len() % grouping {
+            grouping -= 1;
+        }
+
+        let mut grouped_tags = vec![];
+        for chunk in all_tags.chunks(grouping) {
+            grouped_tags.push(quote! {
+                alt((#(#chunk),*))
+            });
+        }
+        std::mem::swap(&mut grouped_tags, &mut all_tags);
+    }
+
+    all_tags
 }

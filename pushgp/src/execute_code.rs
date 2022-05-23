@@ -170,7 +170,23 @@ instruction! {
     /// argument is negative or zero then this becomes a NOOP. Otherwise it expands into:
     ///   ( 0 <1 - IntegerArg> CODE.QUOTE <CodeArg> CODE.DO*RANGE )
     #[stack(Code)]
-    fn do_n_count(context: &mut Context) {
+    fn do_n_count(context: &mut Context, code: Code, count: Integer) {
+        // NOOP if count <= 0
+        if count <= 0 {
+            // Put the items we popped back to make a NOOP
+            context.code().push(code);
+            context.integer().push(count);
+        } else {
+            // Turn into DoNRange with (Count - 1) as destination
+            let next = Code::List(vec![
+                C::make_literal_integer(0),
+                C::make_literal_integer(count - 1),
+                Code::instruction("CODE.QUOTE"),
+                code,
+                Code::instruction("CODE.DONRANGE"),
+            ]);
+            context.exec().push(next);
+        }
 
     }
 }
@@ -189,8 +205,25 @@ instruction! {
     /// its body to be executed 3 times, with the loop counter having the values 3, 4, and 5. Note also that one can
     /// specify a loop that "counts down" by providing a destination index that is less than the specified current index
     #[stack(Code)]
-    fn do_n_range(context: &mut Context) {
+    fn do_n_range(context: &mut Context, code: Code, dest: Integer, cur: Integer) {
+        // If we haven't reached the destination yet, push the next iteration onto the stack first.
+        if cur != dest {
+            let increment = if cur < dest { 1 } else { -1 };
+            let next = Code::List(vec![
+                C::make_literal_integer(cur + increment),
+                C::make_literal_integer(dest),
+                Code::instruction("CODE.QUOTE"),
+                code.clone(),
+                Code::instruction("CODE.DONRANGE"),
+            ]);
+            context.exec().push(next);
+        }
 
+        // Push the current index onto the int stack so its accessible in the loop
+        context.integer().push(cur);
+
+        // Push the code to run onto the exec stack
+        context.exec().push(code);
     }
 }
 
@@ -462,63 +495,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codedon(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         context.exec().push(code.clone());
-//         context.code().push(code);
-//     }
-// }
-
-// pub fn execute_codedoncount(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         let count = context.integer().pop().unwrap();
-//         // NOOP if count <= 0
-//         if count <= 0 {
-//             context.code().push(code);
-//             context.integer().push(count);
-//         } else {
-//             // Turn into DoNRange with (Count - 1) as destination
-//             let next = Code::List(vec![
-//                 Code::LiteralInteger(0),
-//                 Code::LiteralInteger(count - 1),
-//                 Code::Instruction(Instruction::CodeQuote),
-//                 code,
-//                 Code::Instruction(Instruction::CodeDoNRange),
-//             ]);
-//             context.exec().push(next);
-//         }
-//     }
-// }
-
-// pub fn execute_codedonrange(context: &mut Context) {
-//     if context.code().len() >= 1 && context.integer().len() >= 2 {
-//         let code = context.code().pop().unwrap();
-//         let dest = context.integer().pop().unwrap();
-//         let cur = context.integer().pop().unwrap();
-
-//         // If we haven't reached the destination yet, push the next iteration onto the stack first.
-//         if cur != dest {
-//             let increment = if cur < dest { 1 } else { -1 };
-//             let next = Code::List(vec![
-//                 Code::LiteralInteger(cur + increment),
-//                 Code::LiteralInteger(dest),
-//                 Code::Instruction(Instruction::CodeQuote),
-//                 code.clone(),
-//                 Code::Instruction(Instruction::CodeDoNRange),
-//             ]);
-//             context.exec().push(next);
-//         }
-
-//         // Push the current index onto the int stack so its accessible in the loop
-//         context.integer().push(cur);
-
-//         // Push the code to run onto the exec stack
-//         context.exec().push(code);
-//     }
-// }
 
 // pub fn execute_codedontimes(context: &mut Context) {
 //     if context.code().len() >= 1 && context.integer().len() >= 1 {

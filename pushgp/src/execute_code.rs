@@ -544,10 +544,11 @@ instruction! {
 instruction! {
     /// Pushes the result of substituting the third item on the code stack for the second item in the first item.
     #[stack(Code)]
-    fn substitute(context: &mut Context) {
-
+    fn substitute(context: &mut Context, look_in: Code, look_for: Code, replace_with: Code) {
+        context.code().push(look_in.replace(&look_for, &replace_with));
     }
 }
+
 instruction! {
     /// Swaps the top two pieces of CODE.
     #[stack(Code)]
@@ -575,19 +576,6 @@ instruction! {
 // pub fn execute_coderand(context: &mut Context) {
 //     let names: Vec<u64> = context.defined_names.keys().map(|n| *n).collect();
 //     context.code().push(context.config.generate_random_code(&names[..]));
-// }
-
-// pub fn execute_codestackdepth(context: &mut Context) {
-//     context.integer().push(context.code().len() as i64);
-// }
-
-// pub fn execute_codesubstitute(context: &mut Context) {
-//     if context.code().len() >= 3 {
-//         let look_in = context.code().pop().unwrap();
-//         let look_for = context.code().pop().unwrap();
-//         let replace_with = context.code().pop().unwrap();
-//         context.code().push(look_in.replace(&look_for, &replace_with));
-//     }
 // }
 
 // pub fn execute_codeswap(context: &mut Context) {

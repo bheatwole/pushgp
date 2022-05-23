@@ -72,10 +72,17 @@ instruction! {
     /// coerced to a list if necessary). For example, if the top piece of code is "( A B )" and the second piece of code
     /// is "X" then this pushes "( X A B )" (after popping the argument).
     #[stack(Code)]
-    fn cons(context: &mut Context) {
-
+    fn cons(context: &mut Context, top: Code, code: Code) {
+        context.code().push(match top {
+            Code::List(mut list) => {
+                list.insert(0, code);
+                Code::List(list)
+            }
+            x => Code::List(vec![code, x]),
+        })
     }
 }
+
 instruction! {
     /// Pushes the "container" of the second CODE stack item within the first CODE stack item onto the CODE stack. If
     /// second item contains the first anywhere (i.e. in any nested list) then the container is the smallest sub-list

@@ -218,8 +218,10 @@ instruction! {
     /// popped; normally this pops the program that was just executed, but if the expression itself manipulates the
     /// stack then this final pop may end up popping something else.
     #[stack(Code)]
-    fn do(context: &mut Context) {
-
+    fn do(context: &mut Context, code: Code) {
+        context.exec().push(Code::instruction("CODE.POP"));
+        context.exec().push(code.clone());
+        context.code().push(code);
     }
 }
 

@@ -22,6 +22,11 @@ where
 }
 
 impl<L: LiteralEnum<L>> Code<L> {
+    /// Creates a new instruction from an &str name
+    pub fn instruction<S: Into<String>>(name: S) -> Code<L> {
+        Code::Instruction(name.into())
+    }
+
     /// Returns true if this code is a List
     pub fn is_list(&self) -> bool {
         match &self {

@@ -86,7 +86,7 @@ mod tests {
         test_code_contains_false: ("( CODE.QUOTE ( 4 ( 3 ( 2 ) ) ) CODE.QUOTE 1 CODE.CONTAINS )", "( FALSE )", vec![]),
         test_code_contains_list: ("( CODE.QUOTE ( 4 ( 3 ( 2 ) ) ) CODE.QUOTE ( 2 ) CODE.CONTAINS )", "( TRUE )", vec![]),
         test_code_define: ("( SOMENAME CODE.QUOTE TRUE CODE.DEFINE )", "( )", vec![("SOMENAME", "TRUE")]),
-        // test_code_definition: ("( CODE.QUOTE TRUE ANAME ANAME CODE.DEFINE CODE.DEFINITION )", "( CODE.QUOTE TRUE )", vec![]),
+        test_code_definition: ("( CODE.QUOTE TRUE ANAME ANAME CODE.DEFINE CODE.DEFINITION )", "( CODE.QUOTE TRUE )", vec![("ANAME", "TRUE")]),
         // test_code_discrepancy_zero: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.DISCREPANCY )", "( 0 )", vec![]),
         // test_code_discrepancy_multi: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE 1 CODE.DISCREPANCY )", "( 7 )", vec![]),
         // test_code_do: ("( CODE.QUOTE ( FALSE 1 ) CODE.DO )", "( FALSE 1 )", vec![]),

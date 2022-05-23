@@ -104,6 +104,7 @@ instruction! {
         context.bool().push(look_in.contains(&look_for));
     }
 }
+
 instruction! {
     /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CODE stack onto
     /// the EXEC stack.
@@ -112,15 +113,19 @@ instruction! {
         context.name().define_name(name, code);
     }
 }
+
 instruction! {
     /// Pushes the definition associated with the top NAME on the NAME stack (if any) onto the CODE stack. This extracts
     /// the definition for inspection/manipulation, rather than for immediate execution (although it may then be
     /// executed with a call to CODE.DO or a similar instruction).
     #[stack(Code)]
-    fn definition(context: &mut Context) {
-
+    fn definition(context: &mut Context, name: Name) {
+        if let Some(code) = context.name().definition_for_name(&name) {
+            context.code().push(code.clone());
+        }
     }
 }
+
 instruction! {
     /// Pushes a measure of the discrepancy between the top two CODE stack items onto the INTEGER stack. This will be
     /// zero if the top two items are equivalent, and will be higher the 'more different' the items are from one
@@ -431,23 +436,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codedefine(context: &mut Context) {
-//     if context.code().len() >= 1 && context.name().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         let n = context.name().pop().unwrap();
-//         context.defined_names.insert(n, code);
-//     }
-// }
-
-// pub fn execute_codedefinition(context: &mut Context) {
-//     if context.name().len() >= 1 {
-//         let name = context.name().pop().unwrap();
-//         if let Some(code) = context.defined_names.get(&name) {
-//             context.code().push(code.clone());
-//         }
-//     }
-// }
 
 // pub fn execute_codediscrepancy(context: &mut Context) {
 //     if context.code().len() >= 2 {

@@ -286,13 +286,15 @@ instruction! {
         }
     }
 }
+
 instruction! {
     /// Pushes TRUE if the top two pieces of CODE are equal, or FALSE otherwise.
     #[stack(Code)]
-    fn equal(context: &mut Context) {
-
+    fn equal(context: &mut Context, a: Code, b: Code) {
+        context.bool().push(a == b);
     }
 }
+
 instruction! {
     /// Pushes the sub-expression of the top item of the CODE stack that is indexed by the top item of the INTEGER
     /// stack. The indexing here counts "points," where each parenthesized expression and each literal/instruction is
@@ -517,14 +519,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeequal(context: &mut Context) {
-//     if context.code().len() >= 2 {
-//         let a = context.code().pop().unwrap();
-//         let b = context.code().pop().unwrap();
-//         context.bool().push(a == b);
-//     }
-// }
 
 // pub fn execute_codeextract(context: &mut Context) {
 //     if context.code().len() >= 1 && context.integer().len() >= 1 {

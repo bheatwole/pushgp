@@ -112,7 +112,7 @@ mod tests {
         test_code_if_true: ("( TRUE CODE.QUOTE TRUENAME CODE.QUOTE FALSENAME CODE.IF )", "( TRUENAME )", vec![]),
         test_code_if_false: ("( FALSE CODE.QUOTE TRUENAME CODE.QUOTE FALSENAME CODE.IF )", "( FALSENAME )", vec![]),
         test_code_insert: ("( CODE.QUOTE C CODE.QUOTE ( A ( B ) ) 2 CODE.INSERT )", "( CODE.QUOTE ( A C ) )", vec![]),
-        // test_code_length: ("( CODE.QUOTE ( A B ( C 1 2 3 ) ) CODE.LENGTH )", "( 3 )", vec![]),
+        test_code_length: ("( CODE.QUOTE ( A B ( C 1 2 3 ) ) CODE.LENGTH )", "( 3 )", vec![]),
         // test_code_list: ("( CODE.QUOTE A CODE.QUOTE ( B ) CODE.LIST )", "( CODE.QUOTE ( A ( B ) ) )", vec![]),
         // test_code_member_true: ("( CODE.QUOTE A CODE.QUOTE ( A ( B ) ) CODE.MEMBER )", "( TRUE )", vec![]),
         // test_code_member_false: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.MEMBER )", "( FALSE )", vec![]),

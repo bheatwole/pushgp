@@ -386,13 +386,14 @@ instruction! {
         }
     }
 }
+
 instruction! {
     /// Pushes the length of the top item on the CODE stack onto the INTEGER stack. If the top item is not a list then
     /// this pushes a 1. If the top item is a list then this pushes the number of items in the top level of the list;
     /// that is, nested lists contribute only 1 to this count, no matter what they contain.
     #[stack(Code)]
-    fn length(context: &mut Context) {
-
+    fn length(context: &mut Context, code: Code) {
+        context.integer().push(code.len() as i64);
     }
 }
 instruction! {
@@ -538,19 +539,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeinstructions(context: &mut Context) {
-//     for inst in context.config.allowed_instructions() {
-//         context.code().push(Code::Instruction(inst));
-//     }
-// }
-
-// pub fn execute_codelength(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let code = context.code().pop().unwrap();
-//         context.integer().push(code.len() as i64);
-//     }
-// }
 
 // pub fn execute_codelist(context: &mut Context) {
 //     if context.code().len() >= 2 {

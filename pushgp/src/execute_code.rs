@@ -281,7 +281,9 @@ instruction! {
     /// of the duplication!).
     #[stack(Code)]
     fn dup(context: &mut Context) {
-
+        if let Some(code) = context.code().peek() {
+            context.code().push(code);
+        }
     }
 }
 instruction! {
@@ -515,13 +517,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codedup(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let code = context.code().last().unwrap().clone();
-//         context.code().push(code);
-//     }
-// }
 
 // pub fn execute_codeequal(context: &mut Context) {
 //     if context.code().len() >= 2 {

@@ -95,7 +95,7 @@ mod tests {
         test_code_do_n_range_countup: ("( 0 3 CODE.QUOTE BOOL.FROMINT CODE.DONRANGE )", "( FALSE TRUE TRUE TRUE )", vec![]),
         test_code_do_n_range_countdown: ("( 3 0 CODE.QUOTE BOOL.FROMINT CODE.DONRANGE )", "( TRUE TRUE TRUE FALSE )", vec![]),
         test_code_do_n_times: ("( FALSE TRUE TRUE 2 CODE.QUOTE BOOL.ROT CODE.DONTIMES )", "( TRUE FALSE TRUE )", vec![]),
-        // test_code_dup: ("( CODE.QUOTE BOOL.FROMINT CODE.DUP )", "( CODE.QUOTE BOOL.FROMINT CODE.QUOTE BOOL.FROMINT )", vec![]),
+        test_code_dup: ("( CODE.QUOTE BOOL.FROMINT CODE.DUP )", "( CODE.QUOTE BOOL.FROMINT CODE.QUOTE BOOL.FROMINT )", vec![]),
         // test_code_equal_true: ("( CODE.QUOTE BOOL.FROMINT CODE.QUOTE BOOL.FROMINT CODE.EQUAL )", "( TRUE )", vec![]),
         // test_code_equal_false: ("( CODE.QUOTE BOOL.FROMINT CODE.QUOTE BOOL.FROMFLOAT CODE.EQUAL )", "( FALSE )", vec![]),
         // test_code_extract_0: ("( CODE.QUOTE ( 1 ( 2 ) ) 0 CODE.EXTRACT )", "( CODE.QUOTE ( 1 ( 2 ) ) )", vec![]),

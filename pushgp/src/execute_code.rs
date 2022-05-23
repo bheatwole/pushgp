@@ -409,17 +409,18 @@ instruction! {
     /// Pushes TRUE onto the BOOLEAN stack if the second item of the CODE stack is a member of the first item (which is
     /// coerced to a list if necessary). Pushes FALSE onto the BOOLEAN stack otherwise.
     #[stack(Code)]
-    fn member(context: &mut Context) {
-
+    fn member(context: &mut Context, look_in: Code, look_for: Code) {
+        context.bool().push(look_in.has_member(&look_for));
     }
 }
+
 instruction! {
     /// Does nothing.
     #[stack(Code)]
     fn noop(context: &mut Context) {
-
     }
 }
+
 instruction! {
     /// Pushes the nth "CDR" (in the Lisp sense) of the expression on top of the CODE stack (which is coerced to a list
     /// first if necessary). If the expression is an empty list then the result is an empty list. N is taken from the

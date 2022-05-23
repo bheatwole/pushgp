@@ -11,7 +11,9 @@ instruction! {
     /// Defines the name on top of the NAME stack as an instruction that will push the top item of the EXEC stack back
     /// onto the EXEC stack.
     #[stack(Exec)]
-    fn define(context: &mut Context) {}
+    fn define(context: &mut Context, code: Exec, name: Name) {
+        context.name().define_name(name, code);
+    }
 }
 
 instruction! {
@@ -24,7 +26,24 @@ instruction! {
     /// negative or zero then this becomes a NOOP. Otherwise it expands into:
     ///   ( 0 <1 - IntegerArg> EXEC.DO*RANGE <ExecArg> )
     #[stack(Exec)]
-    fn do_n_count(context: &mut Context) {}
+    fn do_n_count(context: &mut Context, code: Exec, count: Integer) {
+        // NOOP if count <= 0
+        if count <= 0 {
+            // Put the items we popped back to make a NOOP
+            context.exec().push(code);
+            context.integer().push(count);
+        } else {
+            // Turn into DoNRange with (Count - 1) as destination
+            let next = Code::List(vec![
+                C::make_literal_integer(0),
+                C::make_literal_integer(count - 1),
+                Code::instruction("EXEC.DONRANGE"),
+                code,
+            ]);
+            context.exec().push(next);
+        }
+
+    }
 }
 
 instruction! {
@@ -42,7 +61,25 @@ instruction! {
     /// executed 3 times, with the loop counter having the values 3, 4, and 5. Note also that one can specify a loop
     /// that "counts down" by providing a destination index that is less than the specified current index.
     #[stack(Exec)]
-    fn do_n_range(context: &mut Context) {}
+    fn do_n_range(context: &mut Context, code: Exec, dest: Integer, cur: Integer) {
+        // If we haven't reached the destination yet, push the next iteration onto the stack first.
+        if cur != dest {
+            let increment = if cur < dest { 1 } else { -1 };
+            let next = Code::List(vec![
+                C::make_literal_integer(cur + increment),
+                C::make_literal_integer(dest),
+                Code::instruction("EXEC.DONRANGE"),
+                code.clone(),
+            ]);
+            context.exec().push(next);
+        }
+
+        // Push the current index onto the int stack so its accessible in the loop
+        context.integer().push(cur);
+
+        // Push the code to run onto the exec stack
+        context.exec().push(code);
+    }
 }
 
 instruction! {
@@ -51,26 +88,51 @@ instruction! {
     /// tacked on to the front of the loop body code in the call to EXEC.DO*RANGE. This call to INTEGER.POP will remove
     /// the loop counter, which will have been pushed by EXEC.DO*RANGE, prior to the execution of the loop body.
     #[stack(Exec)]
-    fn do_n_times(context: &mut Context) {}
+    fn do_n_times(context: &mut Context, code: Exec, count: Integer) {
+        // NOOP if count <= 0
+        if count <= 0 {
+            context.exec().push(code);
+            context.integer().push(count);
+        } else {
+            // The difference between Count and Times is that the 'current index' is not available to
+            // the loop body. Pop that value first
+            let code = Code::List(vec![Code::instruction("INTEGER.POP"), code]);
+
+            // Turn into DoNRange with (Count - 1) as destination
+            let next = Code::List(vec![
+                C::make_literal_integer(0),
+                C::make_literal_integer(count - 1),
+                Code::instruction("EXEC.DONRANGE"),
+                code,
+            ]);
+            context.exec().push(next);
+        }
+    }
 }
 
 instruction! {
     /// Duplicates the top item on the EXEC stack. Does not pop its argument (which, if it did, would negate the effect
     /// of the duplication!). This may be thought of as a "DO TWICE" instruction.
     #[stack(Exec)]
-    fn dup(context: &mut Context) {}
+    fn dup(context: &mut Context) {
+        context.exec().duplicate_top_item();
+    }
 }
 
 instruction! {
     /// Pushes TRUE if the top two items on the EXEC stack are equal, or FALSE otherwise.
     #[stack(Exec)]
-    fn equal(context: &mut Context) {}
+    fn equal(context: &mut Context, a: Exec, b: Exec) {
+        context.bool().push(a == b);
+    }
 }
 
 instruction! {
     /// Empties the EXEC stack. This may be thought of as a "HALT" instruction.
     #[stack(Exec)]
-    fn flush(context: &mut Context) {}
+    fn flush(context: &mut Context) {
+        context.exec().clear();
+    }
 }
 
 instruction! {
@@ -79,45 +141,59 @@ instruction! {
     /// This is similar to CODE.IF except that it operates on the EXEC stack. This acts as a NOOP unless there are at
     /// least two items on the EXEC stack and one item on the BOOLEAN stack.
     #[stack(Exec)]
-    fn if(context: &mut Context) {}
+    fn if(context: &mut Context, true_branch: Exec, false_branch: Exec, switch_on: Bool) {
+        context.exec().push(if switch_on { true_branch } else { false_branch });
+    }
 }
 
 instruction! {
     /// The Push implementation of the "K combinator". Removes the second item on the EXEC stack.
     #[stack(Exec)]
-    fn k(context: &mut Context) {}
+    fn k(context: &mut Context, keep: Exec, _discard: Exec) {
+        context.exec().push(keep);
+    }
 }
 
 instruction! {
     /// Pops the EXEC stack. This may be thought of as a "DONT" instruction.
     #[stack(Exec)]
-    fn pop(context: &mut Context) {}
+    fn pop(context: &mut Context, _popped: Exec) {}
 }
 
 instruction! {
     /// Rotates the top three items on the EXEC stack, pulling the third item out and pushing it on top. This is
     /// equivalent to "2 EXEC.YANK".
     #[stack(Exec)]
-    fn rot(context: &mut Context) {}
+    fn rot(context: &mut Context) {
+        context.exec().rotate();
+    }
 }
 
 instruction! {
     /// Inserts the top EXEC item "deep" in the stack, at the position indexed by the top INTEGER. This may be thought
     /// of as a "DO LATER" instruction.
     #[stack(Exec)]
-    fn shove(context: &mut Context) {}
+    fn shove(context: &mut Context, position: Integer) {
+        if !context.exec().shove(position) {
+            context.integer().push(position);
+        }
+    }
 }
 
 instruction! {
     /// Pushes the stack depth onto the INTEGER stack.
     #[stack(Exec)]
-    fn stack_depth(context: &mut Context) {}
+    fn stack_depth(context: &mut Context) {
+        context.integer().push(context.exec().len() as i64);
+    }
 }
 
 instruction! {
     /// Swaps the top two items on the EXEC stack.
     #[stack(Exec)]
-    fn swap(context: &mut Context) {}
+    fn swap(context: &mut Context) {
+        context.exec().swap();
+    }
 }
 
 instruction! {
@@ -125,58 +201,47 @@ instruction! {
     /// (with A being the first one popped). Then pushes a list containing B and C back onto the EXEC stack, followed by
     /// another instance of C, followed by another instance of A.
     #[stack(Exec)]
-    fn s(context: &mut Context) {}
+    fn s(context: &mut Context, a: Exec, b: Exec, c: Exec) {
+        context.exec().push(Code::List(vec![b, c.clone()]));
+        context.exec().push(c);
+        context.exec().push(a);
+    }
 }
 
 instruction! {
     /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
     /// The index is taken from the INTEGER stack.
     #[stack(Exec)]
-    fn yank_dup(context: &mut Context) {}
+    fn yank_dup(context: &mut Context, position: Integer) {
+        if !context.exec().yank_duplicate(position) {
+            context.integer().push(position);
+        }
+    }
 }
 
 instruction! {
     /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
     /// INTEGER stack. This may be thought of as a "DO SOONER" instruction.
     #[stack(Exec)]
-    fn yank(context: &mut Context) {}
+    fn yank(context: &mut Context, position: Integer) {
+        if !context.exec().yank(position) {
+            context.integer().push(position);
+        }
+    }
 }
 
 instruction! {
     /// The Push implementation of the "Y combinator". Inserts beneath the top item of the EXEC stack a new item of the
     /// form "( EXEC.Y <TopItem> )".
     #[stack(Exec)]
-    fn y(context: &mut Context) {}
+    fn y(context: &mut Context, repeat: Exec) {
+        // Construct the looping code
+        let next_exec = Code::List(vec![Code::instruction("EXEC.Y"), repeat.clone()]);
+        // Push them back so that we DO and the DO AGAIN
+        context.exec().push(next_exec);
+        context.exec().push(repeat);
+    }
 }
-
-// pub fn execute_execdefine(context: &mut Context) {
-//     if context.name_stack.len() >= 1 && context.exec_stack.len() >= 1 {
-//         let name = context.name_stack.pop().unwrap();
-//         let code = context.exec_stack.pop().unwrap();
-//         context.defined_names.insert(name, code);
-//     }
-// }
-
-// pub fn execute_execdoncount(context: &mut Context) {
-//     if context.exec_stack.len() >= 1 && context.int_stack.len() >= 1 {
-//         let code = context.exec_stack.pop().unwrap();
-//         let count = context.int_stack.pop().unwrap();
-//         // NOOP if count <= 0
-//         if count <= 0 {
-//             context.exec_stack.push(code);
-//             context.int_stack.push(count);
-//         } else {
-//             // Turn into DoNRange with (Count - 1) as destination
-//             let next = Code::List(vec![
-//                 Code::LiteralInteger(0),
-//                 Code::LiteralInteger(count - 1),
-//                 Code::Instruction(Instruction::ExecDoNRange),
-//                 code,
-//             ]);
-//             context.exec_stack.push(next);
-//         }
-//     }
-// }
 
 // pub fn execute_execdonrange(context: &mut Context) {
 //     if context.exec_stack.len() >= 1 && context.int_stack.len() >= 2 {

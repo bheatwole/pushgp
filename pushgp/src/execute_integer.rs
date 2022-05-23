@@ -19,9 +19,34 @@ pub trait ContextHasIntegerStack<L: LiteralEnum<L>> {
 }
 
 instruction! {
+    /// Duplicates the top item on the INTEGER stack. Does not pop its argument (which, if it did, would negate the
+    /// effect of the duplication!).
+    #[stack(Integer)]
+    fn dup(context: &mut Context) {
+        context.integer().duplicate_top_item();
+    }
+}
+
+instruction! {
+    /// Pushes TRUE if the top two items on the INTEGER stack are equal, or FALSE otherwise.
+    #[stack(Integer)]
+    fn equal(context: &mut Context, a: Integer, b: Integer) {
+        context.bool().push(a == b);
+    }
+}
+
+instruction! {
     /// Pops the INTEGER stack.
     #[stack(Integer)]
     fn pop(context: &mut Context, _popped: Integer) {
+    }
+}
+
+instruction! {
+    /// Pushes the sum of the top two items.
+    #[stack(Integer)]
+    fn sum(context: &mut Context, a: Integer, b: Integer) {
+        context.integer().push(a + b);
     }
 }
 

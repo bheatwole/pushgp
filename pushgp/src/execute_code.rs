@@ -281,9 +281,7 @@ instruction! {
     /// of the duplication!).
     #[stack(Code)]
     fn dup(context: &mut Context) {
-        if let Some(code) = context.code().peek() {
-            context.code().push(code);
-        }
+        context.code().duplicate_top_item();
     }
 }
 
@@ -565,7 +563,6 @@ instruction! {
         if !context.code().yank_duplicate(position) {
             context.integer().push(position);
         }
-
     }
 }
 
@@ -577,7 +574,6 @@ instruction! {
         if !context.code().yank(position) {
             context.integer().push(position);
         }
-
     }
 }
 

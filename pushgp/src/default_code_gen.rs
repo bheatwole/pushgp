@@ -195,7 +195,10 @@ instruction_list! {
         crate::execute_exec::ExecYank,
         crate::execute_exec::ExecY,
 
+        crate::execute_integer::IntegerDup,
+        crate::execute_integer::IntegerEqual,
         crate::execute_integer::IntegerPop,
+        crate::execute_integer::IntegerSum,
     ],
 }
 // impl InstructionConfiguration for BaseLiteral {

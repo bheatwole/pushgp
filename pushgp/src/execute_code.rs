@@ -34,8 +34,17 @@ instruction! {
     /// then this pushes "A" (after popping the argument). If the code on top of the stack is not a list then this has
     /// no effect. The name derives from the similar Lisp function; a more generic name would be "FIRST".
     #[stack(Code)]
-    fn car(context: &mut Context) {
-
+    fn car(context: &mut Context, code: Code) {
+        context.code().push(match code {
+            Code::List(list) => {
+                if list.len() > 0 {
+                    list[0].clone()
+                } else {
+                    Code::List(vec![])
+                }
+            }
+            x => x.clone(),
+        });
     }
 }
 instruction! {
@@ -403,22 +412,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codecar(context: &mut Context) {
-//     if context.code().len() >= 1 {
-//         let c = context.code().pop().unwrap();
-//         context.code().push(match c {
-//             Code::List(list) => {
-//                 if list.len() > 0 {
-//                     list[0].clone()
-//                 } else {
-//                     Code::List(vec![])
-//                 }
-//             }
-//             x => x.clone(),
-//         });
-//     }
-// }
 
 // pub fn execute_codecdr(context: &mut Context) {
 //     if context.code().len() >= 1 {

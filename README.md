@@ -14,8 +14,26 @@ Push achieves its combination of syntactic simplicity and semantic power through
 
 
 ## Generating a Push Implementation
-The point of this library is to create a new stack-based execution architecture that includes stacks and instructions
-within the problem domain you face.
+The point of this library is to create a new stack-based execution architecture that includes stacks, literal values and instructions
+within the problem domain you face. This execution architecture is created at compile-time for performance.
+
+## Performance Considerations
+Genetic Programming typically runs a huge number of simulations in order to find the optimal solution. It is important that the execution context be as fast
+as possible. With Rust trait and generics we create an execution context that pushes as many decisions as possible to the compile-time optimizer. This impacts
+the coding process in the following ways:
+- The compiler must know the exact list of instructions you wish to use
+- The compiler must have a known call-site for each instruction
+- The runtime parser must know how to turn text code into a call to one of the instructions
+- The runtime parser must know how to an instruction into text code
+- The compiler must know the types of each stack in the context
+- The compiler must know which stacks support literal values located in the text code
+- The runtime parser must know how to parse a literal value from text code
+- The runtime parser must know how to turn a literal value into an instruction to push the literal on the appropriate stack
+- The runtime parser must know how to turn an instruction to push a literal value back into text code
+- The runtime code generator must know the exact list of instructions
+- The runtime code generator must know how to generate a new random value
+
+
 
 ## Implementing Custom Instructions
 A macro or proc_macro wrapper around a fn. The wrapper generates an instruction struct from the fn. The types of the

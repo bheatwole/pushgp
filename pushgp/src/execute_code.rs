@@ -388,7 +388,7 @@ instruction! {
 instruction! {
     /// Pushes the stack depth onto the INTEGER stack.
     #[stack(Code)]
-    fn stackdepth(context: &mut Context) {
+    fn stack_depth(context: &mut Context) {
 
     }
 }

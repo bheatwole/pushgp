@@ -326,31 +326,35 @@ instruction! {
 instruction! {
     /// Pops the BOOLEAN stack and pushes the popped item (TRUE or FALSE) onto the CODE stack.
     #[stack(Code)]
-    fn from_boolean(context: &mut Context) {
-
+    fn from_boolean(context: &mut Context, value: Bool) {
+        context.code().push(C::make_literal_bool(value));
     }
 }
+
 instruction! {
     /// Pops the FLOAT stack and pushes the popped item onto the CODE stack.
     #[stack(Code)]
-    fn from_float(context: &mut Context) {
-
+    fn from_float(context: &mut Context, value: Float) {
+        context.code().push(C::make_literal_float(value));
     }
 }
+
 instruction! {
     /// Pops the INTEGER stack and pushes the popped integer onto the CODE stack.
     #[stack(Code)]
-    fn from_integer(context: &mut Context) {
-
+    fn from_integer(context: &mut Context, value: Integer) {
+        context.code().push(C::make_literal_integer(value));
     }
 }
+
 instruction! {
     /// Pops the NAME stack and pushes the popped item onto the CODE stack.
     #[stack(Code)]
-    fn from_name(context: &mut Context) {
-
+    fn from_name(context: &mut Context, value: Name) {
+        context.code().push(C::make_literal_name(value));
     }
 }
+
 instruction! {
     /// If the top item of the BOOLEAN stack is TRUE this recursively executes the second item of the CODE stack;
     /// otherwise it recursively executes the first item of the CODE stack. Either way both elements of the CODE stack
@@ -528,38 +532,6 @@ instruction! {
 
     }
 }
-
-// pub fn execute_codeflush(context: &mut Context) {
-//     context.code().clear();
-// }
-
-// pub fn execute_codefromboolean(context: &mut Context) {
-//     if context.bool().len() >= 1 {
-//         let value = context.bool().pop().unwrap();
-//         context.code().push(Code::LiteralBool(value));
-//     }
-// }
-
-// pub fn execute_codefromfloat(context: &mut Context) {
-//     if context.float().len() >= 1 {
-//         let value = context.float().pop().unwrap();
-//         context.code().push(Code::LiteralFloat(value));
-//     }
-// }
-
-// pub fn execute_codefrominteger(context: &mut Context) {
-//     if context.integer().len() >= 1 {
-//         let value = context.integer().pop().unwrap();
-//         context.code().push(Code::LiteralInteger(value));
-//     }
-// }
-
-// pub fn execute_codefromname(context: &mut Context) {
-//     if context.name().len() >= 1 {
-//         let value = context.name().pop().unwrap();
-//         context.code().push(Code::LiteralName(value));
-//     }
-// }
 
 // pub fn execute_codeif(context: &mut Context) {
 //     if context.code().len() >= 2 && context.bool().len() >= 1 {

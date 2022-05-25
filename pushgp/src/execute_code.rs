@@ -4,6 +4,7 @@ use pushgp_macros::*;
 
 pub trait ContextHasCodeStack<L: LiteralEnum<L>> {
     fn code(&self) -> &Stack<Code<L>>;
+    fn random_code(&mut self) -> Code<L>;
 }
 
 instruction! {

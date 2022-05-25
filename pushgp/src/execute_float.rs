@@ -3,6 +3,7 @@ use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
 };
+use rand::Rng;
 
 pub type Float = Decimal;
 
@@ -11,8 +12,8 @@ impl Literal<Float> for Float {
         crate::parse::parse_code_float(input)
     }
 
-    fn random_value<R: rand::Rng>(rng: &mut R) -> Float {
-        let float: f64 = rng.gen_range(f64::MIN..=f64::MAX);
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Float {
+        let float: f64 = rng.gen_range(-1f64..1f64);
         Decimal::from_f64(float).unwrap()
     }
 }

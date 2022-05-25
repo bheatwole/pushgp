@@ -1,7 +1,8 @@
+use crate::*;
 use base64::*;
 use byte_slice_cast::*;
-use crate::*;
 use fnv::FnvHashMap;
+use rand::Rng;
 use std::cell::RefCell;
 
 pub type Name = String;
@@ -11,7 +12,7 @@ impl Literal<Name> for Name {
         crate::parse::parse_code_name(input)
     }
 
-    fn random_value<R: rand::Rng>(rng: &mut R) -> Name {
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Name {
         let random_value = rng.gen_range(0..=u64::MAX);
 
         let slice: [u64; 1] = [random_value];
@@ -31,10 +32,10 @@ pub trait ContextHasNameStack<L: LiteralEnum<L>> {
 pub struct NameStack<L: LiteralEnum<L>> {
     stack: Stack<Name>,
     quote_next_name: RefCell<bool>,
-    defined_names: RefCell<FnvHashMap<String, Code<L>>>
+    defined_names: RefCell<FnvHashMap<String, Code<L>>>,
 }
 
-impl <L: LiteralEnum<L>> NameStack<L> {
+impl<L: LiteralEnum<L>> NameStack<L> {
     pub fn should_quote_next_name(&self) -> bool {
         *self.quote_next_name.borrow()
     }
@@ -50,6 +51,10 @@ impl <L: LiteralEnum<L>> NameStack<L> {
     pub fn define_name(&self, name: String, code: Code<L>) {
         self.defined_names.borrow_mut().insert(name, code);
     }
+
+    pub fn all_names(&self) -> Vec<String> {
+        self.defined_names.borrow().keys().map(|k| k.clone()).collect()
+    }
 }
 
 impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
@@ -60,17 +65,39 @@ impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
             defined_names: RefCell::new(FnvHashMap::default()),
         }
     }
-    fn pop(&self) -> Option<Name> { self.stack.pop() }
-    fn push(&self, item: Name) { self.stack.push(item) }
-    fn peek(&self) -> Option<Name> { self.stack.peek() }
-    fn len(&self) -> usize { self.stack.len() }
-    fn duplicate_top_item(&self) { self.stack.duplicate_top_item() }
-    fn clear(&self) { self.stack.clear() }
-    fn rotate(&self) { self.stack.rotate() }
-    fn shove(&self, position: i64) -> bool { self.stack.shove(position) }
-    fn swap(&self) { self.stack.swap() }
-    fn yank(&self, position: i64) -> bool { self.stack.yank(position) }
-    fn yank_duplicate(&self, position: i64) -> bool { self.stack.yank_duplicate(position) }
+    fn pop(&self) -> Option<Name> {
+        self.stack.pop()
+    }
+    fn push(&self, item: Name) {
+        self.stack.push(item)
+    }
+    fn peek(&self) -> Option<Name> {
+        self.stack.peek()
+    }
+    fn len(&self) -> usize {
+        self.stack.len()
+    }
+    fn duplicate_top_item(&self) {
+        self.stack.duplicate_top_item()
+    }
+    fn clear(&self) {
+        self.stack.clear()
+    }
+    fn rotate(&self) {
+        self.stack.rotate()
+    }
+    fn shove(&self, position: i64) -> bool {
+        self.stack.shove(position)
+    }
+    fn swap(&self) {
+        self.stack.swap()
+    }
+    fn yank(&self, position: i64) -> bool {
+        self.stack.yank(position)
+    }
+    fn yank_duplicate(&self, position: i64) -> bool {
+        self.stack.yank_duplicate(position)
+    }
 }
 
 // pub fn execute_namedup<C: Context + ContextStack<Name>>(context: &mut C) {

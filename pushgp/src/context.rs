@@ -1,3 +1,4 @@
+use crate::configuration::RandomLiteralFunction;
 use log::*;
 use std::fmt::Debug;
 
@@ -5,6 +6,11 @@ pub trait Context: Debug {
     fn clear(&mut self);
     fn next(&mut self) -> Option<usize>;
     fn all_instruction_names(&self) -> Vec<String>;
+    fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType;
+
+    /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
+    /// the generator with a truly random value ensuring unique results.
+    fn set_seed(&mut self, seed: Option<u64>);
 
     fn run(&mut self, max: usize) -> usize {
         trace!("{:?}", self);
@@ -31,6 +37,10 @@ mod tests {
         let code = BaseLiteralParser::parse(src);
         context.exec().push(code);
         context.run(1000);
+
+        // Reset the random seed after every run
+        context.set_seed(Some(1));
+
         context
     }
 
@@ -65,7 +75,7 @@ mod tests {
         test_bool_not: ("( TRUE BOOL.NOT )", "( FALSE )", vec![]),
         test_bool_or: ("( TRUE FALSE BOOL.OR )", "( TRUE )", vec![]),
         test_bool_pop: ("( TRUE FALSE BOOL.POP )", "( TRUE )", vec![]),
-        test_bool_rand: ("( BOOL.RAND )", "( FALSE )", vec![]),
+        test_bool_rand: ("( BOOL.RAND )", "( TRUE )", vec![]),
         test_bool_rot: ("( TRUE FALSE FALSE BOOL.ROT )", "( FALSE FALSE TRUE )", vec![]),
         test_bool_shove: ("( TRUE TRUE FALSE 2 BOOL.SHOVE )", "( FALSE TRUE TRUE )", vec![]),
         test_bool_shove_zero: ("( TRUE TRUE FALSE 0 BOOL.SHOVE )", "( TRUE TRUE FALSE )", vec![]),
@@ -163,40 +173,40 @@ mod tests {
         test_exec_yank: ("( 2 EXEC.YANK A B C D )", "( C A B D )", vec![]),
         test_exec_yank_dup: ("( 2 EXEC.YANKDUP A B C D )", "( C A B C D )", vec![]),
         test_exec_y: ("( 0 EXEC.Y ( INTEGER.DUP 2 INTEGER.EQUAL EXEC.IF EXEC.POP ( INTEGER.DUP 1 INTEGER.SUM ) ) )", "( 0 1 2 )", vec![]),
-        // test_float_cos: ("( 1.0 FLOAT.COS )", "( 0.54030230586814 )", vec![]),
-        // test_float_define: ("( A 1.0 FLOAT.DEFINE A )", "( 1.0 )", vec![]),
-        // test_float_difference: ("( 3.0 1.0 FLOAT.DIFFERENCE )", "( 2.0 )", vec![]),
-        // test_float_dup: ("( 1.0 FLOAT.DUP )", "( 1.0 1.0 )", vec![]),
-        // test_float_equal: ("( 1.0 1.0 FLOAT.EQUAL )", "( TRUE )", vec![]),
-        // test_float_flush: ("( 1.0 1.0 FLOAT.FLUSH )", "( )", vec![]),
-        // test_float_fromboolean: ("( TRUE FLOAT.FROMBOOLEAN FALSE FLOAT.FROMBOOLEAN )", "( 1.0 0.0 )", vec![]),
-        // test_float_frominteger: ("( 5 FLOAT.FROMINTEGER )", "( 5.0 )", vec![]),
-        // test_float_greater: ("( 5.0 3.0 FLOAT.GREATER )", "( TRUE )", vec![]),
-        // test_float_less: ("( 5.0 3.0 FLOAT.LESS )", "( FALSE )", vec![]),
-        // test_float_max: ("( 5.0 3.0 FLOAT.MAX )", "( 5.0 )", vec![]),
-        // test_float_min: ("( -5.0 3.0 FLOAT.MIN )", "( -5.0 )", vec![]),
-        // test_float_modulo: ("( -5.0 3.0 FLOAT.MODULO )", "( -2.0 )", vec![]),
-        // test_float_modulo_zero: ("( -5.0 0.0 FLOAT.MODULO )", "( )", vec![]),
-        // test_float_pop: ("( 5.0 FLOAT.POP )", "( )", vec![]),
-        // test_float_product: ("( -5.0 3.0 FLOAT.PRODUCT )", "( -15.0 )", vec![]),
-        // test_float_quotient: ("( 15.0 3.0 FLOAT.QUOTIENT )", "( 5.0 )", vec![]),
-        // test_float_quotient_zero: ("( 15.0 0.0 FLOAT.QUOTIENT )", "( )", vec![]),
-        // test_float_rand: ("( FLOAT.RAND )", "( 1.1234 )", vec![]),
-        // test_float_rot: ("( 0.0 1.0 2.0 FLOAT.ROT )", "( 1.0 2.0 0.0 )", vec![]),
-        // test_float_shove: ("( 1.0 2.0 3.0 2 FLOAT.SHOVE )", "( 3.0 1.0 2.0 )", vec![]),
-        // test_float_shove_zero: ("( 1.0 2.0 3.0 0 FLOAT.SHOVE )", "( 1.0 2.0 3.0 )", vec![]),
-        // test_float_shove_wrap: ("( 1.0 2.0 3.0 3 FLOAT.SHOVE )", "( 1.0 2.0 3.0 )", vec![]),
-        // test_float_sin: ("( 1.0 FLOAT.SIN )", "( 0.841470984807897 )", vec![]),
-        // test_float_stack_depth: ("( 1.0 2.0 FLOAT.STACKDEPTH )", "( 1.0 2.0 2 )", vec![]),
-        // test_float_sum: ("( 1.5 2.5 FLOAT.SUM )", "( 4.0 )", vec![]),
-        // test_float_swap: ("( 1.0 2.0 3.0 FLOAT.SWAP )", "( 1.0 3.0 2.0 )", vec![]),
-        // test_float_tan: ("( 1.0 FLOAT.TAN )", "( 1.557407724654902 )", vec![]),
-        // test_float_yank: ("( 1.0 2.0 3.0 4.0 2 FLOAT.YANK )", "( 1.0 3.0 4.0 2.0 )", vec![]),
-        // test_float_yank_dup: ("( 1.0 2.0 3.0 4.0 2 FLOAT.YANKDUP )", "( 1.0 2.0 3.0 4.0 2.0 )", vec![]),
+        test_float_cos: ("( 1.0 FLOAT.COS )", "( 0.54030230586814 )", vec![]),
+        test_float_define: ("( A 1.0 FLOAT.DEFINE A )", "( 1.0 )", vec![("A", "1.0")]),
+        test_float_difference: ("( 3.0 1.0 FLOAT.DIFFERENCE )", "( 2.0 )", vec![]),
+        test_float_dup: ("( 1.0 FLOAT.DUP )", "( 1.0 1.0 )", vec![]),
+        test_float_equal: ("( 1.0 1.0 FLOAT.EQUAL )", "( TRUE )", vec![]),
+        test_float_flush: ("( 1.0 1.0 FLOAT.FLUSH )", "( )", vec![]),
+        test_float_fromboolean: ("( TRUE FLOAT.FROMBOOLEAN FALSE FLOAT.FROMBOOLEAN )", "( 1.0 0.0 )", vec![]),
+        test_float_frominteger: ("( 5 FLOAT.FROMINTEGER )", "( 5.0 )", vec![]),
+        test_float_greater: ("( 5.0 3.0 FLOAT.GREATER )", "( TRUE )", vec![]),
+        test_float_less: ("( 5.0 3.0 FLOAT.LESS )", "( FALSE )", vec![]),
+        test_float_max: ("( 5.0 3.0 FLOAT.MAX )", "( 5.0 )", vec![]),
+        test_float_min: ("( -5.0 3.0 FLOAT.MIN )", "( -5.0 )", vec![]),
+        test_float_modulo: ("( -5.0 3.0 FLOAT.MODULO )", "( -2.0 )", vec![]),
+        test_float_modulo_zero: ("( -5.0 0.0 FLOAT.MODULO )", "( )", vec![]),
+        test_float_pop: ("( 5.0 FLOAT.POP )", "( )", vec![]),
+        test_float_product: ("( -5.0 3.0 FLOAT.PRODUCT )", "( -15.0 )", vec![]),
+        test_float_quotient: ("( 15.0 3.0 FLOAT.QUOTIENT )", "( 5.0 )", vec![]),
+        test_float_quotient_zero: ("( 15.0 0.0 FLOAT.QUOTIENT )", "( )", vec![]),
+        test_float_rand: ("( FLOAT.RAND )", "( 0.426738773909753 )", vec![]),
+        test_float_rot: ("( 0.0 1.0 2.0 FLOAT.ROT )", "( 1.0 2.0 0.0 )", vec![]),
+        test_float_shove: ("( 1.0 2.0 3.0 2 FLOAT.SHOVE )", "( 3.0 1.0 2.0 )", vec![]),
+        test_float_shove_zero: ("( 1.0 2.0 3.0 0 FLOAT.SHOVE )", "( 1.0 2.0 3.0 )", vec![]),
+        test_float_shove_wrap: ("( 1.0 2.0 3.0 3 FLOAT.SHOVE )", "( 1.0 2.0 3.0 )", vec![]),
+        test_float_sin: ("( 1.0 FLOAT.SIN )", "( 0.841470984807897 )", vec![]),
+        test_float_stack_depth: ("( 1.0 2.0 FLOAT.STACKDEPTH )", "( 1.0 2.0 2 )", vec![]),
+        test_float_sum: ("( 1.5 2.5 FLOAT.SUM )", "( 4.0 )", vec![]),
+        test_float_swap: ("( 1.0 2.0 3.0 FLOAT.SWAP )", "( 1.0 3.0 2.0 )", vec![]),
+        test_float_tan: ("( 1.0 FLOAT.TAN )", "( 1.557407724654902 )", vec![]),
+        test_float_yank: ("( 1.0 2.0 3.0 4.0 2 FLOAT.YANK )", "( 1.0 3.0 4.0 2.0 )", vec![]),
+        test_float_yank_dup: ("( 1.0 2.0 3.0 4.0 2 FLOAT.YANKDUP )", "( 1.0 2.0 3.0 4.0 2.0 )", vec![]),
         // test_integer_define: ("( A 1 INTEGER.DEFINE A )", "( 1 )", vec![]),
         // test_integer_difference: ("( 3 1 INTEGER.DIFFERENCE )", "( 2 )", vec![]),
-        // test_integer_dup: ("( 42 INTEGER.DUP )", "( 42 42 )", vec![]),
-        // test_integer_equal: ("( 42 0 INTEGER.EQUAL )", "( FALSE )", vec![]),
+        test_integer_dup: ("( 42 INTEGER.DUP )", "( 42 42 )", vec![]),
+        test_integer_equal: ("( 42 0 INTEGER.EQUAL )", "( FALSE )", vec![]),
         // test_integer_flush: ("( 1 1 INTEGER.FLUSH )", "( )", vec![]),
         // test_integer_fromboolean: ("( TRUE INTEGER.FROMBOOLEAN FALSE INTEGER.FROMBOOLEAN )", "( 1 0 )", vec![]),
         // test_integer_fromfloat: ("( 5.0 INTEGER.FROMFLOAT )", "( 5 )", vec![]),
@@ -216,7 +226,7 @@ mod tests {
         // test_integer_shove_zero: ("( 1 2 3 0 INTEGER.SHOVE )", "( 1 2 3 )", vec![]),
         // test_integer_shove_wrap: ("( 1 2 3 3 INTEGER.SHOVE )", "( 1 2 3 )", vec![]),
         // test_integer_stack_depth: ("( 1 2 INTEGER.STACKDEPTH )", "( 1 2 2 )", vec![]),
-        // test_integer_sum: ("( 42 7 INTEGER.SUM )", "( 49 )", vec![]),
+        test_integer_sum: ("( 42 7 INTEGER.SUM )", "( 49 )", vec![]),
         // test_integer_swap: ("( 1 2 3 INTEGER.SWAP )", "( 1 3 2 )", vec![]),
         // test_integer_yank: ("( 1 2 3 4 2 INTEGER.YANK )", "( 1 3 4 2 )", vec![]),
         // test_integer_yank_dup: ("( 1 2 3 4 2 INTEGER.YANKDUP )", "( 1 2 3 4 2 )", vec![]),
@@ -250,7 +260,7 @@ mod tests {
         use crate::StackTrait;
 
         let to_run = load_and_run("( CODE.INSTRUCTIONS )");
-        assert!(to_run.code().len() > 200);
+        assert!(to_run.code().len() > 100);
 
         let mut all_entries = vec![];
         while let Some(c) = to_run.code().pop() {

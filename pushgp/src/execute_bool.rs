@@ -1,5 +1,6 @@
 use crate::*;
 use pushgp_macros::*;
+use rand::Rng;
 
 pub type Bool = bool;
 
@@ -13,7 +14,7 @@ impl Literal<Bool> for Bool {
         write!(f, "{}", if *self { "TRUE" } else { "FALSE" })
     }
 
-    fn random_value<R: rand::Rng>(rng: &mut R) -> Bool {
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Bool {
         if 0 == rng.gen_range(0..=1) {
             false
         } else {
@@ -83,6 +84,7 @@ instruction! {
         context.bool().push(i != 0);
     }
 }
+
 instruction! {
     /// Pushes the logical NOT of the top BOOLEAN
     #[stack(Bool)]
@@ -90,6 +92,7 @@ instruction! {
         context.bool().push(!b);
     }
 }
+
 instruction! {
     /// Pushes the logical OR of the top two BOOLEANs
     #[stack(Bool)]
@@ -97,6 +100,7 @@ instruction! {
         context.bool().push(a || b);
     }
 }
+
 instruction! {
     /// Pops the BOOLEAN stack
     #[stack(Bool)]
@@ -108,7 +112,8 @@ instruction! {
     /// Pushes a random BOOLEAN
     #[stack(Bool)]
     fn rand(context: &mut Context) {
-        //context.bool().push(Bool::random_value());
+        let random_bool = context.run_random_literal_function(Bool::random_value);
+        context.bool().push(random_bool);
     }
 }
 
@@ -120,6 +125,7 @@ instruction! {
         context.bool().rotate();
     }
 }
+
 instruction! {
     /// Inserts the top BOOLEAN "deep" in the stack, at the position indexed by the top INTEGER
     #[stack(Bool)]
@@ -143,7 +149,6 @@ instruction! {
     #[stack(Bool)]
     fn swap(context: &mut Context) {
         context.bool().swap();
-
     }
 }
 

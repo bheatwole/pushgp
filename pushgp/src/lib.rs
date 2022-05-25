@@ -23,7 +23,7 @@ mod stack;
 mod util;
 
 pub use code::Code;
-pub use configuration::{Configuration, EphemeralConfiguration, InstructionConfiguration, LiteralConstructor};
+pub use configuration::{Configuration, EphemeralConfiguration, InstructionConfiguration, LiteralConstructor, RandomLiteralFunction};
 pub use context::Context;
 pub use default_code_gen::{new_instruction_table_with_all_instructions, BaseContext, BaseLiteral, BaseLiteralParser};
 pub use execute_bool::{Bool, ContextHasBoolStack};

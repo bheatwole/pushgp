@@ -1,4 +1,5 @@
 use crate::{Code, GeneticOperation, LiteralEnum, LiteralEnumHasLiteralValue, Name};
+use fnv::FnvHashMap;
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 
 /// A Configuration is a Vec of u8 where each u8 represents the weight of one of the possible randomly generated items
@@ -10,7 +11,7 @@ use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 /// A Vec<u8> is used to allow for running an island where the random code generator itself is optimized by genetic
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
 /// a few generations on the main island. The Configuration that produces the most fit population is the winner.
-
+#[derive(Debug, PartialEq)]
 pub struct Configuration<L: LiteralEnum<L>> {
     rng: SmallRng,
     max_points_in_random_expressions: usize,
@@ -22,18 +23,36 @@ pub struct Configuration<L: LiteralEnum<L>> {
 
     ephemeral_total: usize,
     ephemeral_weights: Vec<EphemeralEntry<L>>,
+    ephemeral_by_type: FnvHashMap<String, LiteralConstructor<L>>,
 
     instruction_total: usize,
     instruction_weights: Vec<InstructionEntry>,
 }
 
-pub type LiteralConstructor<L> = fn(&mut SmallRng) -> L;
+#[derive(Clone)]
+pub struct LiteralConstructor<L>(pub fn(&mut SmallRng) -> L);
 
+impl<L> std::fmt::Debug for LiteralConstructor<L> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "LiteralConstructor(0x{:x})", self.0 as usize)
+    }
+}
+
+impl<L> PartialEq for LiteralConstructor<L> {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.0 as usize == rhs.0 as usize
+    }
+}
+
+pub type RandomLiteralFunction<RealLiteralType> = fn(rng: &mut SmallRng) -> RealLiteralType;
+
+#[derive(Debug, PartialEq)]
 struct EphemeralEntry<L: LiteralEnum<L>> {
     pub weight: usize,
     pub call: LiteralConstructor<L>,
 }
 
+#[derive(Debug, PartialEq)]
 struct InstructionEntry {
     pub weight: usize,
     pub instruction: String,
@@ -56,7 +75,7 @@ impl<
         let (crossover_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
         let (mutation_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
         let (defined_name_weight, weights) = pop_front_weight_or_one_and_return_rest(weights);
-        let (ephemeral_total, ephemeral_weights, weights) = Self::make_ephemeral_weights(weights);
+        let (ephemeral_total, ephemeral_weights, ephemeral_by_type, weights) = Self::make_ephemeral_weights(weights);
         let (instruction_total, instruction_weights, _) = Self::make_instruction_weights(weights);
 
         Configuration {
@@ -67,28 +86,32 @@ impl<
             defined_name_weight: defined_name_weight as usize,
             ephemeral_total,
             ephemeral_weights,
+            ephemeral_by_type,
             instruction_total,
             instruction_weights,
         }
     }
 
-    fn make_ephemeral_weights(mut weights: &[u8]) -> (usize, Vec<EphemeralEntry<L>>, &[u8]) {
+    fn make_ephemeral_weights(mut weights: &[u8]) -> (usize, Vec<EphemeralEntry<L>>, FnvHashMap<String, LiteralConstructor<L>>, &[u8]) {
         let mut ephemeral_types = L::get_all_literal_types();
         let mut total = 0;
         let mut entries = vec![];
+        let mut mapped = FnvHashMap::default();
 
         for literal_type in ephemeral_types.drain(..) {
             let (literal_weight, rest_weights) = pop_front_weight_or_one_and_return_rest(weights);
             weights = rest_weights;
 
             total += literal_weight as usize;
+            let call = L::make_literal_constructor_for_type(literal_type.as_str());
             entries.push(EphemeralEntry {
                 weight: total,
-                call: L::make_literal_constructor_for_type(literal_type.as_str()),
+                call: call.clone(),
             });
+            mapped.insert(literal_type, call);
         }
 
-        (total, entries, weights)
+        (total, entries, mapped, weights)
     }
 
     fn make_instruction_weights(mut weights: &[u8]) -> (usize, Vec<InstructionEntry>, &[u8]) {
@@ -120,6 +143,20 @@ impl<
     /// the generator with a truly random value ensuring unique results.
     pub fn set_seed(&mut self, seed: Option<u64>) {
         self.rng = small_rng_from_optional_seed(seed);
+    }
+
+    pub fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType {
+        func(&mut self.rng)
+    }
+
+    /// Returns a random value of the type requested or None if the configuration does not know how to construct a
+    /// random value of that type
+    pub fn random_literal_of_type(&mut self, literal_type: &String) -> Option<Code<L>> {
+        if let Some(constructor) = self.ephemeral_by_type.get(literal_type) {
+            Some(Code::Literal(constructor.0(&mut self.rng)))
+        } else {
+            None
+        }
     }
 
     /// Returns a random genetic operation
@@ -173,7 +210,7 @@ impl<
     pub fn random_literal_from_ephemeral(&mut self, pick: usize) -> Code<L> {
         let index = self.ephemeral_weights.partition_point(|entry| entry.weight < pick);
         let entry = self.ephemeral_weights.get(index).unwrap();
-        Code::Literal((entry.call)(&mut self.rng))
+        Code::Literal((entry.call.0)(&mut self.rng))
     }
 
     /// Returns a new random instruction

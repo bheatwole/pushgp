@@ -1,5 +1,6 @@
 use crate::*;
 use pushgp_macros::*;
+use rand::Rng;
 
 pub type Integer = i64;
 
@@ -8,7 +9,7 @@ impl Literal<Integer> for Integer {
         crate::parse::parse_code_integer(input)
     }
 
-    fn random_value<R: rand::Rng>(rng: &mut R) -> Integer {
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Integer {
         rng.gen_range(i64::MIN..=i64::MAX)
     }
 }

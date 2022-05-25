@@ -93,10 +93,10 @@ impl EphemeralConfiguration<BaseLiteral> for BaseLiteral {
 
     fn make_literal_constructor_for_type(literal_type: &str) -> LiteralConstructor<BaseLiteral> {
         match literal_type {
-            "Bool" => |rng| BaseLiteral::Bool(Bool::random_value(rng)),
-            "Float" => |rng| BaseLiteral::Float(Float::random_value(rng)),
-            "Integer" => |rng| BaseLiteral::Integer(Integer::random_value(rng)),
-            "Name" => |rng| BaseLiteral::Name(Name::random_value(rng)),
+            "Bool" => LiteralConstructor { 0: |rng| BaseLiteral::Bool(Bool::random_value(rng)) },
+            "Float" => LiteralConstructor { 0: |rng| BaseLiteral::Float(Float::random_value(rng)) },
+            "Integer" => LiteralConstructor { 0: |rng| BaseLiteral::Integer(Integer::random_value(rng)) },
+            "Name" => LiteralConstructor { 0: |rng| BaseLiteral::Name(Name::random_value(rng)) },
             _ => panic!("unknown literal type"),
         }
     }
@@ -226,9 +226,7 @@ instruction_list! {
 //     }
 // }
 
-/// Creates a new instruction table that contains every instruction known in the base library. This will fail to compile
-// /// if your Context does not include stacks for all base library types.
-// pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
+// // pub fn new_instruction_table_with_all_instructions<C, L>() -> InstructionTable<C>
 // where
 //     C: Context + ContextHasBoolStack<L> + ContextHasNameStack<L>,
 //     L: LiteralEnum<L>,
@@ -252,12 +250,12 @@ pub struct BaseContext {
 
     name_stack: NameStack<BaseLiteral>,
 
-    //config: Configuration<BaseLiteral>,
+    config: Configuration<BaseLiteral>,
     instructions: Rc<InstructionTable<BaseContext>>,
 }
 
 impl BaseContext {
-    pub fn new(_config: Configuration<BaseLiteral>, instructions: InstructionTable<BaseContext>) -> BaseContext {
+    pub fn new(config: Configuration<BaseLiteral>, instructions: InstructionTable<BaseContext>) -> BaseContext {
         BaseContext {
             exec_stack: Stack::new(),
             bool_stack: Stack::new(),
@@ -265,7 +263,7 @@ impl BaseContext {
             float_stack: Stack::new(),
             integer_stack: Stack::new(),
             name_stack: NameStack::new(),
-            //config,
+            config,
             instructions: Rc::new(instructions),
         }
     }
@@ -281,8 +279,18 @@ impl Context for BaseContext {
         self.name_stack.clear();
     }
 
+    /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
+    /// the generator with a truly random value ensuring unique results.
+    fn set_seed(&mut self, seed: Option<u64>) {
+        self.config.set_seed(seed)
+    }
+
     fn all_instruction_names(&self) -> Vec<String> {
         self.instructions.all_instruction_names()
+    }
+
+    fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType {
+        self.config.run_random_literal_function(func)
     }
 
     fn next(&mut self) -> Option<usize> {
@@ -346,12 +354,18 @@ impl ContextHasCodeStack<BaseLiteral> for BaseContext {
     fn code(&self) -> &Stack<Code<BaseLiteral>> {
         &self.code_stack
     }
+
+    fn random_code(&mut self) -> Code<BaseLiteral> {
+        let defined_names = self.name_stack.all_names();
+        self.config.generate_random_code(&defined_names)
+    }
 }
 
 impl ContextHasFloatStack<BaseLiteral> for BaseContext {
     fn float(&self) -> &Stack<Float> {
         &self.float_stack
     }
+
     fn make_literal_float(value: Float) -> Code<BaseLiteral> {
         Code::Literal(BaseLiteral::Float(value))
     }
@@ -361,6 +375,7 @@ impl ContextHasIntegerStack<BaseLiteral> for BaseContext {
     fn integer(&self) -> &Stack<Integer> {
         &self.integer_stack
     }
+
     fn make_literal_integer(value: Integer) -> Code<BaseLiteral> {
         Code::Literal(BaseLiteral::Integer(value))
     }
@@ -370,6 +385,7 @@ impl ContextHasNameStack<BaseLiteral> for BaseContext {
     fn name(&self) -> &NameStack<BaseLiteral> {
         &self.name_stack
     }
+
     fn make_literal_name(value: Name) -> Code<BaseLiteral> {
         Code::Literal(BaseLiteral::Name(value))
     }

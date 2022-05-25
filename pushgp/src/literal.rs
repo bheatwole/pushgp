@@ -1,4 +1,5 @@
 use nom::IResult;
+use rand::rngs::SmallRng;
 use std::fmt::Display;
 use std::hash::Hash;
 
@@ -16,7 +17,7 @@ pub trait Literal<Value>: Clone + Display + Eq + Hash + PartialEq {
     }
 
     /// All literals must be able to provide a random value for code generation purposes
-    fn random_value<R: rand::Rng>(rng: &mut R) -> Value;
+    fn random_value(rng: &mut SmallRng) -> Value;
 }
 
 /// This is the trait that must be implemented for the wrapper around all Literal types. While it mostly has the same

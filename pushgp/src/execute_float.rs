@@ -1,4 +1,5 @@
 use crate::*;
+use pushgp_macros::*;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
@@ -23,52 +24,241 @@ pub trait ContextHasFloatStack<L: LiteralEnum<L>> {
     fn make_literal_float(value: Float) -> Code<L>;
 }
 
-// pub fn execute_floatcos(context: &mut Context) {
-//     if context.float_stack.len() >= 1 {
-//         let value = context.float_stack.pop().unwrap();
-//         context.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
-//     }
-// }
+instruction! {
+    /// Pushes the cosine of the top item.
+    #[stack(Float)]
+    fn cos(context: &mut Context, value: Float) {
+        context.float().push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
+    }
+}
 
-// pub fn execute_floatdefine(context: &mut Context) {
-//     if context.name_stack.len() >= 1 && context.float_stack.len() >= 1 {
-//         let name = context.name_stack.pop().unwrap();
-//         let value = context.float_stack.pop().unwrap();
-//         context.defined_names.insert(name, Code::LiteralFloat(value));
-//     }
-// }
+instruction! {
+    /// Defines the name on top of the NAME stack as an instruction that will push the top item of the FLOAT stack onto
+    /// the EXEC stack.
+    #[stack(Float)]
+    fn define(context: &mut Context, value: Float, name: Name) {
+        context.name().define_name(name, C::make_literal_float(value));
+    }
+}
 
-// pub fn execute_floatdifference(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let right = context.float_stack.pop().unwrap();
-//         let left = context.float_stack.pop().unwrap();
-//         context.float_stack.push(left - right);
-//     }
-// }
+instruction! {
+    /// Pushes the difference of the top two items; that is, the second item minus the top item.
+    #[stack(Float)]
+    fn difference(context: &mut Context, right: Float, left: Float) {
+        context.float().push(left - right);
+    }
+}
 
-// pub fn execute_floatdup(context: &mut Context) {
-//     if context.float_stack.len() >= 1 {
-//         let value = context.float_stack.pop().unwrap();
-//         context.float_stack.push(value);
-//         context.float_stack.push(value);
-//     }
-// }
+instruction! {
+    /// Duplicates the top item on the FLOAT stack. Does not pop its argument (which, if it did, would negate the effect
+    /// of the duplication!).
+    #[stack(Float)]
+    fn dup(context: &mut Context) {
+        context.float().duplicate_top_item();
+    }
+}
 
-// pub fn execute_floatequal(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let a = context.float_stack.pop().unwrap();
-//         let b = context.float_stack.pop().unwrap();
-//         context.bool_stack.push(a == b);
-//     }
-// }
+instruction! {
+    /// Pushes TRUE onto the BOOLEAN stack if the top two items are equal, or FALSE otherwise.
+    #[stack(Float)]
+    fn equal(context: &mut Context, a: Float, b: Float) {
+        context.bool().push(a == b);
+    }
+}
 
-// pub fn execute_floatflush(context: &mut Context) {
-//     context.float_stack.clear();
-// }
+instruction! {
+    /// Empties the FLOAT stack.
+    #[stack(Float)]
+    fn flush(context: &mut Context) {
+        context.float().clear();
+    }
+}
+
+instruction! {
+    /// Pushes 1.0 if the top BOOLEAN is TRUE, or 0.0 if the top BOOLEAN is FALSE.
+    #[stack(Float)]
+    fn from_boolean(context: &mut Context, value: Bool) {
+        context.float().push(if value {
+            Decimal::new(1, 0)
+        } else {
+            Decimal::new(0, 0)
+        });
+    }
+}
+
+instruction! {
+    /// Pushes a floating point version of the top INTEGER.
+    #[stack(Float)]
+    fn from_integer(context: &mut Context, value: Integer) {
+        context.float().push(Decimal::new(value, 0));
+    }
+}
+
+instruction! {
+    /// Pushes TRUE onto the BOOLEAN stack if the second item is greater than the top item, or FALSE otherwise.
+    #[stack(Float)]
+    fn greater(context: &mut Context, right: Float, left: Float) {
+        context.bool().push(left > right);
+    }
+}
+
+instruction! {
+    /// Pushes TRUE onto the BOOLEAN stack if the second item is less than the top item, or FALSE otherwise.
+    #[stack(Float)]
+    fn less(context: &mut Context, right: Float, left: Float) {
+        context.bool().push(left < right);
+    }
+}
+
+instruction! {
+    /// Pushes the maximum of the top two items.
+    #[stack(Float)]
+    fn max(context: &mut Context, a: Float, b: Float) {
+        context.float().push(if a > b { a } else { b });
+    }
+}
+
+instruction! {
+    /// Pushes the minimum of the top two items.
+    #[stack(Float)]
+    fn min(context: &mut Context, a: Float, b: Float) {
+        context.float().push(if a < b { a } else { b });
+    }
+}
+
+instruction! {
+    /// Pushes the second stack item modulo the top stack item. If the top item is zero this acts as a NOOP. The modulus
+    /// is computed as the remainder of the quotient, where the quotient has first been truncated toward negative
+    /// infinity. (This is taken from the definition for the generic MOD function in Common Lisp, which is described for
+    /// example at http://www.lispworks.com/reference/HyperSpec/Body/f_mod_r.htm.)
+    #[stack(Float)]
+    fn modulo(context: &mut Context, bottom: Float, top: Float) {
+        if bottom != Decimal::ZERO {
+            context.float().push(top % bottom);
+        }
+    }
+}
+
+instruction! {
+    /// Pops the FLOAT stack.
+    #[stack(Float)]
+    fn pop(context: &mut Context, _popped: Float) {
+    }
+}
+
+instruction! {
+    /// Pushes the product of the top two items.
+    #[stack(Float)]
+    fn product(context: &mut Context, right: Float, left: Float) {
+        context.float().push(left * right);
+    }
+}
+
+instruction! {
+    /// Pushes the quotient of the top two items; that is, the second item divided by the top item. If the top item is
+    /// zero this acts as a NOOP.
+    #[stack(Float)]
+    fn quotient(context: &mut Context, bottom: Float, top: Float) {
+        if bottom != Decimal::ZERO {
+            context.float().push(top / bottom);
+        }
+    }
+}
+
+instruction! {
+    /// Pushes a newly generated random FLOAT that is greater than or equal to MIN-RANDOM-FLOAT and less than or equal
+    /// to MAX-RANDOM-FLOAT.
+    #[stack(Float)]
+    fn rand(context: &mut Context) {
+        let random_value = context.run_random_literal_function(Float::random_value);
+        context.float().push(random_value);
+    }
+}
+
+instruction! {
+    /// Rotates the top three items on the FLOAT stack, pulling the third item out and pushing it on top. This is
+    /// equivalent to "2 FLOAT.YANK".
+    #[stack(Float)]
+    fn rot(context: &mut Context) {
+        context.float().rotate();
+    }
+}
+
+instruction! {
+    /// Inserts the top FLOAT "deep" in the stack, at the position indexed by the top INTEGER.
+    #[stack(Float)]
+    fn shove(context: &mut Context, position: Integer) {
+        if !context.float().shove(position) {
+            context.integer().push(position);
+        }
+    }
+}
+
+instruction! {
+    /// Pushes the sine of the top item.
+    #[stack(Float)]
+    fn sin(context: &mut Context, value: Float) {
+        context.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
+    }
+}
+
+instruction! {
+    /// Pushes the stack depth onto the INTEGER stack.
+    #[stack(Float)]
+    fn stack_depth(context: &mut Context) {
+        context.integer().push(context.float().len() as i64);
+    }
+}
+
+instruction! {
+    /// Pushes the sum of the top two items.
+    #[stack(Float)]
+    fn sum(context: &mut Context, right: Float, left: Float) {
+        context.float().push(left + right);
+    }
+}
+
+instruction! {
+    /// Swaps the top two BOOLEANs.
+    #[stack(Float)]
+    fn swap(context: &mut Context) {
+        context.float().swap();
+    }
+}
+
+instruction! {
+    /// Pushes the tangent of the top item.
+    #[stack(Float)]
+    fn tan(context: &mut Context, value: Float) {
+        context.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
+    }
+}
+
+instruction! {
+    /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
+    /// The index is taken from the INTEGER stack.
+    #[stack(Float)]
+    fn yank_dup(context: &mut Context, position: Integer) {
+        if !context.float().yank_duplicate(position) {
+            context.integer().push(position);
+        }
+    }
+}
+
+instruction! {
+    /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
+    /// INTEGER stack.
+    #[stack(Float)]
+    fn yank(context: &mut Context, position: Integer) {
+        if !context.float().yank(position) {
+            context.integer().push(position);
+        }
+    }
+}
 
 // pub fn execute_floatfromboolean(context: &mut Context) {
 //     if context.bool_stack.len() >= 1 {
-//         context.float_stack.push(if context.bool_stack.pop().unwrap() {
+//         context.float().push(if context.bool_stack.pop().unwrap() {
 //             Decimal::new(1, 0)
 //         } else {
 //             Decimal::new(0, 0)
@@ -78,141 +268,141 @@ pub trait ContextHasFloatStack<L: LiteralEnum<L>> {
 
 // pub fn execute_floatfrominteger(context: &mut Context) {
 //     if context.int_stack.len() >= 1 {
-//         context.float_stack.push(Decimal::new(context.int_stack.pop().unwrap(), 0));
+//         context.float().push(Decimal::new(context.int_stack.pop().unwrap(), 0));
 //     }
 // }
 
 // pub fn execute_floatgreater(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let right = context.float_stack.pop().unwrap();
-//         let left = context.float_stack.pop().unwrap();
+//     if context.float().len() >= 2 {
+//         let right = context.float().pop().unwrap();
+//         let left = context.float().pop().unwrap();
 //         context.bool_stack.push(left > right);
 //     }
 // }
 
 // pub fn execute_floatless(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let right = context.float_stack.pop().unwrap();
-//         let left = context.float_stack.pop().unwrap();
+//     if context.float().len() >= 2 {
+//         let right = context.float().pop().unwrap();
+//         let left = context.float().pop().unwrap();
 //         context.bool_stack.push(left < right);
 //     }
 // }
 
 // pub fn execute_floatmax(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let a = context.float_stack.pop().unwrap();
-//         let b = context.float_stack.pop().unwrap();
-//         context.float_stack.push(if a < b { b } else { a });
+//     if context.float().len() >= 2 {
+//         let a = context.float().pop().unwrap();
+//         let b = context.float().pop().unwrap();
+//         context.float().push(if a < b { b } else { a });
 //     }
 // }
 
 // pub fn execute_floatmin(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let a = context.float_stack.pop().unwrap();
-//         let b = context.float_stack.pop().unwrap();
-//         context.float_stack.push(if a < b { a } else { b });
+//     if context.float().len() >= 2 {
+//         let a = context.float().pop().unwrap();
+//         let b = context.float().pop().unwrap();
+//         context.float().push(if a < b { a } else { b });
 //     }
 // }
 
 // pub fn execute_floatmodulo(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let bottom = context.float_stack.pop().unwrap();
-//         let top = context.float_stack.pop().unwrap();
+//     if context.float().len() >= 2 {
+//         let bottom = context.float().pop().unwrap();
+//         let top = context.float().pop().unwrap();
 //         if bottom != Decimal::ZERO {
-//             context.float_stack.push(top % bottom);
+//             context.float().push(top % bottom);
 //         }
 //     }
 // }
 
 // pub fn execute_floatpop(context: &mut Context) {
-//     context.float_stack.pop();
+//     context.float().pop();
 // }
 
 // pub fn execute_floatproduct(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let right = context.float_stack.pop().unwrap();
-//         let left = context.float_stack.pop().unwrap();
-//         context.float_stack.push(left * right);
+//     if context.float().len() >= 2 {
+//         let right = context.float().pop().unwrap();
+//         let left = context.float().pop().unwrap();
+//         context.float().push(left * right);
 //     }
 // }
 
 // pub fn execute_floatquotient(context: &mut Context) {
-//     let bottom = context.float_stack.pop().unwrap();
-//     let top = context.float_stack.pop().unwrap();
+//     let bottom = context.float().pop().unwrap();
+//     let top = context.float().pop().unwrap();
 //     if bottom != Decimal::ZERO {
-//         context.float_stack.push(top / bottom);
+//         context.float().push(top / bottom);
 //     }
 // }
 
 // pub fn execute_floatrand(context: &mut Context) {
-//     context.float_stack.push(context.config.random_float())
+//     context.float().push(context.config.random_float())
 // }
 
 // pub fn execute_floatrot(context: &mut Context) {
-//     let a = context.float_stack.pop().unwrap();
-//     let b = context.float_stack.pop().unwrap();
-//     let c = context.float_stack.pop().unwrap();
-//     context.float_stack.push(b);
-//     context.float_stack.push(a);
-//     context.float_stack.push(c);
+//     let a = context.float().pop().unwrap();
+//     let b = context.float().pop().unwrap();
+//     let c = context.float().pop().unwrap();
+//     context.float().push(b);
+//     context.float().push(a);
+//     context.float().push(c);
 // }
 
 // pub fn execute_floatshove(context: &mut Context) {
-//     if context.float_stack.len() >= 1 && context.int_stack.len() >= 1 {
+//     if context.float().len() >= 1 && context.int_stack.len() >= 1 {
 //         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.float_stack.len());
-//         let b = context.float_stack.pop().unwrap();
-//         context.float_stack.insert(vec_index, b);
+//         let vec_index = crate::util::stack_to_vec(stack_index, context.float().len());
+//         let b = context.float().pop().unwrap();
+//         context.float().insert(vec_index, b);
 //     }
 // }
 
 // pub fn execute_floatsin(context: &mut Context) {
-//     if context.float_stack.len() >= 1 {
-//         let value = context.float_stack.pop().unwrap();
-//         context.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
+//     if context.float().len() >= 1 {
+//         let value = context.float().pop().unwrap();
+//         context.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
 //     }
 // }
 
 // pub fn execute_floatstackdepth(context: &mut Context) {
-//     context.int_stack.push(context.float_stack.len() as i64);
+//     context.int_stack.push(context.float().len() as i64);
 // }
 
 // pub fn execute_floatsum(context: &mut Context) {
-//     if context.float_stack.len() >= 2 {
-//         let right = context.float_stack.pop().unwrap();
-//         let left = context.float_stack.pop().unwrap();
-//         context.float_stack.push(left + right);
+//     if context.float().len() >= 2 {
+//         let right = context.float().pop().unwrap();
+//         let left = context.float().pop().unwrap();
+//         context.float().push(left + right);
 //     }
 // }
 
 // pub fn execute_floatswap(context: &mut Context) {
-//     let a = context.float_stack.pop().unwrap();
-//     let b = context.float_stack.pop().unwrap();
-//     context.float_stack.push(a);
-//     context.float_stack.push(b);
+//     let a = context.float().pop().unwrap();
+//     let b = context.float().pop().unwrap();
+//     context.float().push(a);
+//     context.float().push(b);
 // }
 
 // pub fn execute_floattan(context: &mut Context) {
-//     if context.float_stack.len() >= 1 {
-//         let value = context.float_stack.pop().unwrap();
-//         context.float_stack.push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
+//     if context.float().len() >= 1 {
+//         let value = context.float().pop().unwrap();
+//         context.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
 //     }
 // }
 
 // pub fn execute_floatyankdup(context: &mut Context) {
-//     if context.float_stack.len() >= 1 && context.int_stack.len() >= 1 {
+//     if context.float().len() >= 1 && context.int_stack.len() >= 1 {
 //         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.float_stack.len());
-//         let &b = context.float_stack.get(vec_index).unwrap();
-//         context.float_stack.push(b);
+//         let vec_index = crate::util::stack_to_vec(stack_index, context.float().len());
+//         let &b = context.float().get(vec_index).unwrap();
+//         context.float().push(b);
 //     }
 // }
 
 // pub fn execute_floatyank(context: &mut Context) {
-//     if context.float_stack.len() >= 1 && context.int_stack.len() >= 1 {
+//     if context.float().len() >= 1 && context.int_stack.len() >= 1 {
 //         let stack_index = context.int_stack.pop().unwrap();
-//         let vec_index = crate::util::stack_to_vec(stack_index, context.float_stack.len());
-//         let b = context.float_stack.remove(vec_index);
-//         context.float_stack.push(b);
+//         let vec_index = crate::util::stack_to_vec(stack_index, context.float().len());
+//         let b = context.float().remove(vec_index);
+//         context.float().push(b);
 //     }
 // }

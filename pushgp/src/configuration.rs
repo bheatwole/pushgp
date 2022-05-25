@@ -227,8 +227,18 @@ impl<
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
-    pub fn generate_random_code(&mut self, defined_names: &[Name]) -> Code<L> {
-        let actual_points = self.rng.gen_range(1..=self.max_points_in_random_expressions);
+    pub fn generate_random_code(&mut self, points: Option<usize>, defined_names: &[Name]) -> Code<L> {
+        let max_points = if let Some(maybe_huge_max) = points {
+            let max = maybe_huge_max % self.max_points_in_random_expressions;
+            if max > 0 {
+                max
+            } else {
+                1
+            }
+        } else {
+            self.max_points_in_random_expressions
+        };
+        let actual_points = self.rng.gen_range(1..=max_points);
         self.random_code_with_size(actual_points, defined_names)
     }
 

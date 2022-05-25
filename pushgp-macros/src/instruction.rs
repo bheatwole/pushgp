@@ -275,7 +275,8 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                         || method == "next"
                         || method == "all_instruction_names"
                         || method == "run_random_literal_function"
-                        || method == "set_seed")
+                        || method == "set_seed"
+                        || method == "random_code")
                     {
                         parse_results.stacks.insert(method.to_case(Case::Pascal));
                     }

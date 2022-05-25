@@ -381,9 +381,9 @@ impl ContextHasCodeStack<BaseLiteral> for BaseContext {
         &self.code_stack
     }
 
-    fn random_code(&mut self) -> Code<BaseLiteral> {
+    fn random_code(&mut self, points: Option<usize>) -> Code<BaseLiteral> {
         let defined_names = self.name_stack.all_names();
-        self.config.generate_random_code(&defined_names)
+        self.config.generate_random_code(points, &defined_names)
     }
 }
 

@@ -4,7 +4,7 @@ use pushgp_macros::*;
 
 pub trait ContextHasCodeStack<L: LiteralEnum<L>> {
     fn code(&self) -> &Stack<Code<L>>;
-    fn random_code(&mut self) -> Code<L>;
+    fn random_code(&mut self, points: Option<usize>) -> Code<L>;
 }
 
 instruction! {
@@ -499,8 +499,9 @@ instruction! {
     /// from the INTEGER stack; to ensure that it is in the appropriate range this is taken modulo the value of the
     /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
     #[stack(Code)]
-    fn rand(context: &mut Context) {
-
+    fn rand(context: &mut Context, points: Integer) {
+        let code = context.random_code(Some(points as usize));
+        context.code().push(code);
     }
 }
 

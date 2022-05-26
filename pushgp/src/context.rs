@@ -1,4 +1,3 @@
-use crate::configuration::RandomLiteralFunction;
 use log::*;
 use std::fmt::Debug;
 
@@ -6,7 +5,9 @@ pub trait Context: Debug {
     fn clear(&mut self);
     fn next(&mut self) -> Option<usize>;
     fn all_instruction_names(&self) -> Vec<String>;
-    fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType;
+    fn run_random_literal_function<F, RealLiteralType>(&mut self, func: F) -> RealLiteralType
+    where
+        F: Fn(&mut rand::rngs::SmallRng) -> RealLiteralType;
 
     /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
     /// the generator with a truly random value ensuring unique results.
@@ -27,8 +28,8 @@ pub trait Context: Debug {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
     use crate::default_code_gen::{BaseContext, BaseLiteral, BaseLiteralParser};
+    use crate::*;
 
     fn load_and_run(src: &str) -> BaseContext {
         let weights = vec![];
@@ -142,7 +143,7 @@ mod tests {
         test_code_position_not_found: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( -1 )", vec![]),
         test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),
         test_code_rand_no_points: ("( CODE.RAND )", "( )", vec![]),
-        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.INSERT CODE.DONRANGE EXEC.S ) )", vec![]),
+        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.SHOVE FLOAT.SIN INTEGER.STACKDEPTH ) )", vec![]),
         test_code_rot: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C CODE.ROT )", "( CODE.QUOTE B CODE.QUOTE C CODE.QUOTE A )", vec![]),
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),
         test_code_shove_zero: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 0 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),
@@ -232,21 +233,21 @@ mod tests {
         test_integer_swap: ("( 1 2 3 INTEGER.SWAP )", "( 1 3 2 )", vec![]),
         test_integer_yank: ("( 1 2 3 4 2 INTEGER.YANK )", "( 1 3 4 2 )", vec![]),
         test_integer_yank_dup: ("( 1 2 3 4 2 INTEGER.YANKDUP )", "( 1 2 3 4 2 )", vec![]),
-        // test_name_dup: ("( A NAME.DUP )", "( A A )", vec![]),
-        // test_name_equal: ("( A B NAME.EQUAL )", "( FALSE )", vec![]),
-        // test_name_flush: ("( A B NAME.FLUSH )", "( )", vec![]),
-        // test_name_pop: ("( A NAME.POP )", "( )", vec![]),
-        // test_name_quote: ("( A 1.0 FLOAT.DEFINE NAME.QUOTE A )", "( A )", vec![]),
-        // test_name_rand: ("( NAME.RAND )", "( ABCDEFG )", vec![]),
-        // test_name_rand_bound: ("( A 1.0 FLOAT.DEFINE NAME.RANDBOUNDNAME A )", "( A )", vec![]),
-        // test_name_rot: ("( A B C NAME.ROT )", "( B C A )", vec![]),
-        // test_name_shove: ("( A B C 2 NAME.SHOVE )", "( C A B )", vec![]),
-        // test_name_shove_zero: ("( A B C 0 NAME.SHOVE )", "( A B C )", vec![]),
-        // test_name_shove_wrap: ("( A B C 3 NAME.SHOVE )", "( A B C )", vec![]),
-        // test_name_stack_depth: ("( A B NAME.STACKDEPTH )", "( A B 2 )", vec![]),
-        // test_name_swap: ("( A B C NAME.SWAP )", "( A C B )", vec![]),
-        // test_name_yank: ("( A B C D 2 NAME.YANK )", "( A C D B )", vec![]),
-        // test_name_yank_dup: ("( A B C D 2 NAME.YANKDUP )", "( A B C D B )", vec![]),
+        test_name_dup: ("( A NAME.DUP )", "( A A )", vec![]),
+        test_name_equal: ("( A B NAME.EQUAL )", "( FALSE )", vec![]),
+        test_name_flush: ("( A B NAME.FLUSH )", "( )", vec![]),
+        test_name_pop: ("( A NAME.POP )", "( )", vec![]),
+        test_name_quote: ("( A 1.0 FLOAT.DEFINE NAME.QUOTE A )", "( A )", vec![("A", "1.0")]),
+        test_name_rand: ("( NAME.RAND )", "( RND.sN5S8Epgn7Y= )", vec![]),
+        test_name_rand_bound: ("( A 1.0 FLOAT.DEFINE NAME.RANDBOUNDNAME )", "( A )", vec![("A", "1.0")]),
+        test_name_rot: ("( A B C NAME.ROT )", "( B C A )", vec![]),
+        test_name_shove: ("( A B C 2 NAME.SHOVE )", "( C A B )", vec![]),
+        test_name_shove_zero: ("( A B C 0 NAME.SHOVE )", "( A B C )", vec![]),
+        test_name_shove_wrap: ("( A B C 3 NAME.SHOVE )", "( A B C )", vec![]),
+        test_name_stack_depth: ("( A B NAME.STACKDEPTH )", "( A B 2 )", vec![]),
+        test_name_swap: ("( A B C NAME.SWAP )", "( A C B )", vec![]),
+        test_name_yank: ("( A B C D 2 NAME.YANK )", "( A C D B )", vec![]),
+        test_name_yank_dup: ("( A B C D 2 NAME.YANKDUP )", "( A B C D B )", vec![]),
     }
 
     #[test]

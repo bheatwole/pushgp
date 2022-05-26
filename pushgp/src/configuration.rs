@@ -44,7 +44,7 @@ impl<L> PartialEq for LiteralConstructor<L> {
     }
 }
 
-pub type RandomLiteralFunction<RealLiteralType> = fn(rng: &mut SmallRng) -> RealLiteralType;
+pub type RandomLiteralFunction<RealLiteralType> = dyn Fn(&mut SmallRng) -> RealLiteralType;
 
 #[derive(Debug, PartialEq)]
 struct EphemeralEntry<L: LiteralEnum<L>> {
@@ -92,7 +92,9 @@ impl<
         }
     }
 
-    fn make_ephemeral_weights(mut weights: &[u8]) -> (usize, Vec<EphemeralEntry<L>>, FnvHashMap<String, LiteralConstructor<L>>, &[u8]) {
+    fn make_ephemeral_weights(
+        mut weights: &[u8],
+    ) -> (usize, Vec<EphemeralEntry<L>>, FnvHashMap<String, LiteralConstructor<L>>, &[u8]) {
         let mut ephemeral_types = L::get_all_literal_types();
         let mut total = 0;
         let mut entries = vec![];
@@ -104,10 +106,7 @@ impl<
 
             total += literal_weight as usize;
             let call = L::make_literal_constructor_for_type(literal_type.as_str());
-            entries.push(EphemeralEntry {
-                weight: total,
-                call: call.clone(),
-            });
+            entries.push(EphemeralEntry { weight: total, call: call.clone() });
             mapped.insert(literal_type, call);
         }
 
@@ -145,7 +144,10 @@ impl<
         self.rng = small_rng_from_optional_seed(seed);
     }
 
-    pub fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType {
+    pub fn run_random_literal_function<F, RealLiteralType>(&mut self, func: F) -> RealLiteralType
+    where
+        F: Fn(&mut SmallRng) -> RealLiteralType,
+    {
         func(&mut self.rng)
     }
 

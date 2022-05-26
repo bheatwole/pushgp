@@ -243,6 +243,19 @@ instruction_list! {
         crate::execute_integer::IntegerSwap,
         crate::execute_integer::IntegerYankDup,
         crate::execute_integer::IntegerYank,
+        crate::execute_name::NameDup,
+        crate::execute_name::NameEqual,
+        crate::execute_name::NameFlush,
+        crate::execute_name::NamePop,
+        crate::execute_name::NameQuote,
+        crate::execute_name::NameRandBoundName,
+        crate::execute_name::NameRand,
+        crate::execute_name::NameRot,
+        crate::execute_name::NameShove,
+        crate::execute_name::NameStackDepth,
+        crate::execute_name::NameSwap,
+        crate::execute_name::NameYankDup,
+        crate::execute_name::NameYank,
     ],
 }
 // impl InstructionConfiguration for BaseLiteral {
@@ -333,7 +346,10 @@ impl Context for BaseContext {
         self.instructions.all_instruction_names()
     }
 
-    fn run_random_literal_function<RealLiteralType>(&mut self, func: RandomLiteralFunction<RealLiteralType>) -> RealLiteralType {
+    fn run_random_literal_function<F, RealLiteralType>(&mut self, func: F) -> RealLiteralType
+    where
+        F: Fn(&mut rand::rngs::SmallRng) -> RealLiteralType,
+    {
         self.config.run_random_literal_function(func)
     }
 

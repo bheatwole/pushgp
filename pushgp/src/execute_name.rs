@@ -2,6 +2,7 @@ use crate::*;
 use base64::*;
 use byte_slice_cast::*;
 use fnv::FnvHashMap;
+use pushgp_macros::*;
 use rand::Rng;
 use std::cell::RefCell;
 
@@ -99,6 +100,130 @@ impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
         self.stack.yank_duplicate(position)
     }
 }
+
+
+
+instruction! {
+    /// Duplicates the top item on the NAME stack. Does not pop its argument (which, if it did, would negate the effect
+    /// of the duplication!).
+    #[stack(Name)]
+    fn dup(context: &mut Context) {
+        context.name().duplicate_top_item();
+    }
+}
+
+instruction! {
+    /// Pushes TRUE if the top two NAMEs are equal, or FALSE otherwise.
+    #[stack(Name)]
+    fn equal(context: &mut Context, a: Name, b: Name) {
+        context.bool().push(a == b);
+    }
+}
+
+instruction! {
+    /// Empties the NAME stack.
+    #[stack(Name)]
+    fn flush(context: &mut Context) {
+        context.name().clear()
+    }
+}
+
+instruction! {
+    /// Pops the NAME stack.
+    #[stack(Name)]
+    fn pop(context: &mut Context, _popped: Name) {}
+}
+
+instruction! {
+    /// Sets a flag indicating that the next name encountered will be pushed onto the NAME stack (and not have its
+    /// associated value pushed onto the EXEC stack), regardless of whether or not it has a definition. Upon
+    /// encountering such a name and pushing it onto the NAME stack the flag will be cleared (whether or not the pushed
+    /// name had a definition).
+    #[stack(Name)]
+    fn quote(context: &mut Context) {
+        context.name().set_should_quote_next_name(true)
+    }
+}
+
+instruction! {
+    /// Pushes a randomly selected NAME that already has a definition.
+    #[stack(Name)]
+    fn rand_bound_name(context: &mut Context) {
+        let defined_names = context.name().all_names();
+        let random_value = context.run_random_literal_function(|rng| {
+            let pick = rng.gen_range(0..defined_names.len());
+            defined_names[pick].clone()
+        });
+        context.name().push(random_value);
+    }
+}
+
+instruction! {
+    /// Pushes a newly generated random NAME.
+    #[stack(Name)]
+    fn rand(context: &mut Context) {
+        let random_value = context.run_random_literal_function(Name::random_value);
+        context.name().push(random_value);
+    }
+}
+
+instruction! {
+    /// Rotates the top three items on the NAME stack, pulling the third item out and pushing it on top. This is
+    /// equivalent to "2 NAME.YANK".
+    #[stack(Name)]
+    fn rot(context: &mut Context) {
+        context.name().rotate();
+    }
+}
+
+instruction! {
+    /// Inserts the top NAME "deep" in the stack, at the position indexed by the top INTEGER.
+    #[stack(Name)]
+    fn shove(context: &mut Context, position: Integer) {
+        if !context.name().shove(position) {
+            context.integer().push(position);
+        }
+    }
+}
+
+instruction! {
+    /// Pushes the stack depth onto the INTEGER stack.
+    #[stack(Name)]
+    fn stack_depth(context: &mut Context) {
+        context.integer().push(context.name().len() as i64);
+    }
+}
+
+instruction! {
+    /// Swaps the top two NAMEs.
+    #[stack(Name)]
+    fn swap(context: &mut Context) {
+        context.name().swap();
+    }
+}
+
+instruction! {
+    /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
+    /// The index is taken from the INTEGER stack.
+    #[stack(Name)]
+    fn yank_dup(context: &mut Context, position: Integer) {
+        if !context.name().yank_duplicate(position) {
+            context.integer().push(position);
+        }
+    }
+}
+
+instruction! {
+    /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
+    /// INTEGER stack.
+    #[stack(Name)]
+    fn yank(context: &mut Context, position: Integer) {
+        if !context.name().yank(position) {
+            context.integer().push(position);
+        }
+    }
+}
+
 
 // pub fn execute_namedup<C: Context + ContextStack<Name>>(context: &mut C) {
 //     context.get_stack().duplicate_top_item()

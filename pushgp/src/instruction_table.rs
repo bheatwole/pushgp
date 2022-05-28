@@ -1,5 +1,4 @@
 use fnv::FnvHashMap;
-use log::*;
 
 pub struct InstructionTable<C> {
     table: FnvHashMap<String, fn(&mut C)>,
@@ -14,13 +13,8 @@ impl<C> InstructionTable<C> {
         self.table.insert(name.to_owned(), call);
     }
 
-    pub fn execute(&self, name: &String, context: &mut C) {
-        trace!("executing instruction {}", name);
-        if let Some(func) = self.table.get(name) {
-            func(context)
-        } else {
-            debug!("unable to find function for {} in instruction table", name);
-        }
+    pub fn get(&self, name: &String) -> Option<&fn(&mut C)> {
+        self.table.get(name)
     }
 
     /// Returns a sorted list of the names of all instructions. This list is suitable for a binary search. It does make

@@ -1,5 +1,6 @@
 use crate::instruction_table::InstructionTable;
 use crate::*;
+use log::*;
 use nom::IResult;
 use pushgp_macros::*;
 use std::rc::Rc;
@@ -385,8 +386,12 @@ impl Context for BaseContext {
                     }
                 },
                 Code::Instruction(name) => {
-                    let instructions = self.instructions.clone();
-                    instructions.execute(&name, self)
+                    trace!("executing instruction {}", name);
+                    if let Some(func) = self.instructions.get(&name) {
+                        func(self)
+                    } else {
+                        debug!("unable to find function for {} in instruction table", name);
+                    }
                 }
             }
 

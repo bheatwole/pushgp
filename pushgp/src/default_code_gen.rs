@@ -32,13 +32,13 @@ impl LiteralEnum<BaseLiteral> for BaseLiteral {
         if let Ok((rest, value)) = Bool::parse(input) {
             return Ok((rest, BaseLiteral::Bool(value)));
         }
-        if let Ok((rest, value)) = crate::parse::parse_code_float(input) {
+        if let Ok((rest, value)) = Float::parse(input) {
             return Ok((rest, BaseLiteral::Float(value)));
         }
-        if let Ok((rest, value)) = crate::parse::parse_code_integer(input) {
+        if let Ok((rest, value)) = Integer::parse(input) {
             return Ok((rest, BaseLiteral::Integer(value)));
         }
-        if let Ok((rest, value)) = crate::parse::parse_code_name(input) {
+        if let Ok((rest, value)) = Name::parse(input) {
             return Ok((rest, BaseLiteral::Name(value)));
         }
 
@@ -105,6 +105,12 @@ impl EphemeralConfiguration<BaseLiteral> for BaseLiteral {
 instruction_list! {
     context_name: BaseContext,
     literal_name: BaseLiteral,
+    literals: [
+        Bool,
+        Float,
+        Integer,
+        Name
+    ],
     stacks: [
         Bool,
         Code,

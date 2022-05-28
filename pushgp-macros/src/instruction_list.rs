@@ -48,6 +48,27 @@ impl Parse for LiteralName {
     }
 }
 
+pub struct LiteralList {
+    pub literal_names: Punctuated<Ident, Token![,]>,
+}
+
+impl Parse for LiteralList {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let key: Ident = input.parse()?;
+        if key != "literals" {
+            return Err(Error::new(key.span(), "The third field must be 'literals'"));
+        }
+        input.parse::<Token![:]>()?;
+
+        let content;
+        bracketed!(content in input);
+        let literal_names = content.parse_terminated(Ident::parse)?;
+        input.parse::<Token![,]>()?;
+
+        Ok(LiteralList { literal_names })
+    }
+}
+
 pub struct StackList {
     pub stack_names: Punctuated<Ident, Token![,]>,
 }
@@ -56,7 +77,7 @@ impl Parse for StackList {
     fn parse(input: ParseStream) -> Result<Self> {
         let key: Ident = input.parse()?;
         if key != "stacks" {
-            return Err(Error::new(key.span(), "The third field must be 'stacks'"));
+            return Err(Error::new(key.span(), "The fourth field must be 'stacks'"));
         }
         input.parse::<Token![:]>()?;
 
@@ -108,6 +129,7 @@ impl Parse for Instruction {
 pub struct Wrapper {
     pub context_name: ContextName,
     pub literal_name: LiteralName,
+    pub literals: LiteralList,
     pub stacks: StackList,
     pub instructions: InstructionList,
 }
@@ -116,12 +138,14 @@ impl Parse for Wrapper {
     fn parse(input: ParseStream) -> Result<Self> {
         let context_name: ContextName = input.parse()?;
         let literal_name: LiteralName = input.parse()?;
+        let literals: LiteralList = input.parse()?;
         let stacks: StackList = input.parse()?;
         let instructions: InstructionList = input.parse()?;
 
         Ok(Wrapper {
             context_name,
             literal_name,
+            literals,
             stacks,
             instructions,
         })

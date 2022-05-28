@@ -154,6 +154,12 @@ impl Parse for Wrapper {
 
 pub fn make_instruction_list(tokens: TokenStream) -> TokenStream {
     let parse = parse_macro_input!(tokens as Wrapper);
+    let enum_definition = make_literal_enum_definition(&parse);
+    let display = make_display_for_literal_enum(&parse);
+    let impl_literal_enum = make_impl_for_literal_enum(&parse);
+    let has_literal_value_impls = make_has_literal_value_for_literal_enum(&parse);
+    let impl_ephemeral_configuration = make_impl_ephemeral_configuration_for_literal_enum(&parse);
+
     let context_name = parse.context_name.name;
     let literal_name = parse.literal_name.name;
     let get_all_instructions = parse.instructions.instructions.iter().map(|inst| {
@@ -182,6 +188,12 @@ pub fn make_instruction_list(tokens: TokenStream) -> TokenStream {
     });
 
     quote! {
+        #enum_definition
+        #display
+        #impl_literal_enum
+        #(#has_literal_value_impls)*
+        #impl_ephemeral_configuration
+
         impl InstructionConfiguration for #literal_name {
             fn get_all_instructions() -> Vec<String> {
                 vec![
@@ -237,4 +249,112 @@ fn make_nom_alt_tree(mut all_tags: Vec<proc_macro2::TokenStream>) -> Vec<proc_ma
     }
 
     all_tags
+}
+
+fn make_literal_enum_definition(parse: &Wrapper) -> proc_macro2::TokenStream {
+    let all_enum_values: Vec<proc_macro2::TokenStream> = parse.literals.literal_names.iter().map(|name| {
+        quote! {
+            #name(#name)
+        }
+    }).collect();
+
+    quote! {
+        #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+        pub enum BaseLiteral {
+            #(#all_enum_values),*
+        }
+    }
+}
+
+fn make_display_for_literal_enum(parse: &Wrapper) -> proc_macro2::TokenStream {
+    let literal_name = &parse.literal_name.name;
+    let all_enum_values: Vec<proc_macro2::TokenStream> = parse.literals.literal_names.iter().map(|name| {
+        quote! {
+            #literal_name::#name(v) => v.nom_fmt(f)
+        }
+    }).collect();
+
+    quote! {
+        impl std::fmt::Display for #literal_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match &self {
+                    #(#all_enum_values),*
+                }
+            }
+        }
+    }
+}
+
+fn make_impl_for_literal_enum(parse: &Wrapper) -> proc_macro2::TokenStream {
+    let literal_name = &parse.literal_name.name;
+    let all_enum_values: Vec<proc_macro2::TokenStream> = parse.literals.literal_names.iter().map(|name| {
+        quote! {
+            if let Ok((rest, value)) = #name::parse(input) {
+                return Ok((rest, #literal_name::#name(value)));
+            }
+        }
+    }).collect();
+
+    quote! {
+        impl LiteralEnum<#literal_name> for #literal_name {
+            fn parse(input: &str) -> IResult<&str, #literal_name> {
+                #(#all_enum_values)*
+        
+                Err(nom::Err::Error(nom::error::Error::new(input, nom::error::ErrorKind::Complete)))
+            }
+        }
+    }
+}
+
+fn make_has_literal_value_for_literal_enum(parse: &Wrapper) -> Vec<proc_macro2::TokenStream> {
+    let literal_name = &parse.literal_name.name;
+
+    parse.literals.literal_names.iter().map(|name| {
+        quote! {
+            impl LiteralEnumHasLiteralValue<#literal_name, #name> for #literal_name {
+                fn supports_literal_type() -> bool {
+                    true
+                }
+            
+                fn make_from_value(value: #name) -> #literal_name {
+                    #literal_name::#name(value)
+                }
+            }
+        }
+    }).collect()
+}
+
+fn make_impl_ephemeral_configuration_for_literal_enum(parse: &Wrapper) -> proc_macro2::TokenStream {
+    let literal_name = &parse.literal_name.name;
+    let all_enum_names: Vec<proc_macro2::TokenStream> = parse.literals.literal_names.iter().map(|name| {
+        let name_quoted: syn::Lit = syn::parse_str(&format!("\"{}\"", quote!(#name).to_string())).unwrap();
+        quote! {
+            #name_quoted.to_owned()
+        }
+    }).collect();
+    let all_enum_values: Vec<proc_macro2::TokenStream> = parse.literals.literal_names.iter().map(|name| {
+        let name_quoted: syn::Lit = syn::parse_str(&format!("\"{}\"", quote!(#name).to_string())).unwrap();
+        quote! {
+            #name_quoted => LiteralConstructor { 0: |rng| #literal_name::#name(#name::random_value(rng)) },
+        }
+    }).collect();
+
+    quote! {
+        
+        impl EphemeralConfiguration<#literal_name> for #literal_name {
+            fn get_all_literal_types() -> Vec<String> {
+                vec![
+                    #(#all_enum_names),*
+                ]
+            }
+        
+            fn make_literal_constructor_for_type(literal_type: &str) -> LiteralConstructor<#literal_name> {
+                match literal_type {
+                    #(#all_enum_values)*
+                    _ => panic!("unknown literal type"),
+                }
+            }
+        }
+
+    }
 }

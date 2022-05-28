@@ -578,8 +578,3 @@ instruction! {
         }
     }
 }
-
-// pub fn execute_coderand(context: &mut Context) {
-//     let names: Vec<u64> = context.defined_names.keys().map(|n| *n).collect();
-//     context.code().push(context.config.generate_random_code(&names[..]));
-// }

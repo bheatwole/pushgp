@@ -1,5 +1,14 @@
+use crate::InstructionTable;
 use log::*;
 use std::fmt::Debug;
+
+pub struct NewContext {
+
+}
+
+impl NewContext {
+
+}
 
 pub trait Context: Debug {
     fn clear(&mut self);

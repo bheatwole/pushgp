@@ -393,6 +393,7 @@ impl Context for BaseContext {
                         debug!("unable to find function for {} in instruction table", name);
                     }
                 }
+                Code::InstructionWithData(_, _) => {},
             }
 
             // Return the number of points required to perform that action

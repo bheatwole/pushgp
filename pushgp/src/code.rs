@@ -1,4 +1,4 @@
-use crate::LiteralEnum;
+use crate::{LiteralEnum, InstructionData};
 use fnv::FnvHashMap;
 use std::fmt::{Display, Formatter, Result};
 use std::hash::Hash;
@@ -19,6 +19,8 @@ where
 
     // Code can be an instruction
     Instruction(String),
+
+    InstructionWithData(String, Option<InstructionData>),
 }
 
 impl<L: LiteralEnum<L>> Code<L> {
@@ -146,6 +148,7 @@ impl<L: LiteralEnum<L>> Code<L> {
             Code::List(x) => x,
             Code::Literal(l) => vec![Code::Literal(l)],
             Code::Instruction(inst) => vec![Code::Instruction(inst)],
+            Code::InstructionWithData(inst, data) => vec![Code::InstructionWithData(inst, data)]
         }
     }
 
@@ -250,6 +253,7 @@ impl<L: LiteralEnum<L>> Display for Code<L> {
             }
             Code::Literal(v) => write!(f, "{}", v),
             Code::Instruction(v) => write!(f, "{}", v),
+            Code::InstructionWithData(_, d) => write!(f, "{:?}", d),
         }
     }
 }

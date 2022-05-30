@@ -1,6 +1,9 @@
-use crate::{InstructionData, InstructionTable};
+use crate::{InstructionData, InstructionTable, VirtualTable};
 
 pub trait Instruction {
+    /// Every instruction must have a name
+    fn name() -> &'static str;
+
     /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
     /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
     /// should cease.
@@ -18,6 +21,10 @@ pub trait Instruction {
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
     fn execute(context: &mut crate::context::NewContext, data: &Option<InstructionData>);
+
+    fn add_to_virtual_table(table: &mut VirtualTable) {
+        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
+    }
 }
 
 pub trait InstructionTrait<Context> {

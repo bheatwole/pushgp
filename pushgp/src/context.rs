@@ -1,13 +1,22 @@
-use crate::InstructionTable;
+use crate::{InstructionData, InstructionTable, Stack};
+use fnv::FnvHashMap;
 use log::*;
 use std::fmt::Debug;
 
 pub struct NewContext {
-
+    stacks: FnvHashMap<&'static str, Stack<InstructionData>>
 }
 
 impl NewContext {
+    pub fn new() -> NewContext {
+        NewContext {
+            stacks: FnvHashMap::default(),
+        }
+    }
 
+    pub fn get_stack(&self, stack_name: &'static str) -> Option<&Stack<InstructionData>> {
+        self.stacks.get(stack_name)
+    }
 }
 
 pub trait Context: Debug {

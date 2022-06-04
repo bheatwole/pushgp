@@ -131,7 +131,7 @@ instruction! {
     /// Pushes a randomly selected NAME that already has a definition.
     #[stack(Name)]
     fn rand_bound_name(context: &mut Context) {
-        let defined_names = context.all_names();
+        let defined_names = context.all_defined_names();
         if defined_names.len() > 0 {
             let random_value = context.run_random_function(|rng| {
                 let pick: usize = rng.gen_range(0..defined_names.len());

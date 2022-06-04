@@ -132,7 +132,7 @@ impl Configuration {
 
     /// Returns one random defined name
     pub fn random_defined_name(&self, context: &Context) -> Code {
-        let defined_names = context.all_names();
+        let defined_names = context.all_defined_names();
         let pick = self.rng.borrow_mut().gen_range(0..defined_names.len());
         context.definition_for_name(&defined_names[pick]).unwrap()
     }

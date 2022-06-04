@@ -56,46 +56,63 @@ impl Context {
         self.config.run_random_function(func)
     }
 
+    /// Returns the VirtualTable of instructions associated with this Context
     pub fn get_virtual_table(&self) -> &VirtualTable {
         &self.virtual_table
     }
 
+    /// Returns the VirtualTable entry for the associated name, or None if not found
     pub fn id_for_name<S: AsRef<str>>(&self, name: S) -> Option<usize> {
         self.virtual_table.id_for_name(name)
     }
 
+    /// Returns a pointer to the named stack or None. The stack must have been specified in the call to new().
     pub fn get_stack(&self, stack_name: &'static str) -> Option<&InstructionDataStack> {
         self.stacks.get(stack_name)
     }
 
+    /// Returns true if the next Name encountered on the Exec stack should be pushed to the Name stack instead of
+    /// possibly running the Code associated with the Name.
     pub fn should_quote_next_name(&self) -> bool {
         *self.quote_next_name.borrow()
     }
 
+    /// Sets whether or not the next Name encountered on the Exec stack should be pushed to the Name stack instead of
+    /// possibly running the Code associated with the Name. Uses interior mutability.
     pub fn set_should_quote_next_name(&self, quote_next_name: bool) {
         self.quote_next_name.replace(quote_next_name);
     }
 
+    /// Returns the Code defined with the specified Name or None
     pub fn definition_for_name(&self, name: &String) -> Option<Code> {
         self.defined_names.borrow().get(name).map(|c| c.clone())
     }
 
+    /// Defines the Code that will be placed on the top of the Exec stack when the specified Name is encountered. If the
+    /// name was previously defined, the new definition replaces the old value.
     pub fn define_name(&self, name: String, code: Code) {
         self.defined_names.borrow_mut().insert(name, code);
     }
 
-    pub fn all_names(&self) -> Vec<String> {
+    /// Returns a list of all previously defined names. May be empty if no names have been defined
+    pub fn all_defined_names(&self) -> Vec<String> {
         self.defined_names.borrow().keys().map(|k| k.clone()).collect()
     }
 
+    /// Returns the number of previously defined names. Avoids an expensive copy of all names if only the count is
+    /// needed.
     pub fn defined_names_len(&self) -> usize {
         self.defined_names.borrow().len()
     }
 
+    /// Uses the Configuration to generate some random Code up to the specified number of points. If the number of
+    /// points is larger than the maximum allowed in the Configuration, a smaller number will be used.
     pub fn random_code(&self, points: Option<usize>) -> Code {
         self.config.generate_random_code(points, Some(self))
     }
 
+    /// Runs all instructions in the Exec stack until either the Exec stack is empty or the specified maximum number of
+    /// steps have been taken.
     pub fn run(&self, max: usize) -> usize {
         trace!("{:?}", self);
         let mut total_count = 0;
@@ -108,6 +125,8 @@ impl Context {
         total_count
     }
 
+    // Steps through one instruction on the Exec stack. Returns None if the Exec stack is empty. Returns the number of
+    // steps taken (currently always 1).
     fn next(&self) -> Option<usize> {
         // Pop the top piece of code from the exec stack and execute it.
         let exec_stack = self.get_stack("Exec").unwrap();

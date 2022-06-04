@@ -11,7 +11,6 @@ byte-slice-cast = "1.0"
 fnv = "1.0"
 log = "0.4"
 nom = "7.1"
-ordered-float = "3.0"
 pushgp-macros = { path = "../pushgp-macros" }
 rust_decimal = "1.15"
 

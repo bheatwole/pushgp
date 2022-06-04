@@ -1,12 +1,12 @@
 use crate::{InstructionData, VirtualTable};
 
 pub trait Instruction {
-    /// Every instruction must have a name
+    /// Every instruction must have a name that is known at compile-time
     fn name() -> &'static str;
 
     /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
     /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
-    /// should cease.
+    /// should cease. (None indicates an instruction was found that does not need additional data.)
     fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
         let (rest, _) = nom::bytes::complete::tag(Self::name())(input)?;
         let (rest, _) = crate::parse::space_or_end(rest)?;
@@ -29,6 +29,7 @@ pub trait Instruction {
     /// Context and/or data and all outputs are updates to the Context.
     fn execute(context: &crate::context::Context, data: Option<InstructionData>);
 
+    /// This default function adds the instruction to the specified VirtualTable
     fn add_to_virtual_table(table: &mut VirtualTable) {
         table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
     }

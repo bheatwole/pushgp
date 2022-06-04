@@ -192,6 +192,8 @@ mod tests {
         }
     }
 
+    // TODO: All of these tests should also appear in the docs for the associated instruction as a runnable test
+
     context_tests! {
         test_bool_and: ("( TRUE FALSE BOOL.AND )", "( FALSE )", vec![]),
         test_bool_define: ("( KMu7 TRUE BOOL.DEFINE KMu7 )", "( TRUE )", vec![("KMu7", "TRUE")]),

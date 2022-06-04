@@ -1,4 +1,4 @@
-use crate::{InstructionData, InstructionTable, VirtualTable};
+use crate::{InstructionData, VirtualTable};
 
 pub trait Instruction {
     /// Every instruction must have a name
@@ -31,17 +31,5 @@ pub trait Instruction {
 
     fn add_to_virtual_table(table: &mut VirtualTable) {
         table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
-    }
-}
-
-pub trait InstructionTrait<Context> {
-    fn name() -> &'static str;
-
-    // Instructions are pure functions on a Context. All parameters are read from the Context and all outputs are
-    // updates to the Context.
-    fn execute(context: &mut Context);
-
-    fn add_to_table(table: &mut InstructionTable<Context>) {
-        table.set(Self::name(), Self::execute)
     }
 }

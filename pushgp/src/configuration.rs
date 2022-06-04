@@ -1,4 +1,4 @@
-use crate::{Code, GeneticOperation, Context, VirtualTable};
+use crate::{Code, Context, GeneticOperation, VirtualTable};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use std::cell::RefCell;
 use std::ops::DerefMut;
@@ -142,9 +142,7 @@ impl Configuration {
         Code::InstructionWithData(index, data)
     }
 
-    /// Generates some random code using the context parameters for how often random bool, ints, floats and names are
-    /// chosen. You may also pass in pre-defined names that could be selected randomly as well. The weights table for
-    /// all instructions will be considered as well.
+    /// Generates some random code using the configured weight parameters.
     ///
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
@@ -215,9 +213,8 @@ mod tests {
 
     #[test]
     fn verify_partition_point_function() {
-        // Both the ephemeral entries and instruction entries table depend upon the following behavior from
-        // partition_point. If it ever stops working like this, we need to know. Specifically only the first of a series
-        // of identical values is ever returned
+        // The instruction entries table depend upon the following behavior from partition_point. If it ever stops
+        // working like this, we need to know. Specifically only the first of a series of identical values is returned
         let entries = [1, 5, 5, 5, 10];
         assert_eq!(0, entries.partition_point(|&x| x < 1));
         assert_eq!(1, entries.partition_point(|&x| x < 2));

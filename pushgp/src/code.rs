@@ -238,6 +238,7 @@ impl Code {
     pub fn displayable<'a>(&'a self, virtual_table: &'a VirtualTable) -> DisplayableCode<'a> {
         DisplayableCode { code: self, virtual_table: virtual_table }
     }
+
     pub fn nom_fmt(&self, virtual_table: &VirtualTable, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Code::List(x) => {
@@ -300,6 +301,13 @@ mod tests {
     fn make_instruction(virtual_table: &VirtualTable, instruction: &'static str) -> Code {
         let id = virtual_table.id_for_name(instruction).unwrap();
         Code::InstructionWithData(id, None)
+    }
+
+    #[test]
+    fn not_parsable() {
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let result = Code::parse(&virtual_table, "( DOESNT WORK");
+        assert!(result.is_err());
     }
 
     #[test]

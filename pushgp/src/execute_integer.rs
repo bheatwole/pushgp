@@ -5,19 +5,70 @@ use rust_decimal::prelude::ToPrimitive;
 
 pub type Integer = i64;
 
-impl Literal<Integer> for Integer {
-    fn parse(input: &str) -> nom::IResult<&str, Integer> {
-        crate::parse::parse_code_integer(input)
+pub trait MustHaveIntegerStackInContext {
+    fn integer(&self) -> Stack<Integer>;
+    fn make_literal_integer(&self, value: Integer) -> Code;
+}
+
+impl MustHaveIntegerStackInContext for NewContext {
+    fn integer(&self) -> Stack<Integer> {
+        Stack::<Integer>::new(self.get_stack("Integer").unwrap())
     }
 
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Integer {
-        rng.gen_range(i64::MIN..=i64::MAX)
+    fn make_literal_integer(&self, value: Integer) -> Code {
+        let id = self.get_virtual_table().id_for_name(IntegerLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
     }
 }
 
-pub trait ContextHasIntegerStack<L: LiteralEnum<L>> {
-    fn integer(&self) -> &Stack<Integer>;
-    fn make_literal_integer(value: Integer) -> Code<L>;
+impl From<InstructionData> for Integer {
+    fn from(data: InstructionData) -> Self {
+        data.get_i64().unwrap()
+    }
+}
+
+impl Into<InstructionData> for Integer {
+    fn into(self) -> InstructionData {
+        InstructionData::from_i64(self)
+    }
+}
+
+pub struct IntegerLiteralValue {}
+impl Instruction for IntegerLiteralValue {
+    /// Every instruction must have a name
+    fn name() -> &'static str {
+        "INTEGER.LITERALVALUE"
+    }
+
+    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
+    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
+    /// should cease.
+    fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
+        let (rest, value) = crate::parse::parse_code_integer(input)?;
+        Ok((rest, Some(InstructionData::from_i64(value))))
+    }
+
+    /// All instructions must also be able to write to a string that can later be parsed by nom.
+    fn nom_fmt(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", data.as_ref().unwrap().get_i64().unwrap())
+    }
+
+    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
+    /// If it does not use InstructionData, it just returns None
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
+        let value = rng.gen_range(i64::MIN..=i64::MAX);
+        Some(InstructionData::from_i64(value))
+    }
+
+    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
+    /// Context and/or data and all outputs are updates to the Context.
+    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+        context.get_stack("Integer").unwrap().push(data.unwrap())
+    }
+
+    fn add_to_virtual_table(table: &mut VirtualTable) {
+        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
+    }
 }
 
 instruction! {
@@ -25,7 +76,7 @@ instruction! {
     /// onto the EXEC stack.
     #[stack(Integer)]
     fn define(context: &mut Context, value: Integer, name: Name) {
-        context.name().define_name(name, C::make_literal_integer(value));
+        context.define_name(name, context.make_literal_integer(value));
     }
 }
 
@@ -154,8 +205,8 @@ instruction! {
     /// equal to MAX-RANDOM-INTEGER.
     #[stack(Integer)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(Integer::random_value);
-        context.integer().push(random_value);
+        let random_value = context.run_random_literal_function(IntegerLiteralValue::random_value).unwrap();
+        context.get_stack("Integer").unwrap().push(random_value);
     }
 }
 

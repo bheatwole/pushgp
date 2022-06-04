@@ -8,24 +8,74 @@ use rust_decimal::{
 
 pub type Float = Decimal;
 
-impl Literal<Float> for Float {
-    fn parse(input: &str) -> nom::IResult<&str, Float> {
-        crate::parse::parse_code_float(input)
+pub trait MustHaveFloatStackInContext {
+    fn float(&self) -> Stack<Float>;
+    fn make_literal_float(&self, value: Float) -> Code;
+}
+
+impl MustHaveFloatStackInContext for NewContext {
+    fn float(&self) -> Stack<Float> {
+        Stack::<Float>::new(self.get_stack("Float").unwrap())
     }
 
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Float {
-        let float: f64 = rng.gen_range(-1f64..1f64);
-        Decimal::from_f64(float).unwrap()
+    fn make_literal_float(&self, value: Float) -> Code {
+        let id = self.get_virtual_table().id_for_name(FloatLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
     }
 }
 
-pub trait ContextHasFloatStack<L: LiteralEnum<L>> {
-    fn float(&self) -> &Stack<Float>;
-    fn make_literal_float(value: Float) -> Code<L>;
+impl From<InstructionData> for Float {
+    fn from(data: InstructionData) -> Self {
+        Decimal::from_f64(data.get_f64().unwrap()).unwrap()
+    }
+}
+
+impl Into<InstructionData> for Float {
+    fn into(self) -> InstructionData {
+        InstructionData::from_f64(self.to_f64().unwrap())
+    }
+}
+
+pub struct FloatLiteralValue {}
+impl Instruction for FloatLiteralValue {
+    /// Every instruction must have a name
+    fn name() -> &'static str {
+        "FLOAT.LITERALVALUE"
+    }
+
+    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
+    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
+    /// should cease.
+    fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
+        let (rest, value) = crate::parse::parse_code_float(input)?;
+        Ok((rest, Some(InstructionData::from_f64(value.to_f64().unwrap()))))
+    }
+
+    /// All instructions must also be able to write to a string that can later be parsed by nom.
+    fn nom_fmt(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", data.as_ref().unwrap().get_f64().unwrap())
+    }
+
+    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
+    /// If it does not use InstructionData, it just returns None
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
+        let float: f64 = rng.gen_range(-1f64..1f64);
+        Some(InstructionData::from_f64(float))
+    }
+
+    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
+    /// Context and/or data and all outputs are updates to the Context.
+    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+        context.get_stack("Float").unwrap().push(data.unwrap())
+    }
+
+    fn add_to_virtual_table(table: &mut VirtualTable) {
+        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
+    }
 }
 
 instruction! {
-    /// Pushes the cosine of the top item.
+    /// Pushes the cosine of the top item.F
     #[stack(Float)]
     fn cos(context: &mut Context, value: Float) {
         context.float().push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
@@ -37,7 +87,7 @@ instruction! {
     /// the EXEC stack.
     #[stack(Float)]
     fn define(context: &mut Context, value: Float, name: Name) {
-        context.name().define_name(name, C::make_literal_float(value));
+        context.define_name(name, context.make_literal_float(value));
     }
 }
 
@@ -170,8 +220,8 @@ instruction! {
     /// to MAX-RANDOM-FLOAT.
     #[stack(Float)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(Float::random_value);
-        context.float().push(random_value);
+        let random_value = context.run_random_literal_function(FloatLiteralValue::random_value).unwrap();
+        context.get_stack("Float").unwrap().push(random_value);
     }
 }
 

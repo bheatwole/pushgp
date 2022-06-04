@@ -1,32 +1,23 @@
-use crate::{LiteralEnum, InstructionData};
+use crate::{InstructionData, VirtualTable};
 use fnv::FnvHashMap;
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Formatter, Result};
 use std::hash::Hash;
 
 // Code is the basic building block of a PushGP program. It's the translation between human readable and machine
 // readable strings.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub enum Code<L>
-where
-    L: LiteralEnum<L>,
-{
+pub enum Code {
     // A list is just a list containing other code (which can be lists) and may also be empty (len() == 0)
-    List(Vec<Code<L>>),
+    List(Vec<Code>),
 
-    // Code can be literal values. This generic represents an enum that holds all the types of literal values that are
-    // valid in a specific context.
-    Literal(L),
-
-    // Code can be an instruction
-    Instruction(String),
-
-    InstructionWithData(String, Option<InstructionData>),
+    // Code can be an instruction which may have data parsed from the human-readable string. The 'usize' is an entry in
+    // the VirtualTable associated with the Context
+    InstructionWithData(usize, Option<InstructionData>),
 }
 
-impl<L: LiteralEnum<L>> Code<L> {
-    /// Creates a new instruction from an &str name
-    pub fn instruction<S: Into<String>>(name: S) -> Code<L> {
-        Code::Instruction(name.into())
+impl Code {
+    pub fn parse(virtual_table: &VirtualTable, input: &str) -> Code {
+        crate::parse::parse(virtual_table, input)
     }
 
     /// Returns true if this code is a List
@@ -43,7 +34,7 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Returns true if the specified code is equal to this item or any child
-    pub fn contains(&self, look_for: &Code<L>) -> bool {
+    pub fn contains(&self, look_for: &Code) -> bool {
         if self == look_for {
             return true;
         }
@@ -61,7 +52,7 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Returns the smallest sub-list that contains the specified code
-    pub fn container(&self, look_for: &Code<L>) -> Option<Code<L>> {
+    pub fn container(&self, look_for: &Code) -> Option<Code> {
         match &self {
             Code::List(list) => {
                 for i in list {
@@ -81,7 +72,7 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Similar to `contains` but does not recurse into Lists
-    pub fn has_member(&self, look_for: &Code<L>) -> bool {
+    pub fn has_member(&self, look_for: &Code) -> bool {
         match &self {
             Code::List(list) => {
                 for item in list {
@@ -96,7 +87,7 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Similar to `extract_point` but does not recurse into lists
-    pub fn position_of(&self, look_for: &Code<L>) -> Option<usize> {
+    pub fn position_of(&self, look_for: &Code) -> Option<usize> {
         match &self {
             Code::List(list) => {
                 for (i, item) in list.iter().enumerate() {
@@ -116,8 +107,8 @@ impl<L: LiteralEnum<L>> Code<L> {
         }
     }
 
-    /// The discrepancy output is a hashset of every unique sub-list and atom from the specified code
-    pub fn discrepancy_items(&self) -> FnvHashMap<Code<L>, i64> {
+    /// The discrepancy output is a HashMap of every unique sub-list and atom from the specified code
+    pub fn discrepancy_items(&self) -> FnvHashMap<Code, i64> {
         let mut items = FnvHashMap::default();
 
         match &self {
@@ -143,12 +134,10 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Coerces the item to a list, taking ownership. This is similar to a call to 'unwrap'
-    pub fn to_list(self) -> Vec<Code<L>> {
+    pub fn to_list(self) -> Vec<Code> {
         match self {
             Code::List(x) => x,
-            Code::Literal(l) => vec![Code::Literal(l)],
-            Code::Instruction(inst) => vec![Code::Instruction(inst)],
-            Code::InstructionWithData(inst, data) => vec![Code::InstructionWithData(inst, data)]
+            Code::InstructionWithData(inst, data) => vec![Code::InstructionWithData(inst, data)],
         }
     }
 
@@ -165,7 +154,7 @@ impl<L: LiteralEnum<L>> Code<L> {
 
     /// Returns the item of code at the specified 'point' in the code tree if `point` is less than the number of points
     /// in the code. Returns the number of points used otherwise.
-    pub fn extract_point(&self, point: i64) -> Extraction<L> {
+    pub fn extract_point(&self, point: i64) -> Extraction {
         if 0 == point {
             return Extraction::Extracted(self.clone());
         }
@@ -186,7 +175,7 @@ impl<L: LiteralEnum<L>> Code<L> {
 
     /// Descends to the specified point in the code tree and swaps the list or atom there with the specified replacement
     /// code. If the replacement point is greater than the number of points in the Code, this has no effect.
-    pub fn replace_point(&self, mut point: i64, replace_with: &Code<L>) -> (Code<L>, i64) {
+    pub fn replace_point(&self, mut point: i64, replace_with: &Code) -> (Code, i64) {
         // If this is the replacement point, return the replacement
         if 0 == point {
             (replace_with.clone(), 1)
@@ -223,7 +212,7 @@ impl<L: LiteralEnum<L>> Code<L> {
     }
 
     /// Replaces the specified search code with the specified replacement code
-    pub fn replace(&self, look_for: &Code<L>, replace_with: &Code<L>) -> Code<L> {
+    pub fn replace(&self, look_for: &Code, replace_with: &Code) -> Code {
         if self == look_for {
             return replace_with.clone();
         }
@@ -239,148 +228,197 @@ impl<L: LiteralEnum<L>> Code<L> {
             &x => x.clone(),
         }
     }
-}
 
-impl<L: LiteralEnum<L>> Display for Code<L> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    pub fn displayable<'a>(&'a self, virtual_table: &'a VirtualTable) -> DisplayableCode<'a> {
+        DisplayableCode { code: self, virtual_table: virtual_table }
+    }
+    pub fn nom_fmt(&self, virtual_table: &VirtualTable, f: &mut Formatter<'_>) -> Result {
         match &self {
             Code::List(x) => {
                 write!(f, "(")?;
                 for c in x.iter() {
-                    write!(f, " {}", c)?;
+                    write!(f, " ")?;
+                    c.nom_fmt(virtual_table, f)?;
                 }
                 write!(f, " )")
             }
-            Code::Literal(v) => write!(f, "{}", v),
-            Code::Instruction(v) => write!(f, "{}", v),
-            Code::InstructionWithData(_, d) => write!(f, "{:?}", d),
+            Code::InstructionWithData(id, d) => virtual_table.call_nom_fmt(*id, d, f),
         }
+    }
+}
+
+pub struct DisplayableCode<'a> {
+    code: &'a Code,
+    virtual_table: &'a VirtualTable,
+}
+
+impl<'a> std::fmt::Display for DisplayableCode<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.code.nom_fmt(self.virtual_table, f)
     }
 }
 
 // An extraction can either return a piece of code or the number of points used
 #[derive(Debug, PartialEq)]
-pub enum Extraction<L>
-where
-    L: LiteralEnum<L>,
-{
-    Extracted(Code<L>),
+pub enum Extraction {
+    Extracted(Code),
     Used(i64),
 }
 
 #[cfg(test)]
 mod tests {
     use super::Extraction;
-    use crate::default_code_gen::BaseLiteralParser;
-    use crate::{Code, Parser};
-    use rust_decimal::Decimal;
+    use crate::*;
+    use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-    use crate::default_code_gen::BaseLiteral;
+    fn make_literal_bool(virtual_table: &VirtualTable, value: bool) -> Code {
+        let id = virtual_table.id_for_name(BoolLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
+    }
+
+    fn make_literal_float(virtual_table: &VirtualTable, value: Float) -> Code {
+        let id = virtual_table.id_for_name(FloatLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
+    }
+
+    fn make_literal_integer(virtual_table: &VirtualTable, value: i64) -> Code {
+        let id = virtual_table.id_for_name(IntegerLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
+    }
+
+    fn make_literal_name<S: Into<String>>(virtual_table: &VirtualTable, value: S) -> Code {
+        let id = virtual_table.id_for_name(NameLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
+    }
+
+    fn make_instruction(virtual_table: &VirtualTable, instruction: &'static str) -> Code {
+        let id = virtual_table.id_for_name(instruction).unwrap();
+        Code::InstructionWithData(id, None)
+    }
 
     #[test]
     fn code_display() {
-        let code = Code::<BaseLiteral>::List(vec![]);
-        assert_eq!("( )", format!("{}", code));
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let code = Code::List(vec![]);
+        assert_eq!("( )", format!("{}", code.displayable(&virtual_table)));
 
         let code = Code::List(vec![
             Code::List(vec![
-                Code::Literal(BaseLiteral::Bool(true)),
-                Code::Literal(BaseLiteral::Float(Decimal::new(12345, 6))),
-                Code::Literal(BaseLiteral::Integer(-12784)),
-                Code::Literal(BaseLiteral::Name("a_name".to_owned())),
+                make_literal_bool(&virtual_table, true),
+                make_literal_float(&virtual_table, Decimal::new(12345, 6)),
+                make_literal_integer(&virtual_table, -12784),
+                make_literal_name(&virtual_table, "a_name"),
             ]),
-            Code::Instruction("BOOL.AND".to_owned()),
+            make_instruction(&virtual_table, "BOOL.AND"),
         ]);
-        assert_eq!("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )", format!("{}", code));
+        assert_eq!("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )", format!("{}", code.displayable(&virtual_table)));
     }
 
     #[test]
     fn code_points() {
+        let virtual_table = new_virtual_table_with_all_instructions();
         let code = Code::List(vec![
             Code::List(vec![
-                Code::Literal(BaseLiteral::Bool(true)),
-                Code::Literal(BaseLiteral::Float(Decimal::new(12345, 6))),
-                Code::Literal(BaseLiteral::Integer(-12784)),
-                Code::Literal(BaseLiteral::Name("a_name".to_owned())),
+                make_literal_bool(&virtual_table, true),
+                make_literal_float(&virtual_table, Decimal::new(12345, 6)),
+                make_literal_integer(&virtual_table, -12784),
+                make_literal_name(&virtual_table, "a_name"),
             ]),
-            Code::Instruction("BOOL.AND".to_owned()),
+            make_instruction(&virtual_table, "BOOL.AND"),
         ]);
         assert_eq!(7, code.points());
     }
 
     #[test]
     fn extract_point() {
-        let code = BaseLiteralParser::parse("( A ( B ) )");
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let code = Code::parse(&virtual_table, "( A ( B ) )");
         assert_eq!(4, code.points());
         assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
-        assert_eq!(code.extract_point(1), Extraction::Extracted(BaseLiteralParser::parse("A")));
-        assert_eq!(code.extract_point(2), Extraction::Extracted(BaseLiteralParser::parse("( B )")));
-        assert_eq!(code.extract_point(3), Extraction::Extracted(BaseLiteralParser::parse("B")));
+        assert_eq!(code.extract_point(1), Extraction::Extracted(Code::parse(&virtual_table, "A")));
+        assert_eq!(code.extract_point(2), Extraction::Extracted(Code::parse(&virtual_table, "( B )")));
+        assert_eq!(code.extract_point(3), Extraction::Extracted(Code::parse(&virtual_table, "B")));
     }
 
     #[test]
     fn replace_point() {
-        let code = BaseLiteralParser::parse("( A ( B ) )");
-        assert_eq!(code.replace_point(0, &BaseLiteralParser::parse("C")).0, BaseLiteralParser::parse("C"));
-        assert_eq!(code.replace_point(1, &BaseLiteralParser::parse("C")).0, BaseLiteralParser::parse("( C ( B ) )"));
-        assert_eq!(code.replace_point(2, &BaseLiteralParser::parse("C")).0, BaseLiteralParser::parse("( A C )"));
-        assert_eq!(code.replace_point(3, &BaseLiteralParser::parse("C")).0, BaseLiteralParser::parse("( A ( C ) )"));
-        assert_eq!(code.replace_point(4, &BaseLiteralParser::parse("C")).0, BaseLiteralParser::parse("( A ( B ) )"));
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let code = Code::parse(&virtual_table, "( A ( B ) )");
+        assert_eq!(code.replace_point(0, &Code::parse(&virtual_table, "C")).0, Code::parse(&virtual_table, "C"));
+        assert_eq!(
+            code.replace_point(1, &Code::parse(&virtual_table, "C")).0,
+            Code::parse(&virtual_table, "( C ( B ) )")
+        );
+        assert_eq!(code.replace_point(2, &Code::parse(&virtual_table, "C")).0, Code::parse(&virtual_table, "( A C )"));
+        assert_eq!(
+            code.replace_point(3, &Code::parse(&virtual_table, "C")).0,
+            Code::parse(&virtual_table, "( A ( C ) )")
+        );
+        assert_eq!(
+            code.replace_point(4, &Code::parse(&virtual_table, "C")).0,
+            Code::parse(&virtual_table, "( A ( B ) )")
+        );
     }
 
     #[test]
     fn code_discrepancy_items() {
+        let virtual_table = new_virtual_table_with_all_instructions();
         // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
-        let code = BaseLiteralParser::parse("( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
+        let code = Code::parse(&virtual_table, "( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
         let items = code.discrepancy_items();
-        assert_eq!(1, *items.get(&BaseLiteralParser::parse("ANAME")).unwrap());
-        assert_eq!(1, *items.get(&BaseLiteralParser::parse("( 3 ( 1 ) )")).unwrap());
-        assert_eq!(1, *items.get(&BaseLiteralParser::parse("3")).unwrap());
-        assert_eq!(2, *items.get(&BaseLiteralParser::parse("( 1 )")).unwrap());
-        assert_eq!(3, *items.get(&BaseLiteralParser::parse("1")).unwrap());
+        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "ANAME")).unwrap());
+        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "( 3 ( 1 ) )")).unwrap());
+        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "3")).unwrap());
+        assert_eq!(2, *items.get(&Code::parse(&virtual_table, "( 1 )")).unwrap());
+        assert_eq!(3, *items.get(&Code::parse(&virtual_table, "1")).unwrap());
         assert_eq!(5, items.len());
     }
 
     #[test]
     fn code_len() {
+        let virtual_table = new_virtual_table_with_all_instructions();
         // `len` returns the number of elements in the direct list (not sub-lists)
-        assert_eq!(0, BaseLiteralParser::parse("( )").len());
-        assert_eq!(1, BaseLiteralParser::parse("( A )").len());
-        assert_eq!(2, BaseLiteralParser::parse("( A B )").len());
-        assert_eq!(2, BaseLiteralParser::parse("( A ( B C ) )").len());
+        assert_eq!(0, Code::parse(&virtual_table, "( )").len());
+        assert_eq!(1, Code::parse(&virtual_table, "( A )").len());
+        assert_eq!(2, Code::parse(&virtual_table, "( A B )").len());
+        assert_eq!(2, Code::parse(&virtual_table, "( A ( B C ) )").len());
 
         // It also returns 1 for atoms
-        assert_eq!(1, BaseLiteralParser::parse("A").len());
+        assert_eq!(1, Code::parse(&virtual_table, "A").len());
     }
 
     #[test]
     fn replace() {
+        let virtual_table = new_virtual_table_with_all_instructions();
         assert_eq!(
-            BaseLiteralParser::parse("B"),
-            BaseLiteralParser::parse("A").replace(&BaseLiteralParser::parse("A"), &BaseLiteralParser::parse("B"))
+            Code::parse(&virtual_table, "B"),
+            Code::parse(&virtual_table, "A")
+                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
         );
         assert_eq!(
-            BaseLiteralParser::parse("( B )"),
-            BaseLiteralParser::parse("( A )").replace(&BaseLiteralParser::parse("A"), &BaseLiteralParser::parse("B"))
+            Code::parse(&virtual_table, "( B )"),
+            Code::parse(&virtual_table, "( A )")
+                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
         );
         assert_eq!(
-            BaseLiteralParser::parse("( B B )"),
-            BaseLiteralParser::parse("( A A )").replace(&BaseLiteralParser::parse("A"), &BaseLiteralParser::parse("B"))
+            Code::parse(&virtual_table, "( B B )"),
+            Code::parse(&virtual_table, "( A A )")
+                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
         );
         assert_eq!(
-            BaseLiteralParser::parse("B"),
-            BaseLiteralParser::parse("( A )")
-                .replace(&BaseLiteralParser::parse("( A )"), &BaseLiteralParser::parse("B"))
+            Code::parse(&virtual_table, "B"),
+            Code::parse(&virtual_table, "( A )")
+                .replace(&Code::parse(&virtual_table, "( A )"), &Code::parse(&virtual_table, "B"))
         );
         assert_eq!(
-            BaseLiteralParser::parse("( B )"),
-            BaseLiteralParser::parse("( ( A ) )")
-                .replace(&BaseLiteralParser::parse("( A )"), &BaseLiteralParser::parse("B"))
+            Code::parse(&virtual_table, "( B )"),
+            Code::parse(&virtual_table, "( ( A ) )")
+                .replace(&Code::parse(&virtual_table, "( A )"), &Code::parse(&virtual_table, "B"))
         );
         assert_eq!(
-            BaseLiteralParser::parse("( A A ( A A ) )"),
-            BaseLiteralParser::parse("( A ( B ) ( A ( B ) ) ) )")
-                .replace(&BaseLiteralParser::parse("( B )"), &BaseLiteralParser::parse("A"))
+            Code::parse(&virtual_table, "( A A ( A A ) )"),
+            Code::parse(&virtual_table, "( A ( B ) ( A ( B ) ) ) )")
+                .replace(&Code::parse(&virtual_table, "( B )"), &Code::parse(&virtual_table, "A"))
         );
     }
 }

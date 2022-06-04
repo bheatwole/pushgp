@@ -1,103 +1,87 @@
 use crate::*;
 use base64::*;
 use byte_slice_cast::*;
-use fnv::FnvHashMap;
 use pushgp_macros::*;
 use rand::Rng;
-use std::cell::RefCell;
 
 pub type Name = String;
 
-impl Literal<Name> for Name {
-    fn parse(input: &str) -> nom::IResult<&str, Name> {
-        crate::parse::parse_code_name(input)
+pub trait MustHaveNameStackInContext {
+    fn name(&self) -> Stack<Name>;
+    fn make_literal_name(&self, value: Name) -> Code;
+}
+
+impl MustHaveNameStackInContext for NewContext {
+    fn name(&self) -> Stack<Name> {
+        Stack::<Name>::new(self.get_stack("Name").unwrap())
     }
 
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Name {
+    fn make_literal_name(&self, value: Name) -> Code {
+        let id = self.get_virtual_table().id_for_name(NameLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
+    }
+}
+
+impl From<InstructionData> for Name {
+    fn from(data: InstructionData) -> Self {
+        data.get_string().unwrap()
+    }
+}
+
+impl Into<InstructionData> for Name {
+    fn into(self) -> InstructionData {
+        InstructionData::from_string(self)
+    }
+}
+
+pub struct NameLiteralValue {}
+impl Instruction for NameLiteralValue {
+    /// Every instruction must have a name
+    fn name() -> &'static str {
+        "NAME.LITERALVALUE"
+    }
+
+    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
+    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
+    /// should cease.
+    fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
+        let (rest, value) = crate::parse::parse_code_name(input)?;
+        Ok((rest, Some(InstructionData::from_string(value))))
+    }
+
+    /// All instructions must also be able to write to a string that can later be parsed by nom.
+    fn nom_fmt(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", data.as_ref().unwrap().get_string().unwrap())
+    }
+
+    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
+    /// If it does not use InstructionData, it just returns None
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
         let random_value = rng.gen_range(0..=u64::MAX);
 
         let slice: [u64; 1] = [random_value];
         let b64 = encode(slice.as_byte_slice());
         let name = "RND.".to_owned() + &b64;
-
-        name
-    }
-}
-
-pub trait ContextHasNameStack<L: LiteralEnum<L>> {
-    fn name(&self) -> &NameStack<L>;
-    fn make_literal_name(value: Name) -> Code<L>;
-}
-
-#[derive(Debug, PartialEq)]
-pub struct NameStack<L: LiteralEnum<L>> {
-    stack: Stack<Name>,
-    quote_next_name: RefCell<bool>,
-    defined_names: RefCell<FnvHashMap<String, Code<L>>>,
-}
-
-impl<L: LiteralEnum<L>> NameStack<L> {
-    pub fn should_quote_next_name(&self) -> bool {
-        *self.quote_next_name.borrow()
+        Some(InstructionData::from_string(name))
     }
 
-    pub fn set_should_quote_next_name(&self, quote_next_name: bool) {
-        *self.quote_next_name.borrow_mut() = quote_next_name
-    }
-
-    pub fn definition_for_name(&self, name: &String) -> Option<Code<L>> {
-        self.defined_names.borrow().get(name).map(|c| c.clone())
-    }
-
-    pub fn define_name(&self, name: String, code: Code<L>) {
-        self.defined_names.borrow_mut().insert(name, code);
-    }
-
-    pub fn all_names(&self) -> Vec<String> {
-        self.defined_names.borrow().keys().map(|k| k.clone()).collect()
-    }
-}
-
-impl<L: LiteralEnum<L>> StackTrait<Name> for NameStack<L> {
-    fn new() -> NameStack<L> {
-        NameStack {
-            stack: Stack::new(),
-            quote_next_name: RefCell::new(false),
-            defined_names: RefCell::new(FnvHashMap::default()),
+    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
+    /// Context and/or data and all outputs are updates to the Context.
+    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+        let name = data.unwrap().get_string().unwrap();
+        if context.should_quote_next_name() {
+            context.get_stack("Name").unwrap().push(InstructionData::from_string(name));
+            context.set_should_quote_next_name(false);
+        } else {
+            match context.definition_for_name(&name) {
+                None => context.get_stack("Name").unwrap().push(InstructionData::from_string(name)),
+                Some(code) => context.exec().push(code.into()),
+            }
         }
     }
-    fn pop(&self) -> Option<Name> {
-        self.stack.pop()
-    }
-    fn push(&self, item: Name) {
-        self.stack.push(item)
-    }
-    fn peek(&self) -> Option<Name> {
-        self.stack.peek()
-    }
-    fn len(&self) -> usize {
-        self.stack.len()
-    }
-    fn duplicate_top_item(&self) {
-        self.stack.duplicate_top_item()
-    }
-    fn clear(&self) {
-        self.stack.clear()
-    }
-    fn rotate(&self) {
-        self.stack.rotate()
-    }
-    fn shove(&self, position: i64) -> bool {
-        self.stack.shove(position)
-    }
-    fn swap(&self) {
-        self.stack.swap()
-    }
-    fn yank(&self, position: i64) -> bool {
-        self.stack.yank(position)
-    }
-    fn yank_duplicate(&self, position: i64) -> bool {
-        self.stack.yank_duplicate(position)
+
+    fn add_to_virtual_table(table: &mut VirtualTable) {
+        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
     }
 }
 
@@ -139,7 +123,7 @@ instruction! {
     /// name had a definition).
     #[stack(Name)]
     fn quote(context: &mut Context) {
-        context.name().set_should_quote_next_name(true)
+        context.set_should_quote_next_name(true)
     }
 }
 
@@ -147,10 +131,10 @@ instruction! {
     /// Pushes a randomly selected NAME that already has a definition.
     #[stack(Name)]
     fn rand_bound_name(context: &mut Context) {
-        let defined_names = context.name().all_names();
+        let defined_names = context.all_names();
         if defined_names.len() > 0 {
             let random_value = context.run_random_literal_function(|rng| {
-                let pick = rng.gen_range(0..defined_names.len());
+                let pick: usize = rng.gen_range(0..defined_names.len());
                 defined_names[pick].clone()
             });
             context.name().push(random_value);
@@ -162,8 +146,8 @@ instruction! {
     /// Pushes a newly generated random NAME.
     #[stack(Name)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(Name::random_value);
-        context.name().push(random_value);
+        let random_value = context.run_random_literal_function(NameLiteralValue::random_value).unwrap();
+        context.get_stack("Name").unwrap().push(random_value);
     }
 }
 

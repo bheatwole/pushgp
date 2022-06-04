@@ -1,19 +1,16 @@
-use crate::{Code, LiteralEnum};
+use crate::Code;
 
-pub struct Individual<S, L: LiteralEnum<L>> {
-    code: Code<L>,
+pub struct Individual<S> {
+    code: Code,
     state: S,
 }
 
-impl<S, L: LiteralEnum<L>> Individual<S, L> {
-    pub fn new(code: Code<L>, initial_state: S) -> Individual<S, L> {
-        Individual {
-            code,
-            state: initial_state,
-        }
+impl<S> Individual<S> {
+    pub fn new(code: Code, initial_state: S) -> Individual<S> {
+        Individual { code, state: initial_state }
     }
 
-    pub fn get_code(&self) -> Code<L> {
+    pub fn get_code(&self) -> Code {
         self.code.clone()
     }
 

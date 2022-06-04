@@ -1,21 +1,152 @@
-use crate::{InstructionData, InstructionTable, Stack};
+use crate::{Code, Configuration, InstructionDataStack, StackTrait, VirtualTable};
 use fnv::FnvHashMap;
 use log::*;
+use rand::rngs::SmallRng;
+use std::cell::RefCell;
 use std::fmt::Debug;
 
+#[derive(Debug, PartialEq)]
 pub struct NewContext {
-    stacks: FnvHashMap<&'static str, Stack<InstructionData>>
+    virtual_table: VirtualTable,
+    config: Configuration,
+    stacks: FnvHashMap<&'static str, InstructionDataStack>,
+    quote_next_name: RefCell<bool>,
+    defined_names: RefCell<FnvHashMap<String, Code>>,
 }
 
 impl NewContext {
-    pub fn new() -> NewContext {
-        NewContext {
+    pub fn new(virtual_table: &VirtualTable, config: Configuration, stacks: &[&'static str]) -> NewContext {
+        let mut context = NewContext {
+            virtual_table: virtual_table.clone(),
+            config,
             stacks: FnvHashMap::default(),
+            quote_next_name: RefCell::new(false),
+            defined_names: RefCell::new(FnvHashMap::default()),
+        };
+
+        for stack_name in stacks {
+            context.stacks.insert(stack_name, InstructionDataStack::new());
         }
+
+        // Every context must have an Exec stack
+        if context.get_stack("Exec").is_none() {
+            context.stacks.insert("Exec", InstructionDataStack::new());
+        }
+
+        context
     }
 
-    pub fn get_stack(&self, stack_name: &'static str) -> Option<&Stack<InstructionData>> {
+    /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
+    /// the generator with a truly random value ensuring unique results.
+    pub fn set_seed(&self, seed: Option<u64>) {
+        self.config.set_seed(seed);
+    }
+
+    pub fn run_random_literal_function<F, RealLiteralType>(&self, func: F) -> RealLiteralType
+    where
+        F: Fn(&mut SmallRng) -> RealLiteralType,
+    {
+        self.config.run_random_literal_function(func)
+    }
+
+    pub fn get_virtual_table(&self) -> &VirtualTable {
+        &self.virtual_table
+    }
+
+    pub fn id_for_name<S: AsRef<str>>(&self, name: S) -> Option<usize> {
+        self.virtual_table.id_for_name(name)
+    }
+
+    pub fn get_stack(&self, stack_name: &'static str) -> Option<&InstructionDataStack> {
         self.stacks.get(stack_name)
+    }
+
+    pub fn should_quote_next_name(&self) -> bool {
+        *self.quote_next_name.borrow()
+    }
+
+    pub fn set_should_quote_next_name(&self, quote_next_name: bool) {
+        self.quote_next_name.replace(quote_next_name);
+    }
+
+    pub fn definition_for_name(&self, name: &String) -> Option<Code> {
+        self.defined_names.borrow().get(name).map(|c| c.clone())
+    }
+
+    pub fn define_name(&self, name: String, code: Code) {
+        self.defined_names.borrow_mut().insert(name, code);
+    }
+
+    pub fn all_names(&self) -> Vec<String> {
+        self.defined_names.borrow().keys().map(|k| k.clone()).collect()
+    }
+
+    pub fn defined_names_len(&self) -> usize {
+        self.defined_names.borrow().len()
+    }
+
+    pub fn random_code(&self, points: Option<usize>) -> Code {
+        self.config.generate_random_code(points, self)
+    }
+
+    pub fn run(&self, max: usize) -> usize {
+        trace!("{:?}", self);
+        let mut total_count = 0;
+        while let Some(count) = self.next() {
+            total_count += count;
+            if total_count >= max {
+                break;
+            }
+        }
+        total_count
+    }
+
+    fn next(&self) -> Option<usize> {
+        // Pop the top piece of code from the exec stack and execute it.
+        let exec_stack = self.get_stack("Exec").unwrap();
+        if let Some(exec) = exec_stack.pop() {
+            match exec.into() {
+                Code::List(mut list) => {
+                    // Push the code in reverse order so the first item of the list is the top of stack
+                    while let Some(item) = list.pop() {
+                        exec_stack.push(item.into());
+                    }
+                }
+                // Code::Literal(literal) => match literal {
+                //     BaseLiteral::Bool(v) => self.bool_stack.push(v),
+                //     BaseLiteral::Float(v) => self.float_stack.push(v),
+                //     BaseLiteral::Integer(v) => self.integer_stack.push(v),
+                //     BaseLiteral::Name(v) => {
+                //         if self.name_stack.should_quote_next_name() {
+                //             self.name_stack.push(v);
+                //             self.name_stack.set_should_quote_next_name(false);
+                //         } else {
+                //             match self.name_stack.definition_for_name(&v) {
+                //                 None => self.name_stack.push(v),
+                //                 Some(code) => self.exec_stack.push(code.into()),
+                //             }
+                //         }
+                //     }
+                // },
+                // Code::Instruction(name) => {
+                //     trace!("executing instruction {}", name);
+                //     if let Some(func) = self.instructions.get(&name) {
+                //         func(self)
+                //     } else {
+                //         debug!("unable to find function for {} in instruction table", name);
+                //     }
+                // }
+                Code::InstructionWithData(id, data) => {
+                    self.virtual_table.call_execute(id, self, data);
+                }
+            }
+
+            // Return the number of points required to perform that action
+            return Some(1);
+        }
+
+        // No action was found
+        None
     }
 }
 
@@ -46,14 +177,15 @@ pub trait Context: Debug {
 
 #[cfg(test)]
 mod tests {
-    use crate::default_code_gen::{BaseContext, BaseLiteral, BaseLiteralParser};
     use crate::*;
 
-    fn load_and_run(src: &str) -> BaseContext {
+    fn load_and_run(src: &str) -> NewContext {
         let weights = vec![];
-        let config = Configuration::<BaseLiteral>::new(Some(1), 100, &weights[..]);
-        let mut context = BaseContext::new(config, new_instruction_table_with_all_instructions());
-        let code = BaseLiteralParser::parse(src);
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
+        let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
+        let context = NewContext::new(&virtual_table, config, &stacks[..]);
+        let code = Code::parse(&virtual_table, src);
         context.exec().push(code);
         context.run(1000);
 
@@ -74,8 +206,8 @@ mod tests {
 
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
-                    let code = BaseLiteralParser::parse(src);
-                    expected_run.name().define_name(name.to_owned(), code);
+                    let code = Code::parse(expected_run.get_virtual_table(), src);
+                    expected_run.define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
             }
@@ -161,7 +293,7 @@ mod tests {
         test_code_position_not_found: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( -1 )", vec![]),
         test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),
         test_code_rand_no_points: ("( CODE.RAND )", "( )", vec![]),
-        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.SHOVE FLOAT.SIN INTEGER.STACKDEPTH ) )", vec![]),
+        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.INSERT FLOAT.EQUAL INTEGER.YANK ) )", vec![]),
         test_code_rot: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C CODE.ROT )", "( CODE.QUOTE B CODE.QUOTE C CODE.QUOTE A )", vec![]),
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),
         test_code_shove_zero: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 0 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),
@@ -273,21 +405,6 @@ mod tests {
         let to_run = load_and_run("( CODE.QUOTE TRUE )");
         assert_eq!(0, to_run.exec().len());
         assert_eq!(0, to_run.bool().len());
-        assert_eq!(Some(Code::Literal(BaseLiteral::Bool(true))), to_run.code().pop());
-    }
-
-    #[test]
-    fn code_instructions() {
-        use crate::StackTrait;
-
-        let to_run = load_and_run("( CODE.INSTRUCTIONS )");
-        assert!(to_run.code().len() > 100);
-
-        let mut all_entries = vec![];
-        while let Some(c) = to_run.code().pop() {
-            all_entries.push(c);
-        }
-        assert!(all_entries.contains(&Code::Instruction("BOOL.AND".to_owned())));
-        assert!(all_entries.contains(&Code::Instruction("CODE.APPEND".to_owned())));
+        assert_eq!(Some(to_run.make_literal_bool(true)), to_run.code().pop());
     }
 }

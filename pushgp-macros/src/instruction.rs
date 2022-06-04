@@ -6,9 +6,7 @@ use quote::quote;
 use std::collections::{HashMap, HashSet};
 use syn::parse::Result;
 use syn::spanned::Spanned;
-use syn::{
-    Block, Error, Expr, FnArg, Ident, Meta, NestedMeta, Pat, Path, Stmt, Type, TypeParamBound,
-};
+use syn::{Block, Error, Expr, FnArg, Ident, Meta, NestedMeta, Pat, Path, Stmt, Type};
 
 struct FunctionParseResults {
     // The Pascal case name of every stack we have detected.
@@ -64,39 +62,33 @@ pub fn handle_instruction_macro(inner_fn: &mut ItemFn) -> Result<TokenStream> {
     let body = wrap_body(body, &parse_results)?;
 
     // Make the bound types
-    let mut bound_types: Vec<TypeParamBound> = vec![];
-    bound_types.push(syn::parse_str::<TypeParamBound>(&format!(
-        "{}::Context",
-        quote!(#pushgp).to_string()
-    ))?);
-    for stack in parse_results.stacks {
-        let string_bound = match stack.as_str() {
-            "Bool" | "Code" | "Exec" | "Float" | "Integer" | "Name" => format!(
-                "{}::ContextHas{}Stack<L>",
-                quote!(#pushgp).to_string(),
-                stack
-            ),
-            _ => format!("ContextHas{}Stack<L>", stack),
-        };
-        bound_types.push(syn::parse_str::<TypeParamBound>(&string_bound)?);
-    }
+    // let mut bound_types: Vec<TypeParamBound> = vec![];
+    // bound_types.push(syn::parse_str::<TypeParamBound>(&format!(
+    //     "use {}::NewContext",
+    //     quote!(#pushgp).to_string()
+    // ))?);
+    // for stack in parse_results.stacks {
+    //     let string_bound = match stack.as_str() {
+    //         "Bool" | "Code" | "Exec" | "Float" | "Integer" | "Name" => format!(
+    //             "use {}::MustHave{}StackInContext;",
+    //             quote!(#pushgp).to_string(),
+    //             stack
+    //         ),
+    //         _ => format!("use crate::MustHave{}StackInContext;", stack),
+    //     };
+    //     bound_types.push(syn::parse_str::<TypeParamBound>(&string_bound)?);
+    // }
 
     Ok(quote! {
         #(#docs)*
-        pub struct #struct_name<C, L> {
-            c: std::marker::PhantomData<C>,
-            l: std::marker::PhantomData<L>,
-        }
-        impl<C, L> #pushgp::InstructionTrait<C> for #struct_name<C, L>
-        where
-            C: #(#bound_types)+*,
-            L: #pushgp::LiteralEnum<L>,
-        {
+        pub struct #struct_name {}
+        impl #pushgp::Instruction for #struct_name {
+
             fn name() -> &'static str {
                 #instruction_name_str
             }
 
-            fn execute(context: &mut C) #body
+            fn execute(context: &NewContext, data: Option<#pushgp::InstructionData>) #body
         }
     }
     .into())

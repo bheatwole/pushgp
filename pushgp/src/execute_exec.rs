@@ -1,10 +1,16 @@
 use crate::*;
 use pushgp_macros::*;
 
-pub type Exec<L> = Code<L>;
+pub type Exec = Code;
 
-pub trait ContextHasExecStack<L: LiteralEnum<L>> {
-    fn exec(&self) -> &Stack<Exec<L>>;
+pub trait MustHaveExecStackInContext {
+    fn exec(&self) -> Stack<Exec>;
+}
+
+impl MustHaveExecStackInContext for NewContext {
+    fn exec(&self) -> Stack<Exec> {
+        Stack::<Exec>::new(self.get_stack("Exec").unwrap())
+    }
 }
 
 instruction! {
@@ -12,7 +18,7 @@ instruction! {
     /// onto the EXEC stack.
     #[stack(Exec)]
     fn define(context: &mut Context, code: Exec, name: Name) {
-        context.name().define_name(name, code);
+        context.define_name(name, code);
     }
 }
 
@@ -35,9 +41,9 @@ instruction! {
         } else {
             // Turn into DoNRange with (Count - 1) as destination
             let next = Code::List(vec![
-                C::make_literal_integer(0),
-                C::make_literal_integer(count - 1),
-                Code::instruction("EXEC.DONRANGE"),
+                context.make_literal_integer(0),
+                context.make_literal_integer(count - 1),
+                Code::InstructionWithData(context.id_for_name("EXEC.DONRANGE").unwrap(), None),
                 code,
             ]);
             context.exec().push(next);
@@ -66,9 +72,9 @@ instruction! {
         if cur != dest {
             let increment = if cur < dest { 1 } else { -1 };
             let next = Code::List(vec![
-                C::make_literal_integer(cur + increment),
-                C::make_literal_integer(dest),
-                Code::instruction("EXEC.DONRANGE"),
+                context.make_literal_integer(cur + increment),
+                context.make_literal_integer(dest),
+                Code::InstructionWithData(context.id_for_name("EXEC.DONRANGE").unwrap(), None),
                 code.clone(),
             ]);
             context.exec().push(next);
@@ -96,13 +102,13 @@ instruction! {
         } else {
             // The difference between Count and Times is that the 'current index' is not available to
             // the loop body. Pop that value first
-            let code = Code::List(vec![Code::instruction("INTEGER.POP"), code]);
+            let code = Code::List(vec![Code::InstructionWithData(context.id_for_name("INTEGER.POP").unwrap(), None), code]);
 
             // Turn into DoNRange with (Count - 1) as destination
             let next = Code::List(vec![
-                C::make_literal_integer(0),
-                C::make_literal_integer(count - 1),
-                Code::instruction("EXEC.DONRANGE"),
+                context.make_literal_integer(0),
+                context.make_literal_integer(count - 1),
+                Code::InstructionWithData(context.id_for_name("EXEC.DONRANGE").unwrap(), None),
                 code,
             ]);
             context.exec().push(next);
@@ -236,7 +242,7 @@ instruction! {
     #[stack(Exec)]
     fn y(context: &mut Context, repeat: Exec) {
         // Construct the looping code
-        let next_exec = Code::List(vec![Code::instruction("EXEC.Y"), repeat.clone()]);
+        let next_exec = Code::List(vec![Code::InstructionWithData(context.id_for_name("EXEC.Y").unwrap(), None), repeat.clone()]);
         // Push them back so that we DO and the DO AGAIN
         context.exec().push(next_exec);
         context.exec().push(repeat);

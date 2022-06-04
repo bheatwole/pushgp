@@ -4,28 +4,69 @@ use rand::Rng;
 
 pub type Bool = bool;
 
-// Our version of Bool needs to display with uppercase TRUE and FALSE instead of the default
-impl Literal<Bool> for Bool {
-    fn parse(input: &str) -> nom::IResult<&str, Bool> {
-        crate::parse::parse_code_bool(input)
+pub trait MustHaveBoolStackInContext {
+    fn bool(&self) -> Stack<Bool>;
+    fn make_literal_bool(&self, value: Bool) -> Code;
+}
+
+impl MustHaveBoolStackInContext for NewContext {
+    fn bool(&self) -> Stack<Bool> {
+        Stack::<Bool>::new(self.get_stack("Bool").unwrap())
     }
 
-    fn nom_fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", if *self { "TRUE" } else { "FALSE" })
-    }
-
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Bool {
-        if 0 == rng.gen_range(0..=1) {
-            false
-        } else {
-            true
-        }
+    fn make_literal_bool(&self, value: Bool) -> Code {
+        let id = self.id_for_name(BoolLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
     }
 }
 
-pub trait ContextHasBoolStack<L: LiteralEnum<L>> {
-    fn bool(&self) -> &Stack<Bool>;
-    fn make_literal_bool(value: Bool) -> Code<L>;
+impl From<InstructionData> for Bool {
+    fn from(data: InstructionData) -> Self {
+        data.get_bool().unwrap()
+    }
+}
+
+impl Into<InstructionData> for Bool {
+    fn into(self) -> InstructionData {
+        InstructionData::from_bool(self)
+    }
+}
+
+pub struct BoolLiteralValue {}
+impl Instruction for BoolLiteralValue {
+    /// Every instruction must have a name
+    fn name() -> &'static str {
+        "BOOL.LITERALVALUE"
+    }
+
+    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
+    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
+    /// should cease.
+    fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
+        let (rest, value) = crate::parse::parse_code_bool(input)?;
+        Ok((rest, Some(InstructionData::from_bool(value))))
+    }
+
+    /// All instructions must also be able to write to a string that can later be parsed by nom.
+    fn nom_fmt(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", if data.as_ref().unwrap().get_bool().unwrap() { "TRUE" } else { "FALSE" })
+    }
+
+    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
+    /// If it does not use InstructionData, it just returns None
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
+        Some(InstructionData::from_bool(if 0 == rng.gen_range(0..=1) { false } else { true }))
+    }
+
+    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
+    /// Context and/or data and all outputs are updates to the Context.
+    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+        context.get_stack("Bool").unwrap().push(data.unwrap())
+    }
+
+    fn add_to_virtual_table(table: &mut VirtualTable) {
+        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
+    }
 }
 
 instruction! {
@@ -40,7 +81,7 @@ instruction! {
     /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
     #[stack(Bool)]
     fn define(context: &mut Context, value: Bool, name: Name) {
-        context.name().define_name(name, C::make_literal_bool(value));
+        context.define_name(name, context.make_literal_bool(value));
     }
 }
 
@@ -112,8 +153,8 @@ instruction! {
     /// Pushes a random BOOLEAN
     #[stack(Bool)]
     fn rand(context: &mut Context) {
-        let random_bool = context.run_random_literal_function(Bool::random_value);
-        context.bool().push(random_bool);
+        let random_bool = context.run_random_literal_function(BoolLiteralValue::random_value).unwrap();
+        context.get_stack("Bool").unwrap().push(random_bool);
     }
 }
 

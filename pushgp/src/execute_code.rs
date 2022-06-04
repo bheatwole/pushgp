@@ -2,9 +2,26 @@ use crate::code::Extraction;
 use crate::*;
 use pushgp_macros::*;
 
-pub trait ContextHasCodeStack<L: LiteralEnum<L>> {
-    fn code(&self) -> &Stack<Code<L>>;
-    fn random_code(&mut self, points: Option<usize>) -> Code<L>;
+pub trait MustHaveCodeStackInContext {
+    fn code(&self) -> Stack<Code>;
+}
+
+impl MustHaveCodeStackInContext for NewContext {
+    fn code(&self) -> Stack<Code> {
+        Stack::<Code>::new(self.get_stack("Code").unwrap())
+    }
+}
+
+impl From<InstructionData> for Code {
+    fn from(data: InstructionData) -> Self {
+        data.get_code().unwrap()
+    }
+}
+
+impl Into<InstructionData> for Code {
+    fn into(self) -> InstructionData {
+        InstructionData::from_code(self)
+    }
 }
 
 instruction! {
@@ -111,7 +128,7 @@ instruction! {
     /// the EXEC stack.
     #[stack(Code)]
     fn define(context: &mut Context, code: Code, name: Name) {
-        context.name().define_name(name, code);
+        context.define_name(name, code);
     }
 }
 
@@ -121,7 +138,7 @@ instruction! {
     /// executed with a call to CODE.DO or a similar instruction).
     #[stack(Code)]
     fn definition(context: &mut Context, name: Name) {
-        if let Some(code) = context.name().definition_for_name(&name) {
+        if let Some(code) = context.definition_for_name(&name) {
             context.code().push(code.clone());
         }
     }
@@ -180,11 +197,11 @@ instruction! {
         } else {
             // Turn into DoNRange with (Count - 1) as destination
             let next = Code::List(vec![
-                C::make_literal_integer(0),
-                C::make_literal_integer(count - 1),
-                Code::instruction("CODE.QUOTE"),
+                context.make_literal_integer(0),
+                context.make_literal_integer(count - 1),
+                Code::InstructionWithData(context.id_for_name("CODE.QUOTE").unwrap(), None),
                 code,
-                Code::instruction("CODE.DONRANGE"),
+                Code::InstructionWithData(context.id_for_name("CODE.DONRANGE").unwrap(), None),
             ]);
             context.exec().push(next);
         }
@@ -211,11 +228,11 @@ instruction! {
         if cur != dest {
             let increment = if cur < dest { 1 } else { -1 };
             let next = Code::List(vec![
-                C::make_literal_integer(cur + increment),
-                C::make_literal_integer(dest),
-                Code::instruction("CODE.QUOTE"),
+                context.make_literal_integer(cur + increment),
+                context.make_literal_integer(dest),
+                Code::InstructionWithData(context.id_for_name("CODE.QUOTE").unwrap(), None),
                 code.clone(),
-                Code::instruction("CODE.DONRANGE"),
+                Code::InstructionWithData(context.id_for_name("CODE.DONRANGE").unwrap(), None),
             ]);
             context.exec().push(next);
         }
@@ -242,15 +259,15 @@ instruction! {
         } else {
             // The difference between Count and Times is that the 'current index' is not available to
             // the loop body. Pop that value first
-            let code = Code::List(vec![Code::instruction("INTEGER.POP"), code]);
+            let code = Code::List(vec![Code::InstructionWithData(context.id_for_name("INTEGER.POP").unwrap(), None), code]);
 
             // Turn into DoNRange with (Count - 1) as destination
             let next = Code::List(vec![
-                C::make_literal_integer(0),
-                C::make_literal_integer(count - 1),
-                Code::instruction("CODE.QUOTE"),
+                context.make_literal_integer(0),
+                context.make_literal_integer(count - 1),
+                Code::InstructionWithData(context.id_for_name("CODE.QUOTE").unwrap(), None),
                 code,
-                Code::instruction("CODE.DONRANGE"),
+                Code::InstructionWithData(context.id_for_name("CODE.DONRANGE").unwrap(), None),
             ]);
             context.exec().push(next);
         }
@@ -271,7 +288,7 @@ instruction! {
     /// stack then this final pop may end up popping something else.
     #[stack(Code)]
     fn do(context: &mut Context, code: Code) {
-        context.exec().push(Code::instruction("CODE.POP"));
+        context.exec().push(Code::InstructionWithData(context.id_for_name("CODE.POP").unwrap(), None));
         context.exec().push(code.clone());
         context.code().push(code);
     }
@@ -326,7 +343,7 @@ instruction! {
     /// Pops the BOOLEAN stack and pushes the popped item (TRUE or FALSE) onto the CODE stack.
     #[stack(Code)]
     fn from_boolean(context: &mut Context, value: Bool) {
-        context.code().push(C::make_literal_bool(value));
+        context.code().push(context.make_literal_bool(value));
     }
 }
 
@@ -334,7 +351,7 @@ instruction! {
     /// Pops the FLOAT stack and pushes the popped item onto the CODE stack.
     #[stack(Code)]
     fn from_float(context: &mut Context, value: Float) {
-        context.code().push(C::make_literal_float(value));
+        context.code().push(context.make_literal_float(value));
     }
 }
 
@@ -342,7 +359,7 @@ instruction! {
     /// Pops the INTEGER stack and pushes the popped integer onto the CODE stack.
     #[stack(Code)]
     fn from_integer(context: &mut Context, value: Integer) {
-        context.code().push(C::make_literal_integer(value));
+        context.code().push(context.make_literal_integer(value));
     }
 }
 
@@ -350,7 +367,7 @@ instruction! {
     /// Pops the NAME stack and pushes the popped item onto the CODE stack.
     #[stack(Code)]
     fn from_name(context: &mut Context, value: Name) {
-        context.code().push(C::make_literal_name(value));
+        context.code().push(context.make_literal_name(value));
     }
 }
 
@@ -373,16 +390,6 @@ instruction! {
         let total_points = search_in.points();
         let point = point.abs() % total_points;
         context.code().push(search_in.replace_point(point, &replace_with).0);
-    }
-}
-
-instruction! {
-    /// Pushes a list of all active instructions in the interpreter's current configuration.
-    #[stack(Code)]
-    fn instructions(context: &mut Context) {
-        for inst in context.all_instruction_names() {
-            context.code().push(Code::instruction(inst));
-        }
     }
 }
 

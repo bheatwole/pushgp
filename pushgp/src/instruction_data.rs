@@ -1,6 +1,7 @@
+use crate::Code;
+use ordered_float::OrderedFloat;
 use std::mem::ManuallyDrop;
 use std::ops::Deref;
-use ordered_float::OrderedFloat;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum DataType {
@@ -9,6 +10,7 @@ enum DataType {
     I128,
     Float,
     String,
+    Code,
 }
 
 union DataUnion {
@@ -17,6 +19,7 @@ union DataUnion {
     i: i128,
     f: OrderedFloat<f64>,
     s: ManuallyDrop<String>,
+    c: ManuallyDrop<Box<Code>>,
 }
 
 //#[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -88,6 +91,10 @@ impl InstructionData {
 
     pub fn from_string<S: Into<String>>(s: S) -> InstructionData {
         InstructionData { data_type: DataType::String, data_union: DataUnion { s: ManuallyDrop::new(s.into()) } }
+    }
+
+    pub fn from_code(c: Code) -> InstructionData {
+        InstructionData { data_type: DataType::Code, data_union: DataUnion { c: ManuallyDrop::new(Box::new(c)) } }
     }
 
     pub fn get_bool(&self) -> Option<bool> {
@@ -210,7 +217,9 @@ impl InstructionData {
     pub fn get_f32(&self) -> Option<f32> {
         unsafe {
             match self {
-                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => Some((*f).into_inner() as f32),
+                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => {
+                    Some((*f).into_inner() as f32)
+                }
                 _ => None,
             }
         }
@@ -219,7 +228,9 @@ impl InstructionData {
     pub fn get_f64(&self) -> Option<f64> {
         unsafe {
             match self {
-                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => Some((*f).into_inner() as f64),
+                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => {
+                    Some((*f).into_inner() as f64)
+                }
                 _ => None,
             }
         }
@@ -233,17 +244,41 @@ impl InstructionData {
             }
         }
     }
+
+    pub fn get_code(&self) -> Option<Code> {
+        unsafe {
+            match self {
+                InstructionData { data_type: DataType::Code, data_union: DataUnion { c } } => {
+                    Some(*(c.deref()).clone())
+                }
+                _ => None,
+            }
+        }
+    }
 }
 
 impl std::clone::Clone for InstructionData {
     fn clone(&self) -> Self {
         unsafe {
             match self {
-                InstructionData { data_type: DataType::Bool, data_union: DataUnion { b } } => InstructionData::from_bool(*b),
-                InstructionData { data_type: DataType::U128, data_union: DataUnion { u } } => InstructionData::from_u128(*u),
-                InstructionData { data_type: DataType::I128, data_union: DataUnion { i } } => InstructionData::from_i128(*i),
-                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => InstructionData::from_f64((*f).into_inner()),
-                InstructionData { data_type: DataType::String, data_union: DataUnion { s } } => InstructionData::from_string(s.deref()),
+                InstructionData { data_type: DataType::Bool, data_union: DataUnion { b } } => {
+                    InstructionData::from_bool(*b)
+                }
+                InstructionData { data_type: DataType::U128, data_union: DataUnion { u } } => {
+                    InstructionData::from_u128(*u)
+                }
+                InstructionData { data_type: DataType::I128, data_union: DataUnion { i } } => {
+                    InstructionData::from_i128(*i)
+                }
+                InstructionData { data_type: DataType::Float, data_union: DataUnion { f } } => {
+                    InstructionData::from_f64((*f).into_inner())
+                }
+                InstructionData { data_type: DataType::String, data_union: DataUnion { s } } => {
+                    InstructionData::from_string(s.deref())
+                }
+                InstructionData { data_type: DataType::Code, data_union: DataUnion { c } } => {
+                    InstructionData::from_code(*(c.deref()).clone())
+                }
             }
         }
     }
@@ -278,6 +313,11 @@ impl std::fmt::Debug for InstructionData {
                     .field("data_type", &self.data_type)
                     .field("data_union.s", s.deref())
                     .finish(),
+                InstructionData { data_type: DataType::Code, data_union: DataUnion { c } } => formatter
+                    .debug_struct("InstructionData")
+                    .field("data_type", &self.data_type)
+                    .field("data_union.c", c)
+                    .finish(),
             }
         }
     }
@@ -292,6 +332,9 @@ impl Drop for InstructionData {
                 InstructionData { data_type: DataType::String, data_union: DataUnion { s } } => {
                     ManuallyDrop::drop(s);
                 }
+                InstructionData { data_type: DataType::Code, data_union: DataUnion { c } } => {
+                    ManuallyDrop::drop(c);
+                }
                 _ => {
                     // No drop step needed for the Copy primitives
                 }
@@ -301,7 +344,10 @@ impl Drop for InstructionData {
 }
 
 impl std::hash::Hash for InstructionData {
-    fn hash<H>(&self, state: &mut H) where H: std::hash::Hasher {
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: std::hash::Hasher,
+    {
         unsafe {
             match self.data_type {
                 DataType::Bool => self.data_union.b.hash(state),
@@ -309,6 +355,7 @@ impl std::hash::Hash for InstructionData {
                 DataType::I128 => self.data_union.i.hash(state),
                 DataType::Float => self.data_union.f.hash(state),
                 DataType::String => self.data_union.s.hash(state),
+                DataType::Code => self.data_union.c.hash(state),
             }
         }
     }
@@ -324,6 +371,7 @@ impl PartialEq for InstructionData {
                 (DataType::I128, DataType::I128) => self.data_union.i == other.data_union.i,
                 (DataType::Float, DataType::Float) => self.data_union.f == other.data_union.f,
                 (DataType::String, DataType::String) => self.data_union.s == other.data_union.s,
+                (DataType::Code, DataType::Code) => self.data_union.c == other.data_union.c,
                 _ => false,
             }
         }

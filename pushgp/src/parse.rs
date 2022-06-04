@@ -1,4 +1,4 @@
-use crate::{Code, LiteralEnum};
+use crate::{Code, VirtualTable};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -9,28 +9,25 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub trait Parser<L: LiteralEnum<L>> {
-    fn parse_code_instruction(input: &str) -> IResult<&str, Code<L>>;
+pub(crate) fn parse(virtual_table: &VirtualTable, input: &str) -> Code {
+    parse_one_code(virtual_table, input).unwrap().1
+}
 
-    fn parse(input: &str) -> Code<L> {
-        Self::parse_one_code(input).unwrap().1
+fn parse_one_code<'a>(virtual_table: &'a VirtualTable, input: &'a str) -> IResult<&'a str, Code> {
+    match virtual_table.call_parse(input) {
+        Ok((rest, code)) => return Ok((rest, code)),
+        Err(_) => parse_code_list(virtual_table, input),
     }
-    fn parse_one_code(input: &str) -> IResult<&str, Code<L>> {
-        alt((Self::parse_code_instruction, Self::parse_code_literal, Self::parse_code_list))(input)
-    }
+}
 
-    fn parse_code_literal(input: &str) -> IResult<&str, Code<L>> {
-        let (rest, literal) = L::parse(input)?;
-        Ok((rest, Code::Literal(literal)))
-    }
+fn parse_code_list<'a>(virtual_table: &'a VirtualTable, input: &'a str) -> IResult<&'a str, Code> {
+    let parse_one = |fn_input| parse_one_code(virtual_table, fn_input);
 
-    fn parse_code_list(input: &str) -> IResult<&str, Code<L>> {
-        // A list is a start tag, zero or more codes and an end tag
-        let (input, _) = start_list(input)?;
-        let (input, codes) = many0(Self::parse_one_code)(input)?;
-        let (input, _) = end_list(input)?;
-        Ok((input, Code::List(codes)))
-    }
+    // A list is a start tag, zero or more codes and an end tag
+    let (input, _) = start_list(input)?;
+    let (input, codes) = many0(parse_one)(input)?;
+    let (input, _) = end_list(input)?;
+    Ok((input, Code::List(codes)))
 }
 
 fn start_list(input: &str) -> IResult<&str, ()> {
@@ -127,10 +124,36 @@ pub fn parse_code_name(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::default_code_gen::{BaseLiteral, BaseLiteralParser};
-    use crate::parse::{parse_code_bool, parse_code_float, parse_code_integer, parse_code_name};
-    use crate::{Code, Parser};
-    use rust_decimal::Decimal;
+    use crate::parse::{
+        parse, parse_code_bool, parse_code_float, parse_code_integer, parse_code_list, parse_code_name,
+    };
+    use crate::*;
+    use rust_decimal::{prelude::ToPrimitive, Decimal};
+
+    fn make_literal_bool(virtual_table: &VirtualTable, value: bool) -> Code {
+        let id = virtual_table.id_for_name(BoolLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
+    }
+
+    fn make_literal_float(virtual_table: &VirtualTable, value: Float) -> Code {
+        let id = virtual_table.id_for_name(FloatLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
+    }
+
+    fn make_literal_integer(virtual_table: &VirtualTable, value: i64) -> Code {
+        let id = virtual_table.id_for_name(IntegerLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
+    }
+
+    fn make_literal_name<S: Into<String>>(virtual_table: &VirtualTable, value: S) -> Code {
+        let id = virtual_table.id_for_name(NameLiteralValue::name()).unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
+    }
+
+    fn make_instruction(virtual_table: &VirtualTable, instruction: &'static str) -> Code {
+        let id = virtual_table.id_for_name(instruction).unwrap();
+        Code::InstructionWithData(id, None)
+    }
 
     #[test]
     fn parse_bool() {
@@ -171,36 +194,39 @@ mod tests {
 
     #[test]
     fn parse_instruction() {
-        let expected = Code::<BaseLiteral>::Instruction("BOOL.AND".to_owned());
-        assert_eq!(BaseLiteralParser::parse_code_instruction("BOOL.AND").unwrap().1, expected);
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let expected = make_instruction(&virtual_table, "BOOL.AND");
+        assert_eq!(Code::parse(&virtual_table, "BOOL.AND"), expected);
     }
 
     #[test]
     fn parse_list() {
-        let expected = Code::<BaseLiteral>::List(vec![]);
-        assert_eq!(BaseLiteralParser::parse_code_list("( )").unwrap().1, expected);
+        let virtual_table = new_virtual_table_with_all_instructions();
+        let expected = Code::List(vec![]);
+        assert_eq!(parse_code_list(&virtual_table, "( )").unwrap().1, expected);
         let expected =
-            Code::List(vec![Code::Literal(BaseLiteral::Bool(true)), Code::Literal(BaseLiteral::Integer(123))]);
-        assert_eq!(BaseLiteralParser::parse_code_list("( TRUE 123 )").unwrap().1, expected);
+            Code::List(vec![make_literal_bool(&virtual_table, true), make_literal_integer(&virtual_table, 123)]);
+        assert_eq!(parse_code_list(&virtual_table, "( TRUE 123 )").unwrap().1, expected);
 
-        let expected = Code::<BaseLiteral>::List(vec![Code::Instruction("BOOL.AND".to_owned())]);
-        assert_eq!(BaseLiteralParser::parse_code_list("( BOOL.AND )").unwrap().1, expected);
+        let expected = Code::List(vec![make_instruction(&virtual_table, "BOOL.AND")]);
+        assert_eq!(parse_code_list(&virtual_table, "( BOOL.AND )").unwrap().1, expected);
 
         // no trailing paren should fail
-        assert!(BaseLiteralParser::parse_code_list("( 123").is_err());
+        assert!(parse_code_list(&virtual_table, "( 123").is_err());
     }
 
     #[test]
     fn code_parsing() {
+        let virtual_table = new_virtual_table_with_all_instructions();
         let expected = Code::List(vec![
             Code::List(vec![
-                Code::Literal(BaseLiteral::Bool(true)),
-                Code::Literal(BaseLiteral::Float(Decimal::new(12345, 6))),
-                Code::Literal(BaseLiteral::Integer(-12784)),
+                make_literal_bool(&virtual_table, true),
+                make_literal_float(&virtual_table, Decimal::new(12345, 6)),
+                make_literal_integer(&virtual_table, -12784),
             ]),
-            Code::Instruction("BOOL.AND".to_owned()),
-            Code::Literal(BaseLiteral::Name("TRUENAME".to_owned())),
+            make_instruction(&virtual_table, "BOOL.AND"),
+            make_literal_name(&virtual_table, "TRUENAME"),
         ]);
-        assert_eq!(BaseLiteralParser::parse("( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )"), expected);
+        assert_eq!(parse(&virtual_table, "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )"), expected);
     }
 }

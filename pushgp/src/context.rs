@@ -42,11 +42,12 @@ impl Context {
         self.config.set_seed(seed);
     }
 
-    pub fn run_random_literal_function<F, RealLiteralType>(&self, func: F) -> RealLiteralType
+    /// Runs the specified function with the random number generator from the configuration
+    pub fn run_random_function<F, ResultType>(&self, func: F) -> ResultType
     where
-        F: Fn(&mut SmallRng) -> RealLiteralType,
+        F: Fn(&mut SmallRng) -> ResultType,
     {
-        self.config.run_random_literal_function(func)
+        self.config.run_random_function(func)
     }
 
     pub fn get_virtual_table(&self) -> &VirtualTable {

@@ -205,7 +205,7 @@ instruction! {
     /// equal to MAX-RANDOM-INTEGER.
     #[stack(Integer)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(IntegerLiteralValue::random_value).unwrap();
+        let random_value = context.run_random_function(IntegerLiteralValue::random_value).unwrap();
         context.get_stack("Integer").unwrap().push(random_value);
     }
 }

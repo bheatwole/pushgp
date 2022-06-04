@@ -133,7 +133,7 @@ instruction! {
     fn rand_bound_name(context: &mut Context) {
         let defined_names = context.all_names();
         if defined_names.len() > 0 {
-            let random_value = context.run_random_literal_function(|rng| {
+            let random_value = context.run_random_function(|rng| {
                 let pick: usize = rng.gen_range(0..defined_names.len());
                 defined_names[pick].clone()
             });
@@ -146,7 +146,7 @@ instruction! {
     /// Pushes a newly generated random NAME.
     #[stack(Name)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(NameLiteralValue::random_value).unwrap();
+        let random_value = context.run_random_function(NameLiteralValue::random_value).unwrap();
         context.get_stack("Name").unwrap().push(random_value);
     }
 }

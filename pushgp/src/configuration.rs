@@ -4,10 +4,9 @@ use std::cell::RefCell;
 use std::ops::DerefMut;
 
 /// A Configuration is a Vec of u8 where each u8 represents the weight of one of the possible randomly generated items
-/// for Code<L>. The first u8 is the likelihood of picking an already defined name. The next set of u8s is the chance of
-/// picking a new random literal value. The last set of u8s is the chance of picking each of the instructions.  Any
-/// weight set to zero means the random code generator will not pick that item. An item with a weight of '2' is twice as
-/// likely to be picked as an item with a weight of '1'.
+/// for Code. The first u8 is the likelihood of picking an already defined name. The last set of u8s is the chance of
+/// picking each of the instructions.  Any weight set to zero means the random code generator will not pick that item.
+/// An item with a weight of '2' is twice as likely to be picked as an item with a weight of '1'.
 ///
 /// A Vec<u8> is used to allow for running an island where the random code generator itself is optimized by genetic
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
@@ -79,9 +78,10 @@ impl Configuration {
         self.rng.replace(small_rng_from_optional_seed(seed));
     }
 
-    pub fn run_random_literal_function<F, RealLiteralType>(&self, func: F) -> RealLiteralType
+    /// Runs the specified function with the random number generator
+    pub fn run_random_function<F, ResultType>(&self, func: F) -> ResultType
     where
-        F: Fn(&mut SmallRng) -> RealLiteralType,
+        F: Fn(&mut SmallRng) -> ResultType,
     {
         let mut rng = self.rng.borrow_mut();
         func(rng.deref_mut())

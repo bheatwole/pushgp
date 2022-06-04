@@ -220,7 +220,7 @@ instruction! {
     /// to MAX-RANDOM-FLOAT.
     #[stack(Float)]
     fn rand(context: &mut Context) {
-        let random_value = context.run_random_literal_function(FloatLiteralValue::random_value).unwrap();
+        let random_value = context.run_random_function(FloatLiteralValue::random_value).unwrap();
         context.get_stack("Float").unwrap().push(random_value);
     }
 }

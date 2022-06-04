@@ -153,7 +153,7 @@ instruction! {
     /// Pushes a random BOOLEAN
     #[stack(Bool)]
     fn rand(context: &mut Context) {
-        let random_bool = context.run_random_literal_function(BoolLiteralValue::random_value).unwrap();
+        let random_bool = context.run_random_function(BoolLiteralValue::random_value).unwrap();
         context.get_stack("Bool").unwrap().push(random_bool);
     }
 }

@@ -1,6 +1,5 @@
-use crate::{InstructionData, VirtualTable};
+use crate::{InstructionData, ParseError, VirtualTable};
 use fnv::FnvHashMap;
-use std::fmt::{Formatter, Result};
 use std::hash::Hash;
 
 // Code is the basic building block of a PushGP program. It's the translation between human readable and machine
@@ -16,8 +15,15 @@ pub enum Code {
 }
 
 impl Code {
-    pub fn parse(virtual_table: &VirtualTable, input: &str) -> Code {
+    /// Parses the input string into Code or returns an error indicating where the parse failed. Instruction names are
+    /// translated using the specified virtual table
+    pub fn parse(virtual_table: &VirtualTable, input: &str) -> Result<Code, ParseError> {
         crate::parse::parse(virtual_table, input)
+    }
+
+    /// Parses the input string, but panics if there is a parsing error
+    pub fn must_parse(virtual_table: &VirtualTable, input: &str) -> Code {
+        crate::parse::parse(virtual_table, input).unwrap()
     }
 
     /// Returns true if this code is a List
@@ -232,7 +238,7 @@ impl Code {
     pub fn displayable<'a>(&'a self, virtual_table: &'a VirtualTable) -> DisplayableCode<'a> {
         DisplayableCode { code: self, virtual_table: virtual_table }
     }
-    pub fn nom_fmt(&self, virtual_table: &VirtualTable, f: &mut Formatter<'_>) -> Result {
+    pub fn nom_fmt(&self, virtual_table: &VirtualTable, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
             Code::List(x) => {
                 write!(f, "(")?;
@@ -253,7 +259,7 @@ pub struct DisplayableCode<'a> {
 }
 
 impl<'a> std::fmt::Display for DisplayableCode<'a> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.code.nom_fmt(self.virtual_table, f)
     }
 }
@@ -332,31 +338,37 @@ mod tests {
     #[test]
     fn extract_point() {
         let virtual_table = new_virtual_table_with_all_instructions();
-        let code = Code::parse(&virtual_table, "( A ( B ) )");
+        let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(4, code.points());
         assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
-        assert_eq!(code.extract_point(1), Extraction::Extracted(Code::parse(&virtual_table, "A")));
-        assert_eq!(code.extract_point(2), Extraction::Extracted(Code::parse(&virtual_table, "( B )")));
-        assert_eq!(code.extract_point(3), Extraction::Extracted(Code::parse(&virtual_table, "B")));
+        assert_eq!(code.extract_point(1), Extraction::Extracted(Code::must_parse(&virtual_table, "A")));
+        assert_eq!(code.extract_point(2), Extraction::Extracted(Code::must_parse(&virtual_table, "( B )")));
+        assert_eq!(code.extract_point(3), Extraction::Extracted(Code::must_parse(&virtual_table, "B")));
     }
 
     #[test]
     fn replace_point() {
         let virtual_table = new_virtual_table_with_all_instructions();
-        let code = Code::parse(&virtual_table, "( A ( B ) )");
-        assert_eq!(code.replace_point(0, &Code::parse(&virtual_table, "C")).0, Code::parse(&virtual_table, "C"));
+        let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(
-            code.replace_point(1, &Code::parse(&virtual_table, "C")).0,
-            Code::parse(&virtual_table, "( C ( B ) )")
-        );
-        assert_eq!(code.replace_point(2, &Code::parse(&virtual_table, "C")).0, Code::parse(&virtual_table, "( A C )"));
-        assert_eq!(
-            code.replace_point(3, &Code::parse(&virtual_table, "C")).0,
-            Code::parse(&virtual_table, "( A ( C ) )")
+            code.replace_point(0, &Code::must_parse(&virtual_table, "C")).0,
+            Code::must_parse(&virtual_table, "C")
         );
         assert_eq!(
-            code.replace_point(4, &Code::parse(&virtual_table, "C")).0,
-            Code::parse(&virtual_table, "( A ( B ) )")
+            code.replace_point(1, &Code::must_parse(&virtual_table, "C")).0,
+            Code::must_parse(&virtual_table, "( C ( B ) )")
+        );
+        assert_eq!(
+            code.replace_point(2, &Code::must_parse(&virtual_table, "C")).0,
+            Code::must_parse(&virtual_table, "( A C )")
+        );
+        assert_eq!(
+            code.replace_point(3, &Code::must_parse(&virtual_table, "C")).0,
+            Code::must_parse(&virtual_table, "( A ( C ) )")
+        );
+        assert_eq!(
+            code.replace_point(4, &Code::must_parse(&virtual_table, "C")).0,
+            Code::must_parse(&virtual_table, "( A ( B ) )")
         );
     }
 
@@ -364,13 +376,13 @@ mod tests {
     fn code_discrepancy_items() {
         let virtual_table = new_virtual_table_with_all_instructions();
         // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
-        let code = Code::parse(&virtual_table, "( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
+        let code = Code::must_parse(&virtual_table, "( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
         let items = code.discrepancy_items();
-        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "ANAME")).unwrap());
-        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "( 3 ( 1 ) )")).unwrap());
-        assert_eq!(1, *items.get(&Code::parse(&virtual_table, "3")).unwrap());
-        assert_eq!(2, *items.get(&Code::parse(&virtual_table, "( 1 )")).unwrap());
-        assert_eq!(3, *items.get(&Code::parse(&virtual_table, "1")).unwrap());
+        assert_eq!(1, *items.get(&Code::must_parse(&virtual_table, "ANAME")).unwrap());
+        assert_eq!(1, *items.get(&Code::must_parse(&virtual_table, "( 3 ( 1 ) )")).unwrap());
+        assert_eq!(1, *items.get(&Code::must_parse(&virtual_table, "3")).unwrap());
+        assert_eq!(2, *items.get(&Code::must_parse(&virtual_table, "( 1 )")).unwrap());
+        assert_eq!(3, *items.get(&Code::must_parse(&virtual_table, "1")).unwrap());
         assert_eq!(5, items.len());
     }
 
@@ -378,47 +390,47 @@ mod tests {
     fn code_len() {
         let virtual_table = new_virtual_table_with_all_instructions();
         // `len` returns the number of elements in the direct list (not sub-lists)
-        assert_eq!(0, Code::parse(&virtual_table, "( )").len());
-        assert_eq!(1, Code::parse(&virtual_table, "( A )").len());
-        assert_eq!(2, Code::parse(&virtual_table, "( A B )").len());
-        assert_eq!(2, Code::parse(&virtual_table, "( A ( B C ) )").len());
+        assert_eq!(0, Code::must_parse(&virtual_table, "( )").len());
+        assert_eq!(1, Code::must_parse(&virtual_table, "( A )").len());
+        assert_eq!(2, Code::must_parse(&virtual_table, "( A B )").len());
+        assert_eq!(2, Code::must_parse(&virtual_table, "( A ( B C ) )").len());
 
         // It also returns 1 for atoms
-        assert_eq!(1, Code::parse(&virtual_table, "A").len());
+        assert_eq!(1, Code::must_parse(&virtual_table, "A").len());
     }
 
     #[test]
     fn replace() {
         let virtual_table = new_virtual_table_with_all_instructions();
         assert_eq!(
-            Code::parse(&virtual_table, "B"),
-            Code::parse(&virtual_table, "A")
-                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
+            Code::must_parse(&virtual_table, "B"),
+            Code::must_parse(&virtual_table, "A")
+                .replace(&Code::must_parse(&virtual_table, "A"), &Code::must_parse(&virtual_table, "B"))
         );
         assert_eq!(
-            Code::parse(&virtual_table, "( B )"),
-            Code::parse(&virtual_table, "( A )")
-                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
+            Code::must_parse(&virtual_table, "( B )"),
+            Code::must_parse(&virtual_table, "( A )")
+                .replace(&Code::must_parse(&virtual_table, "A"), &Code::must_parse(&virtual_table, "B"))
         );
         assert_eq!(
-            Code::parse(&virtual_table, "( B B )"),
-            Code::parse(&virtual_table, "( A A )")
-                .replace(&Code::parse(&virtual_table, "A"), &Code::parse(&virtual_table, "B"))
+            Code::must_parse(&virtual_table, "( B B )"),
+            Code::must_parse(&virtual_table, "( A A )")
+                .replace(&Code::must_parse(&virtual_table, "A"), &Code::must_parse(&virtual_table, "B"))
         );
         assert_eq!(
-            Code::parse(&virtual_table, "B"),
-            Code::parse(&virtual_table, "( A )")
-                .replace(&Code::parse(&virtual_table, "( A )"), &Code::parse(&virtual_table, "B"))
+            Code::must_parse(&virtual_table, "B"),
+            Code::must_parse(&virtual_table, "( A )")
+                .replace(&Code::must_parse(&virtual_table, "( A )"), &Code::must_parse(&virtual_table, "B"))
         );
         assert_eq!(
-            Code::parse(&virtual_table, "( B )"),
-            Code::parse(&virtual_table, "( ( A ) )")
-                .replace(&Code::parse(&virtual_table, "( A )"), &Code::parse(&virtual_table, "B"))
+            Code::must_parse(&virtual_table, "( B )"),
+            Code::must_parse(&virtual_table, "( ( A ) )")
+                .replace(&Code::must_parse(&virtual_table, "( A )"), &Code::must_parse(&virtual_table, "B"))
         );
         assert_eq!(
-            Code::parse(&virtual_table, "( A A ( A A ) )"),
-            Code::parse(&virtual_table, "( A ( B ) ( A ( B ) ) ) )")
-                .replace(&Code::parse(&virtual_table, "( B )"), &Code::parse(&virtual_table, "A"))
+            Code::must_parse(&virtual_table, "( A A ( A A ) )"),
+            Code::must_parse(&virtual_table, "( A ( B ) ( A ( B ) ) ) )")
+                .replace(&Code::must_parse(&virtual_table, "( B )"), &Code::must_parse(&virtual_table, "A"))
         );
     }
 }

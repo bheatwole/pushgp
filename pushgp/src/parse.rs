@@ -1,4 +1,4 @@
-use crate::{Code, VirtualTable};
+use crate::{Code, ParseError, VirtualTable};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -9,8 +9,8 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub(crate) fn parse(virtual_table: &VirtualTable, input: &str) -> Code {
-    parse_one_code(virtual_table, input).unwrap().1
+pub(crate) fn parse(virtual_table: &VirtualTable, input: &str) -> Result<Code, ParseError> {
+    parse_one_code(virtual_table, input).map_err(|e| ParseError::new(e)).map(|v| v.1)
 }
 
 fn parse_one_code<'a>(virtual_table: &'a VirtualTable, input: &'a str) -> IResult<&'a str, Code> {
@@ -196,7 +196,7 @@ mod tests {
     fn parse_instruction() {
         let virtual_table = new_virtual_table_with_all_instructions();
         let expected = make_instruction(&virtual_table, "BOOL.AND");
-        assert_eq!(Code::parse(&virtual_table, "BOOL.AND"), expected);
+        assert_eq!(Code::must_parse(&virtual_table, "BOOL.AND"), expected);
     }
 
     #[test]
@@ -227,6 +227,6 @@ mod tests {
             make_instruction(&virtual_table, "BOOL.AND"),
             make_literal_name(&virtual_table, "TRUENAME"),
         ]);
-        assert_eq!(parse(&virtual_table, "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )"), expected);
+        assert_eq!(parse(&virtual_table, "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )").unwrap(), expected);
     }
 }

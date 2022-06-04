@@ -136,7 +136,7 @@ mod tests {
         let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
         let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
         let context = Context::new(&virtual_table, config, &stacks[..]);
-        let code = Code::parse(&virtual_table, src);
+        let code = Code::must_parse(&virtual_table, src);
         context.exec().push(code);
         context.run(1000);
 
@@ -157,7 +157,7 @@ mod tests {
 
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
-                    let code = Code::parse(expected_run.get_virtual_table(), src);
+                    let code = Code::must_parse(expected_run.get_virtual_table(), src);
                     expected_run.define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);

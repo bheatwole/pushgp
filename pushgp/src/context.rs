@@ -15,6 +15,12 @@ pub struct Context {
 }
 
 impl Context {
+    /// Creates a new context for running Code. The VirtualTable holds the list of instructions that are known. The
+    /// Configuration specifies how new code is to be generated. The list of stacks is the names of the stacks that
+    /// will be available to running instructions.
+    ///
+    /// You will get a panic if you include an instruction in the virtual table that uses a stack that is not named
+    /// when you call new()
     pub fn new(virtual_table: &VirtualTable, config: Configuration, stacks: &[&'static str]) -> Context {
         let mut context = Context {
             virtual_table: virtual_table.clone(),
@@ -87,7 +93,7 @@ impl Context {
     }
 
     pub fn random_code(&self, points: Option<usize>) -> Code {
-        self.config.generate_random_code(points, self)
+        self.config.generate_random_code(points, Some(self))
     }
 
     pub fn run(&self, max: usize) -> usize {

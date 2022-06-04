@@ -14,6 +14,8 @@ use std::ops::DerefMut;
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
     rng: RefCell<SmallRng>,
+    virtual_table: VirtualTable,
+
     max_points_in_random_expressions: usize,
 
     crossover_rate: u8,
@@ -45,6 +47,7 @@ impl Configuration {
 
         Configuration {
             rng: RefCell::new(small_rng_from_optional_seed(rng_seed)),
+            virtual_table: virtual_table.clone(),
             max_points_in_random_expressions,
             crossover_rate,
             mutation_rate,
@@ -109,9 +112,9 @@ impl Configuration {
     }
 
     /// Returns one random atom
-    pub fn random_atom(&self, context: &Context) -> Code {
+    pub fn random_atom(&self, context: Option<&Context>) -> Code {
         // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
-        let defined_names_total = context.defined_names_len();
+        let defined_names_total = if let Some(context) = context { context.defined_names_len() } else { 0 };
         let random_total = defined_names_total + self.instruction_total;
 
         // Pick one
@@ -119,12 +122,12 @@ impl Configuration {
 
         // Is it a defined name?
         if pick < defined_names_total {
-            return self.random_defined_name(context);
+            return self.random_defined_name(context.unwrap());
         }
         pick -= defined_names_total;
 
         // Must be an instruction
-        self.random_instruction(context, pick)
+        self.random_instruction(pick)
     }
 
     /// Returns one random defined name
@@ -135,10 +138,10 @@ impl Configuration {
     }
 
     /// Returns a new random instruction
-    pub fn random_instruction(&self, context: &Context, pick: usize) -> Code {
+    pub fn random_instruction(&self, pick: usize) -> Code {
         let index = self.instruction_weights.partition_point(|entry| entry.weight < pick);
         let mut rng = self.rng.borrow_mut();
-        let data = context.get_virtual_table().call_random_value(index, rng.deref_mut());
+        let data = self.virtual_table.call_random_value(index, rng.deref_mut());
         Code::InstructionWithData(index, data)
     }
 
@@ -147,7 +150,7 @@ impl Configuration {
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
-    pub fn generate_random_code(&self, points: Option<usize>, context: &Context) -> Code {
+    pub fn generate_random_code(&self, points: Option<usize>, context: Option<&Context>) -> Code {
         let max_points = if let Some(maybe_huge_max) = points {
             let max = maybe_huge_max % self.max_points_in_random_expressions;
             if max > 0 {
@@ -162,7 +165,7 @@ impl Configuration {
         self.random_code_with_size(actual_points, context)
     }
 
-    fn random_code_with_size(&self, points: usize, context: &Context) -> Code {
+    fn random_code_with_size(&self, points: usize, context: Option<&Context>) -> Code {
         if 1 == points {
             // We need a leaf, so pick one of the atoms
             self.random_atom(context)

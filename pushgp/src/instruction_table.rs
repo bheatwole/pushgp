@@ -1,10 +1,10 @@
-use crate::{Code, InstructionData, NewContext};
+use crate::{Code, InstructionData, Context};
 use fnv::FnvHashMap;
 
 pub type VirtualTableParse = fn(input: &str) -> nom::IResult<&str, Option<InstructionData>>;
 pub type VirtualTableNomFmt = fn(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 pub type VirtualTableRandomValue = fn(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData>;
-pub type VirtualTableExecute = fn(context: &crate::context::NewContext, data: Option<InstructionData>);
+pub type VirtualTableExecute = fn(context: &crate::context::Context, data: Option<InstructionData>);
 
 #[derive(Clone)]
 pub struct VirtualTable {
@@ -92,7 +92,7 @@ impl VirtualTable {
         self.random_value[instruction](rng)
     }
 
-    pub fn call_execute(&self, instruction: usize, context: &NewContext, data: Option<InstructionData>) {
+    pub fn call_execute(&self, instruction: usize, context: &Context, data: Option<InstructionData>) {
         assert!(instruction < self.execute.len());
         self.execute[instruction](context, data)
     }

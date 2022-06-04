@@ -10,7 +10,7 @@ pub trait MustHaveIntegerStackInContext {
     fn make_literal_integer(&self, value: Integer) -> Code;
 }
 
-impl MustHaveIntegerStackInContext for NewContext {
+impl MustHaveIntegerStackInContext for Context {
     fn integer(&self) -> Stack<Integer> {
         Stack::<Integer>::new(self.get_stack("Integer").unwrap())
     }
@@ -62,7 +62,7 @@ impl Instruction for IntegerLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
         context.get_stack("Integer").unwrap().push(data.unwrap())
     }
 

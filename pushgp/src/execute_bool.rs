@@ -9,7 +9,7 @@ pub trait MustHaveBoolStackInContext {
     fn make_literal_bool(&self, value: Bool) -> Code;
 }
 
-impl MustHaveBoolStackInContext for NewContext {
+impl MustHaveBoolStackInContext for Context {
     fn bool(&self) -> Stack<Bool> {
         Stack::<Bool>::new(self.get_stack("Bool").unwrap())
     }
@@ -60,7 +60,7 @@ impl Instruction for BoolLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
         context.get_stack("Bool").unwrap().push(data.unwrap())
     }
 

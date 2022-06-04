@@ -13,7 +13,7 @@ pub trait MustHaveFloatStackInContext {
     fn make_literal_float(&self, value: Float) -> Code;
 }
 
-impl MustHaveFloatStackInContext for NewContext {
+impl MustHaveFloatStackInContext for Context {
     fn float(&self) -> Stack<Float> {
         Stack::<Float>::new(self.get_stack("Float").unwrap())
     }
@@ -65,7 +65,7 @@ impl Instruction for FloatLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
         context.get_stack("Float").unwrap().push(data.unwrap())
     }
 

@@ -27,7 +27,7 @@ pub trait Instruction {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>);
+    fn execute(context: &crate::context::Context, data: Option<InstructionData>);
 
     fn add_to_virtual_table(table: &mut VirtualTable) {
         table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);

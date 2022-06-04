@@ -88,7 +88,7 @@ pub fn handle_instruction_macro(inner_fn: &mut ItemFn) -> Result<TokenStream> {
                 #instruction_name_str
             }
 
-            fn execute(context: &NewContext, data: Option<#pushgp::InstructionData>) #body
+            fn execute(context: &Context, data: Option<#pushgp::InstructionData>) #body
         }
     }
     .into())

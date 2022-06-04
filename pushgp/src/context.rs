@@ -6,7 +6,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq)]
-pub struct NewContext {
+pub struct Context {
     virtual_table: VirtualTable,
     config: Configuration,
     stacks: FnvHashMap<&'static str, InstructionDataStack>,
@@ -14,9 +14,9 @@ pub struct NewContext {
     defined_names: RefCell<FnvHashMap<String, Code>>,
 }
 
-impl NewContext {
-    pub fn new(virtual_table: &VirtualTable, config: Configuration, stacks: &[&'static str]) -> NewContext {
-        let mut context = NewContext {
+impl Context {
+    pub fn new(virtual_table: &VirtualTable, config: Configuration, stacks: &[&'static str]) -> Context {
+        let mut context = Context {
             virtual_table: virtual_table.clone(),
             config,
             stacks: FnvHashMap::default(),
@@ -112,30 +112,6 @@ impl NewContext {
                         exec_stack.push(item.into());
                     }
                 }
-                // Code::Literal(literal) => match literal {
-                //     BaseLiteral::Bool(v) => self.bool_stack.push(v),
-                //     BaseLiteral::Float(v) => self.float_stack.push(v),
-                //     BaseLiteral::Integer(v) => self.integer_stack.push(v),
-                //     BaseLiteral::Name(v) => {
-                //         if self.name_stack.should_quote_next_name() {
-                //             self.name_stack.push(v);
-                //             self.name_stack.set_should_quote_next_name(false);
-                //         } else {
-                //             match self.name_stack.definition_for_name(&v) {
-                //                 None => self.name_stack.push(v),
-                //                 Some(code) => self.exec_stack.push(code.into()),
-                //             }
-                //         }
-                //     }
-                // },
-                // Code::Instruction(name) => {
-                //     trace!("executing instruction {}", name);
-                //     if let Some(func) = self.instructions.get(&name) {
-                //         func(self)
-                //     } else {
-                //         debug!("unable to find function for {} in instruction table", name);
-                //     }
-                // }
                 Code::InstructionWithData(id, data) => {
                     self.virtual_table.call_execute(id, self, data);
                 }
@@ -150,41 +126,16 @@ impl NewContext {
     }
 }
 
-pub trait Context: Debug {
-    fn clear(&mut self);
-    fn next(&mut self) -> Option<usize>;
-    fn all_instruction_names(&self) -> Vec<String>;
-    fn run_random_literal_function<F, RealLiteralType>(&mut self, func: F) -> RealLiteralType
-    where
-        F: Fn(&mut rand::rngs::SmallRng) -> RealLiteralType;
-
-    /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
-    /// the generator with a truly random value ensuring unique results.
-    fn set_seed(&mut self, seed: Option<u64>);
-
-    fn run(&mut self, max: usize) -> usize {
-        trace!("{:?}", self);
-        let mut total_count = 0;
-        while let Some(count) = self.next() {
-            total_count += count;
-            if total_count >= max {
-                break;
-            }
-        }
-        total_count
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::*;
 
-    fn load_and_run(src: &str) -> NewContext {
+    fn load_and_run(src: &str) -> Context {
         let weights = vec![];
         let virtual_table = new_virtual_table_with_all_instructions();
         let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
         let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
-        let context = NewContext::new(&virtual_table, config, &stacks[..]);
+        let context = Context::new(&virtual_table, config, &stacks[..]);
         let code = Code::parse(&virtual_table, src);
         context.exec().push(code);
         context.run(1000);

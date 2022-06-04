@@ -11,7 +11,7 @@ pub trait MustHaveNameStackInContext {
     fn make_literal_name(&self, value: Name) -> Code;
 }
 
-impl MustHaveNameStackInContext for NewContext {
+impl MustHaveNameStackInContext for Context {
     fn name(&self) -> Stack<Name> {
         Stack::<Name>::new(self.get_stack("Name").unwrap())
     }
@@ -67,7 +67,7 @@ impl Instruction for NameLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::NewContext, data: Option<InstructionData>) {
+    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
         let name = data.unwrap().get_string().unwrap();
         if context.should_quote_next_name() {
             context.get_stack("Name").unwrap().push(InstructionData::from_string(name));

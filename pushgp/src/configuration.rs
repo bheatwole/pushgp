@@ -1,4 +1,4 @@
-use crate::{Code, GeneticOperation, NewContext, VirtualTable};
+use crate::{Code, GeneticOperation, Context, VirtualTable};
 use rand::{prelude::SliceRandom, rngs::SmallRng, Rng, SeedableRng};
 use std::cell::RefCell;
 use std::ops::DerefMut;
@@ -109,7 +109,7 @@ impl Configuration {
     }
 
     /// Returns one random atom
-    pub fn random_atom(&self, context: &NewContext) -> Code {
+    pub fn random_atom(&self, context: &Context) -> Code {
         // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
         let defined_names_total = context.defined_names_len();
         let random_total = defined_names_total + self.instruction_total;
@@ -128,14 +128,14 @@ impl Configuration {
     }
 
     /// Returns one random defined name
-    pub fn random_defined_name(&self, context: &NewContext) -> Code {
+    pub fn random_defined_name(&self, context: &Context) -> Code {
         let defined_names = context.all_names();
         let pick = self.rng.borrow_mut().gen_range(0..defined_names.len());
         context.definition_for_name(&defined_names[pick]).unwrap()
     }
 
     /// Returns a new random instruction
-    pub fn random_instruction(&self, context: &NewContext, pick: usize) -> Code {
+    pub fn random_instruction(&self, context: &Context, pick: usize) -> Code {
         let index = self.instruction_weights.partition_point(|entry| entry.weight < pick);
         let mut rng = self.rng.borrow_mut();
         let data = context.get_virtual_table().call_random_value(index, rng.deref_mut());
@@ -149,7 +149,7 @@ impl Configuration {
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
-    pub fn generate_random_code(&self, points: Option<usize>, context: &NewContext) -> Code {
+    pub fn generate_random_code(&self, points: Option<usize>, context: &Context) -> Code {
         let max_points = if let Some(maybe_huge_max) = points {
             let max = maybe_huge_max % self.max_points_in_random_expressions;
             if max > 0 {
@@ -164,7 +164,7 @@ impl Configuration {
         self.random_code_with_size(actual_points, context)
     }
 
-    fn random_code_with_size(&self, points: usize, context: &NewContext) -> Code {
+    fn random_code_with_size(&self, points: usize, context: &Context) -> Code {
         if 1 == points {
             // We need a leaf, so pick one of the atoms
             self.random_atom(context)

@@ -17,12 +17,15 @@ pub enum Code {
 impl Code {
     /// Parses the input string into Code or returns an error indicating where the parse failed. Instruction names are
     /// translated using the specified virtual table
-    pub fn parse(virtual_table: &VirtualTable, input: &str) -> Result<Code, ParseError> {
+    pub fn parse<State: std::fmt::Debug + Clone>(
+        virtual_table: &VirtualTable<State>,
+        input: &str,
+    ) -> Result<Code, ParseError> {
         crate::parse::parse(virtual_table, input)
     }
 
     /// Parses the input string, but panics if there is a parsing error
-    pub fn must_parse(virtual_table: &VirtualTable, input: &str) -> Code {
+    pub fn must_parse<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, input: &str) -> Code {
         crate::parse::parse(virtual_table, input).unwrap()
     }
 
@@ -235,11 +238,18 @@ impl Code {
         }
     }
 
-    pub fn displayable<'a>(&'a self, virtual_table: &'a VirtualTable) -> DisplayableCode<'a> {
+    pub fn displayable<'a, State: std::fmt::Debug + Clone>(
+        &'a self,
+        virtual_table: &'a VirtualTable<State>,
+    ) -> DisplayableCode<'a, State> {
         DisplayableCode { code: self, virtual_table: virtual_table }
     }
 
-    pub fn nom_fmt(&self, virtual_table: &VirtualTable, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    pub fn nom_fmt<State: std::fmt::Debug + Clone>(
+        &self,
+        virtual_table: &VirtualTable<State>,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
         match &self {
             Code::List(x) => {
                 write!(f, "(")?;
@@ -254,12 +264,12 @@ impl Code {
     }
 }
 
-pub struct DisplayableCode<'a> {
+pub struct DisplayableCode<'a, State: std::fmt::Debug + Clone> {
     code: &'a Code,
-    virtual_table: &'a VirtualTable,
+    virtual_table: &'a VirtualTable<State>,
 }
 
-impl<'a> std::fmt::Display for DisplayableCode<'a> {
+impl<'a, State: std::fmt::Debug + Clone> std::fmt::Display for DisplayableCode<'a, State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.code.nom_fmt(self.virtual_table, f)
     }
@@ -278,41 +288,47 @@ mod tests {
     use crate::*;
     use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-    fn make_literal_bool(virtual_table: &VirtualTable, value: bool) -> Code {
+    fn make_literal_bool<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: bool) -> Code {
         let id = virtual_table.id_for_name(BoolLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
     }
 
-    fn make_literal_float(virtual_table: &VirtualTable, value: Float) -> Code {
+    fn make_literal_float<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: Float) -> Code {
         let id = virtual_table.id_for_name(FloatLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
     }
 
-    fn make_literal_integer(virtual_table: &VirtualTable, value: i64) -> Code {
+    fn make_literal_integer<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: i64) -> Code {
         let id = virtual_table.id_for_name(IntegerLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
     }
 
-    fn make_literal_name<S: Into<String>>(virtual_table: &VirtualTable, value: S) -> Code {
+    fn make_literal_name<S: Into<String>, State: std::fmt::Debug + Clone>(
+        virtual_table: &VirtualTable<State>,
+        value: S,
+    ) -> Code {
         let id = virtual_table.id_for_name(NameLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
     }
 
-    fn make_instruction(virtual_table: &VirtualTable, instruction: &'static str) -> Code {
+    fn make_instruction<State: std::fmt::Debug + Clone>(
+        virtual_table: &VirtualTable<State>,
+        instruction: &'static str,
+    ) -> Code {
         let id = virtual_table.id_for_name(instruction).unwrap();
         Code::InstructionWithData(id, None)
     }
 
     #[test]
     fn not_parsable() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let result = Code::parse(&virtual_table, "( DOESNT WORK");
         assert!(result.is_err());
     }
 
     #[test]
     fn code_display() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let code = Code::List(vec![]);
         assert_eq!("( )", format!("{}", code.displayable(&virtual_table)));
 
@@ -330,7 +346,7 @@ mod tests {
 
     #[test]
     fn code_points() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let code = Code::List(vec![
             Code::List(vec![
                 make_literal_bool(&virtual_table, true),
@@ -345,7 +361,7 @@ mod tests {
 
     #[test]
     fn extract_point() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(4, code.points());
         assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
@@ -356,7 +372,7 @@ mod tests {
 
     #[test]
     fn replace_point() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(
             code.replace_point(0, &Code::must_parse(&virtual_table, "C")).0,
@@ -382,7 +398,7 @@ mod tests {
 
     #[test]
     fn code_discrepancy_items() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
         let code = Code::must_parse(&virtual_table, "( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
         let items = code.discrepancy_items();
@@ -396,7 +412,7 @@ mod tests {
 
     #[test]
     fn code_len() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         // `len` returns the number of elements in the direct list (not sub-lists)
         assert_eq!(0, Code::must_parse(&virtual_table, "( )").len());
         assert_eq!(1, Code::must_parse(&virtual_table, "( A )").len());
@@ -409,7 +425,7 @@ mod tests {
 
     #[test]
     fn replace() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         assert_eq!(
             Code::must_parse(&virtual_table, "B"),
             Code::must_parse(&virtual_table, "A")

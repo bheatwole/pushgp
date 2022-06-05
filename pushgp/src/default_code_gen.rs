@@ -1,6 +1,6 @@
 use crate::*;
 
-pub fn new_virtual_table_with_all_instructions() -> VirtualTable {
+pub fn new_virtual_table_with_all_instructions<State: std::fmt::Debug + Clone>() -> VirtualTable<State> {
     let mut virtual_table = VirtualTable::new();
 
     crate::execute_bool::BoolAnd::add_to_virtual_table(&mut virtual_table);

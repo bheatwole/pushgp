@@ -12,9 +12,9 @@ use std::ops::DerefMut;
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
 /// a few generations on the main island. The Configuration that produces the most fit population is the winner.
 #[derive(Debug, PartialEq)]
-pub struct Configuration {
+pub struct Configuration<State: std::fmt::Debug + Clone> {
     rng: RefCell<SmallRng>,
-    virtual_table: VirtualTable,
+    virtual_table: VirtualTable<State>,
 
     max_points_in_random_expressions: usize,
 
@@ -33,13 +33,13 @@ struct InstructionEntry {
     pub instruction: usize,
 }
 
-impl Configuration {
+impl<State: std::fmt::Debug + Clone> Configuration<State> {
     pub fn new(
         rng_seed: Option<u64>,
         max_points_in_random_expressions: usize,
-        virtual_table: &VirtualTable,
+        virtual_table: &VirtualTable<State>,
         weights: &[u8],
-    ) -> Configuration {
+    ) -> Configuration<State> {
         let (crossover_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
         let (mutation_rate, weights) = pop_front_weight_or_one_and_return_rest(weights);
         let (defined_name_weight, weights) = pop_front_weight_or_one_and_return_rest(weights);
@@ -58,7 +58,7 @@ impl Configuration {
     }
 
     fn make_instruction_weights<'a, 'b>(
-        virtual_table: &'a VirtualTable,
+        virtual_table: &'a VirtualTable<State>,
         mut weights: &'b [u8],
     ) -> (usize, Vec<InstructionEntry>, &'b [u8]) {
         let mut total = 0;
@@ -112,7 +112,7 @@ impl Configuration {
     }
 
     /// Returns one random atom
-    pub fn random_atom(&self, context: Option<&Context>) -> Code {
+    pub fn random_atom(&self, context: Option<&Context<State>>) -> Code {
         // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
         let defined_names_total = if let Some(context) = context { context.defined_names_len() } else { 0 };
         let random_total = defined_names_total + self.instruction_total;
@@ -131,7 +131,7 @@ impl Configuration {
     }
 
     /// Returns one random defined name
-    pub fn random_defined_name(&self, context: &Context) -> Code {
+    pub fn random_defined_name(&self, context: &Context<State>) -> Code {
         let defined_names = context.all_defined_names();
         let pick = self.rng.borrow_mut().gen_range(0..defined_names.len());
         context.definition_for_name(&defined_names[pick]).unwrap()
@@ -150,7 +150,7 @@ impl Configuration {
     /// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
     /// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
     /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
-    pub fn generate_random_code(&self, points: Option<usize>, context: Option<&Context>) -> Code {
+    pub fn generate_random_code(&self, points: Option<usize>, context: Option<&Context<State>>) -> Code {
         let max_points = if let Some(maybe_huge_max) = points {
             let max = maybe_huge_max % self.max_points_in_random_expressions;
             if max > 0 {
@@ -165,7 +165,7 @@ impl Configuration {
         self.random_code_with_size(actual_points, context)
     }
 
-    fn random_code_with_size(&self, points: usize, context: Option<&Context>) -> Code {
+    fn random_code_with_size(&self, points: usize, context: Option<&Context<State>>) -> Code {
         if 1 == points {
             // We need a leaf, so pick one of the atoms
             self.random_atom(context)

@@ -3,31 +3,37 @@ use fnv::FnvHashMap;
 use log::*;
 use rand::rngs::SmallRng;
 use std::cell::RefCell;
-use std::fmt::Debug;
 
 #[derive(Debug, PartialEq)]
-pub struct Context {
-    virtual_table: VirtualTable,
-    config: Configuration,
+pub struct Context<State: std::fmt::Debug + Clone> {
+    virtual_table: VirtualTable<State>,
+    config: Configuration<State>,
     stacks: FnvHashMap<&'static str, InstructionDataStack>,
     quote_next_name: RefCell<bool>,
     defined_names: RefCell<FnvHashMap<String, Code>>,
+    state: Option<State>,
 }
 
-impl Context {
+impl<State: std::fmt::Debug + Clone> Context<State> {
     /// Creates a new context for running Code. The VirtualTable holds the list of instructions that are known. The
     /// Configuration specifies how new code is to be generated. The list of stacks is the names of the stacks that
     /// will be available to running instructions.
     ///
     /// You will get a panic if you include an instruction in the virtual table that uses a stack that is not named
     /// when you call new()
-    pub fn new(virtual_table: &VirtualTable, config: Configuration, stacks: &[&'static str]) -> Context {
+    pub fn new(
+        virtual_table: &VirtualTable<State>,
+        config: Configuration<State>,
+        stacks: &[&'static str],
+        state: Option<State>,
+    ) -> Context<State> {
         let mut context = Context {
             virtual_table: virtual_table.clone(),
             config,
             stacks: FnvHashMap::default(),
             quote_next_name: RefCell::new(false),
             defined_names: RefCell::new(FnvHashMap::default()),
+            state,
         };
 
         for stack_name in stacks {
@@ -40,6 +46,22 @@ impl Context {
         }
 
         context
+    }
+
+    /// Returns the State for the Context. Pass a State that allows for interior mutability if you wish to modify state
+    /// while the Context is running
+    pub fn get_state(&self) -> Option<&State> {
+        self.state.as_ref()
+    }
+
+    /// Pulls the current State out of the Context, replacing it with None
+    pub fn take_state(&mut self) -> Option<State> {
+        self.state.take()
+    }
+
+    /// Sets the state to the specified value, or None
+    pub fn set_state(&mut self, state: Option<State>) {
+        self.state = state
     }
 
     /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
@@ -57,7 +79,7 @@ impl Context {
     }
 
     /// Returns the VirtualTable of instructions associated with this Context
-    pub fn get_virtual_table(&self) -> &VirtualTable {
+    pub fn get_virtual_table(&self) -> &VirtualTable<State> {
         &self.virtual_table
     }
 
@@ -156,12 +178,12 @@ impl Context {
 mod tests {
     use crate::*;
 
-    fn load_and_run(src: &str) -> Context {
+    fn load_and_run(src: &str) -> Context<()> {
         let weights = vec![];
         let virtual_table = new_virtual_table_with_all_instructions();
         let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
         let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
-        let context = Context::new(&virtual_table, config, &stacks[..]);
+        let context = Context::<()>::new(&virtual_table, config, &stacks[..], None);
         let code = Code::must_parse(&virtual_table, src);
         context.exec().push(code);
         context.run(1000);

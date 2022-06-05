@@ -9,18 +9,27 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub(crate) fn parse(virtual_table: &VirtualTable, input: &str) -> Result<Code, ParseError> {
+pub(crate) fn parse<State: std::fmt::Debug + Clone>(
+    virtual_table: &VirtualTable<State>,
+    input: &str,
+) -> Result<Code, ParseError> {
     parse_one_code(virtual_table, input).map_err(|e| ParseError::new(e)).map(|v| v.1)
 }
 
-fn parse_one_code<'a>(virtual_table: &'a VirtualTable, input: &'a str) -> IResult<&'a str, Code> {
+fn parse_one_code<'a, State: std::fmt::Debug + Clone>(
+    virtual_table: &'a VirtualTable<State>,
+    input: &'a str,
+) -> IResult<&'a str, Code> {
     match virtual_table.call_parse(input) {
         Ok((rest, code)) => return Ok((rest, code)),
         Err(_) => parse_code_list(virtual_table, input),
     }
 }
 
-fn parse_code_list<'a>(virtual_table: &'a VirtualTable, input: &'a str) -> IResult<&'a str, Code> {
+fn parse_code_list<'a, State: std::fmt::Debug + Clone>(
+    virtual_table: &'a VirtualTable<State>,
+    input: &'a str,
+) -> IResult<&'a str, Code> {
     let parse_one = |fn_input| parse_one_code(virtual_table, fn_input);
 
     // A list is a start tag, zero or more codes and an end tag
@@ -130,27 +139,33 @@ mod tests {
     use crate::*;
     use rust_decimal::{prelude::ToPrimitive, Decimal};
 
-    fn make_literal_bool(virtual_table: &VirtualTable, value: bool) -> Code {
+    fn make_literal_bool<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: bool) -> Code {
         let id = virtual_table.id_for_name(BoolLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
     }
 
-    fn make_literal_float(virtual_table: &VirtualTable, value: Float) -> Code {
+    fn make_literal_float<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: Float) -> Code {
         let id = virtual_table.id_for_name(FloatLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
     }
 
-    fn make_literal_integer(virtual_table: &VirtualTable, value: i64) -> Code {
+    fn make_literal_integer<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: i64) -> Code {
         let id = virtual_table.id_for_name(IntegerLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
     }
 
-    fn make_literal_name<S: Into<String>>(virtual_table: &VirtualTable, value: S) -> Code {
+    fn make_literal_name<State: std::fmt::Debug + Clone, S: Into<String>>(
+        virtual_table: &VirtualTable<State>,
+        value: S,
+    ) -> Code {
         let id = virtual_table.id_for_name(NameLiteralValue::name()).unwrap();
         Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
     }
 
-    fn make_instruction(virtual_table: &VirtualTable, instruction: &'static str) -> Code {
+    fn make_instruction<State: std::fmt::Debug + Clone>(
+        virtual_table: &VirtualTable<State>,
+        instruction: &'static str,
+    ) -> Code {
         let id = virtual_table.id_for_name(instruction).unwrap();
         Code::InstructionWithData(id, None)
     }
@@ -194,14 +209,14 @@ mod tests {
 
     #[test]
     fn parse_instruction() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let expected = make_instruction(&virtual_table, "BOOL.AND");
         assert_eq!(Code::must_parse(&virtual_table, "BOOL.AND"), expected);
     }
 
     #[test]
     fn parse_list() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let expected = Code::List(vec![]);
         assert_eq!(parse_code_list(&virtual_table, "( )").unwrap().1, expected);
         let expected =
@@ -217,7 +232,7 @@ mod tests {
 
     #[test]
     fn code_parsing() {
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = new_virtual_table_with_all_instructions::<()>();
         let expected = Code::List(vec![
             Code::List(vec![
                 make_literal_bool(&virtual_table, true),

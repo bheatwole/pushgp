@@ -1,13 +1,13 @@
-use crate::{Code, InstructionData, Context};
+use crate::{Code, Context, InstructionData};
 use fnv::FnvHashMap;
 
 pub type VirtualTableParse = fn(input: &str) -> nom::IResult<&str, Option<InstructionData>>;
 pub type VirtualTableNomFmt = fn(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result;
 pub type VirtualTableRandomValue = fn(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData>;
-pub type VirtualTableExecute = fn(context: &crate::context::Context, data: Option<InstructionData>);
+// pub type VirtualTableExecute = fn(context: &crate::context::Context<State>, data: Option<InstructionData>);
 
 #[derive(Clone)]
-pub struct VirtualTable {
+pub struct VirtualTable<State: std::fmt::Debug + Clone> {
     /// Maps the names found in the printed code to the indices used in all the other fields
     names: FnvHashMap<&'static str, usize>,
 
@@ -21,11 +21,11 @@ pub struct VirtualTable {
     random_value: Vec<VirtualTableRandomValue>,
 
     /// Virtual table for Instruction::execute
-    execute: Vec<VirtualTableExecute>,
+    execute: Vec<fn(context: &crate::context::Context<State>, data: Option<InstructionData>)>,
 }
 
-impl VirtualTable {
-    pub fn new() -> VirtualTable {
+impl<State: std::fmt::Debug + Clone> VirtualTable<State> {
+    pub fn new() -> VirtualTable<State> {
         VirtualTable {
             names: FnvHashMap::default(),
             parse: vec![],
@@ -41,7 +41,7 @@ impl VirtualTable {
         parse: VirtualTableParse,
         nom_fmt: VirtualTableNomFmt,
         random_value: VirtualTableRandomValue,
-        execute: VirtualTableExecute,
+        execute: fn(context: &crate::context::Context<State>, data: Option<InstructionData>),
     ) {
         let id = self.parse.len();
         self.names.insert(name, id);
@@ -92,13 +92,13 @@ impl VirtualTable {
         self.random_value[instruction](rng)
     }
 
-    pub fn call_execute(&self, instruction: usize, context: &Context, data: Option<InstructionData>) {
+    pub fn call_execute(&self, instruction: usize, context: &Context<State>, data: Option<InstructionData>) {
         assert!(instruction < self.execute.len());
         self.execute[instruction](context, data)
     }
 }
 
-impl std::fmt::Debug for VirtualTable {
+impl<State: std::fmt::Debug + Clone> std::fmt::Debug for VirtualTable<State> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut self_keys: Vec<&'static str> = self.names.keys().map(|k| *k).collect();
         self_keys.sort();
@@ -107,7 +107,7 @@ impl std::fmt::Debug for VirtualTable {
     }
 }
 
-impl PartialEq for VirtualTable {
+impl<State: std::fmt::Debug + Clone> PartialEq for VirtualTable<State> {
     fn eq(&self, other: &Self) -> bool {
         let mut self_keys: Vec<&'static str> = self.names.keys().map(|k| *k).collect();
         let mut other_keys: Vec<&'static str> = other.names.keys().map(|k| *k).collect();

@@ -6,7 +6,7 @@ pub trait MustHaveCodeStackInContext {
     fn code(&self) -> Stack<Code>;
 }
 
-impl MustHaveCodeStackInContext for Context {
+impl<State: std::fmt::Debug + Clone> MustHaveCodeStackInContext for Context<State> {
     fn code(&self) -> Stack<Code> {
         Stack::<Code>::new(self.get_stack("Code").unwrap())
     }

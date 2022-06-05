@@ -10,7 +10,7 @@ pub trait MustHaveIntegerStackInContext {
     fn make_literal_integer(&self, value: Integer) -> Code;
 }
 
-impl MustHaveIntegerStackInContext for Context {
+impl<State: std::fmt::Debug + Clone> MustHaveIntegerStackInContext for Context<State> {
     fn integer(&self) -> Stack<Integer> {
         Stack::<Integer>::new(self.get_stack("Integer").unwrap())
     }
@@ -62,11 +62,14 @@ impl Instruction for IntegerLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
+    fn execute<State: std::fmt::Debug + Clone>(
+        context: &crate::context::Context<State>,
+        data: Option<InstructionData>,
+    ) {
         context.get_stack("Integer").unwrap().push(data.unwrap())
     }
 
-    fn add_to_virtual_table(table: &mut VirtualTable) {
+    fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
         table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
     }
 }

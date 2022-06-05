@@ -11,7 +11,7 @@ pub trait MustHaveNameStackInContext {
     fn make_literal_name(&self, value: Name) -> Code;
 }
 
-impl MustHaveNameStackInContext for Context {
+impl<State: std::fmt::Debug + Clone> MustHaveNameStackInContext for Context<State> {
     fn name(&self) -> Stack<Name> {
         Stack::<Name>::new(self.get_stack("Name").unwrap())
     }
@@ -67,7 +67,10 @@ impl Instruction for NameLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute(context: &crate::context::Context, data: Option<InstructionData>) {
+    fn execute<State: std::fmt::Debug + Clone>(
+        context: &crate::context::Context<State>,
+        data: Option<InstructionData>,
+    ) {
         let name = data.unwrap().get_string().unwrap();
         if context.should_quote_next_name() {
             context.get_stack("Name").unwrap().push(InstructionData::from_string(name));
@@ -80,7 +83,7 @@ impl Instruction for NameLiteralValue {
         }
     }
 
-    fn add_to_virtual_table(table: &mut VirtualTable) {
+    fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
         table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
     }
 }

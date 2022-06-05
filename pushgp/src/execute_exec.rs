@@ -7,7 +7,7 @@ pub trait MustHaveExecStackInContext {
     fn exec(&self) -> Stack<Exec>;
 }
 
-impl MustHaveExecStackInContext for Context {
+impl<State: std::fmt::Debug + Clone> MustHaveExecStackInContext for Context<State> {
     fn exec(&self) -> Stack<Exec> {
         Stack::<Exec>::new(self.get_stack("Exec").unwrap())
     }

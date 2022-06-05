@@ -209,14 +209,14 @@ mod tests {
 
     #[test]
     fn parse_instruction() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let expected = make_instruction(&virtual_table, "BOOL.AND");
         assert_eq!(Code::must_parse(&virtual_table, "BOOL.AND"), expected);
     }
 
     #[test]
     fn parse_list() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let expected = Code::List(vec![]);
         assert_eq!(parse_code_list(&virtual_table, "( )").unwrap().1, expected);
         let expected =
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn code_parsing() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let expected = Code::List(vec![
             Code::List(vec![
                 make_literal_bool(&virtual_table, true),

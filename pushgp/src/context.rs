@@ -180,7 +180,7 @@ mod tests {
 
     fn load_and_run(src: &str) -> Context<()> {
         let weights = vec![];
-        let virtual_table = new_virtual_table_with_all_instructions();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
         let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
         let context = Context::<()>::new(&virtual_table, config, &stacks[..], None);

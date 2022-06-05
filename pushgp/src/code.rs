@@ -321,14 +321,14 @@ mod tests {
 
     #[test]
     fn not_parsable() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let result = Code::parse(&virtual_table, "( DOESNT WORK");
         assert!(result.is_err());
     }
 
     #[test]
     fn code_display() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let code = Code::List(vec![]);
         assert_eq!("( )", format!("{}", code.displayable(&virtual_table)));
 
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn code_points() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let code = Code::List(vec![
             Code::List(vec![
                 make_literal_bool(&virtual_table, true),
@@ -361,7 +361,7 @@ mod tests {
 
     #[test]
     fn extract_point() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(4, code.points());
         assert_eq!(code.extract_point(0), Extraction::Extracted(code.clone()));
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn replace_point() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         let code = Code::must_parse(&virtual_table, "( A ( B ) )");
         assert_eq!(
             code.replace_point(0, &Code::must_parse(&virtual_table, "C")).0,
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn code_discrepancy_items() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
         let code = Code::must_parse(&virtual_table, "( ANAME ( 3 ( 1 ) ) 1 ( 1 ) )");
         let items = code.discrepancy_items();
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn code_len() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         // `len` returns the number of elements in the direct list (not sub-lists)
         assert_eq!(0, Code::must_parse(&virtual_table, "( )").len());
         assert_eq!(1, Code::must_parse(&virtual_table, "( A )").len());
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn replace() {
-        let virtual_table = new_virtual_table_with_all_instructions::<()>();
+        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
         assert_eq!(
             Code::must_parse(&virtual_table, "B"),
             Code::must_parse(&virtual_table, "A")

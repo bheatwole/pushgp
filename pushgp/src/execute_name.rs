@@ -13,7 +13,7 @@ pub trait MustHaveNameStackInContext {
 
 impl<State: std::fmt::Debug + Clone> MustHaveNameStackInContext for Context<State> {
     fn name(&self) -> Stack<Name> {
-        Stack::<Name>::new(self.get_stack("Name").unwrap())
+        Stack::<Name>::new(self.get_stack("Name"))
     }
 
     fn make_literal_name(&self, value: Name) -> Code {

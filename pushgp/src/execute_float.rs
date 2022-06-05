@@ -15,7 +15,7 @@ pub trait MustHaveFloatStackInContext {
 
 impl<State: std::fmt::Debug + Clone> MustHaveFloatStackInContext for Context<State> {
     fn float(&self) -> Stack<Float> {
-        Stack::<Float>::new(self.get_stack("Float").unwrap())
+        Stack::<Float>::new(self.get_stack("Float"))
     }
 
     fn make_literal_float(&self, value: Float) -> Code {

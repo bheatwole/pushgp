@@ -11,7 +11,7 @@ pub trait MustHaveBoolStackInContext {
 
 impl<State: std::fmt::Debug + Clone> MustHaveBoolStackInContext for Context<State> {
     fn bool(&self) -> Stack<Bool> {
-        Stack::<Bool>::new(self.get_stack("Bool").unwrap())
+        Stack::<Bool>::new(self.get_stack("Bool"))
     }
 
     fn make_literal_bool(&self, value: Bool) -> Code {

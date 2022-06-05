@@ -12,7 +12,7 @@ pub trait MustHaveIntegerStackInContext {
 
 impl<State: std::fmt::Debug + Clone> MustHaveIntegerStackInContext for Context<State> {
     fn integer(&self) -> Stack<Integer> {
-        Stack::<Integer>::new(self.get_stack("Integer").unwrap())
+        Stack::<Integer>::new(self.get_stack("Integer"))
     }
 
     fn make_literal_integer(&self, value: Integer) -> Code {

@@ -64,7 +64,9 @@ impl Instruction for BoolLiteralValue {
         context: &crate::context::Context<State>,
         data: Option<InstructionData>,
     ) {
-        context.get_stack("Bool").unwrap().push(data.unwrap())
+        if let Some(stack) = context.get_stack("Bool") {
+            stack.push(data.unwrap());
+        }
     }
 
     fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
@@ -157,7 +159,9 @@ instruction! {
     #[stack(Bool)]
     fn rand(context: &mut Context) {
         let random_bool = context.run_random_function(BoolLiteralValue::random_value).unwrap();
-        context.get_stack("Bool").unwrap().push(random_bool);
+        if let Some(stack) = context.get_stack("Bool") {
+            stack.push(random_bool);
+        }
     }
 }
 

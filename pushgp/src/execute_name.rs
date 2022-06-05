@@ -71,14 +71,16 @@ impl Instruction for NameLiteralValue {
         context: &crate::context::Context<State>,
         data: Option<InstructionData>,
     ) {
-        let name = data.unwrap().get_string().unwrap();
-        if context.should_quote_next_name() {
-            context.get_stack("Name").unwrap().push(InstructionData::from_string(name));
-            context.set_should_quote_next_name(false);
-        } else {
-            match context.definition_for_name(&name) {
-                None => context.get_stack("Name").unwrap().push(InstructionData::from_string(name)),
-                Some(code) => context.exec().push(code.into()),
+        if let Some(stack) = context.get_stack("Name") {
+            let name = data.unwrap().get_string().unwrap();
+            if context.should_quote_next_name() {
+                stack.push(InstructionData::from_string(name));
+                context.set_should_quote_next_name(false);
+            } else {
+                match context.definition_for_name(&name) {
+                    None => stack.push(InstructionData::from_string(name)),
+                    Some(code) => context.exec().push(code.into()),
+                }
             }
         }
     }
@@ -150,7 +152,9 @@ instruction! {
     #[stack(Name)]
     fn rand(context: &mut Context) {
         let random_value = context.run_random_function(NameLiteralValue::random_value).unwrap();
-        context.get_stack("Name").unwrap().push(random_value);
+        if let Some(stack) = context.get_stack("Name") {
+            stack.push(random_value);
+        }
     }
 }
 

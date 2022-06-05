@@ -65,8 +65,13 @@ impl Instruction for FloatLiteralValue {
 
     /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
     /// Context and/or data and all outputs are updates to the Context.
-    fn execute<State: std::fmt::Debug + Clone>(context: &crate::context::Context<State>, data: Option<InstructionData>) {
-        context.get_stack("Float").unwrap().push(data.unwrap())
+    fn execute<State: std::fmt::Debug + Clone>(
+        context: &crate::context::Context<State>,
+        data: Option<InstructionData>,
+    ) {
+        if let Some(stack) = context.get_stack("Float") {
+            stack.push(data.unwrap())
+        }
     }
 
     fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
@@ -221,7 +226,9 @@ instruction! {
     #[stack(Float)]
     fn rand(context: &mut Context) {
         let random_value = context.run_random_function(FloatLiteralValue::random_value).unwrap();
-        context.get_stack("Float").unwrap().push(random_value);
+        if let Some(stack) = context.get_stack("Float") {
+            stack.push(random_value);
+        }
     }
 }
 

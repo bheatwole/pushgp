@@ -66,7 +66,9 @@ impl Instruction for IntegerLiteralValue {
         context: &crate::context::Context<State>,
         data: Option<InstructionData>,
     ) {
-        context.get_stack("Integer").unwrap().push(data.unwrap())
+        if let Some(stack) = context.get_stack("Integer") {
+            stack.push(data.unwrap());
+        }
     }
 
     fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
@@ -209,7 +211,9 @@ instruction! {
     #[stack(Integer)]
     fn rand(context: &mut Context) {
         let random_value = context.run_random_function(IntegerLiteralValue::random_value).unwrap();
-        context.get_stack("Integer").unwrap().push(random_value);
+        if let Some(stack) = context.get_stack("Integer") {
+            stack.push(random_value);
+        }
     }
 }
 

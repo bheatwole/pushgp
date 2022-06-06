@@ -11,7 +11,7 @@ use std::ops::DerefMut;
 /// A Vec<u8> is used to allow for running an island where the random code generator itself is optimized by genetic
 /// programming. Crossover, mutation, etc are applied to the Configurations, new populations are generated and run for
 /// a few generations on the main island. The Configuration that produces the most fit population is the winner.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Configuration<State: std::fmt::Debug + Clone> {
     rng: RefCell<SmallRng>,
     virtual_table: VirtualTable<State>,
@@ -27,7 +27,7 @@ pub struct Configuration<State: std::fmt::Debug + Clone> {
     instruction_weights: Vec<InstructionEntry>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct InstructionEntry {
     pub weight: usize,
     pub instruction: usize,

@@ -4,7 +4,7 @@ use log::*;
 use rand::rngs::SmallRng;
 use std::cell::RefCell;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Context<State: std::fmt::Debug + Clone> {
     virtual_table: VirtualTable<State>,
     config: Configuration<State>,

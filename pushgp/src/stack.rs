@@ -51,7 +51,7 @@ pub trait StackTrait<T: Clone> {
     fn yank_duplicate(&self, position: i64) -> bool;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct InstructionDataStack {
     stack: RefCell<Vec<InstructionData>>,
 }

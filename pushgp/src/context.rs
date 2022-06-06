@@ -48,6 +48,15 @@ impl<State: std::fmt::Debug + Clone> Context<State> {
         context
     }
 
+    pub fn clear(&mut self) {
+        for stack in self.stacks.values() {
+            stack.clear();
+        }
+        self.set_should_quote_next_name(false);
+        self.defined_names.borrow_mut().clear();
+        self.state.take();
+    }
+
     /// Returns the State for the Context. Pass a State that allows for interior mutability if you wish to modify state
     /// while the Context is running
     pub fn get_state(&self) -> Option<&State> {

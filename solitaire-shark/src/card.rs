@@ -1,9 +1,16 @@
+use nom::{branch::alt, bytes::complete::tag, IResult};
+use pushgp::{Code, Context, Instruction, InstructionData, Stack, StackTrait, VirtualTable};
 use rand::{prelude::SliceRandom, Rng};
 use std::convert::From;
+use std::str::FromStr;
+use strum::IntoEnumIterator;
+use strum_macros::{AsRefStr, EnumIter, EnumString, FromRepr};
 
 use crate::Suit;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(
+    AsRefStr, Copy, Clone, Eq, PartialEq, EnumString, EnumIter, FromRepr, strum_macros::Display,
+)]
 #[repr(u8)]
 pub enum Card {
     AceOfSpades = 0,
@@ -66,9 +73,9 @@ impl Card {
 
         if self_int_value <= Card::KingOfSpades as u8 {
             Suit::Spades
-        } else if self_int_value < Card::KingOfDiamonds as u8 {
+        } else if self_int_value <= Card::KingOfDiamonds as u8 {
             Suit::Diamonds
-        } else if self_int_value < Card::KingOfClubs as u8 {
+        } else if self_int_value <= Card::KingOfClubs as u8 {
             Suit::Clubs
         } else {
             Suit::Hearts
@@ -103,8 +110,8 @@ impl Card {
 
     pub fn make_deck() -> Vec<Card> {
         let mut deck = vec![];
-        for i in 0u8..52 {
-            deck.push(i.try_into().unwrap());
+        for i in Card::iter() {
+            deck.push(i);
         }
         deck
     }
@@ -121,62 +128,188 @@ impl Card {
     }
 }
 
-impl From<u8> for Card {
-    fn from(value: u8) -> Self {
-        match value {
-            x if x == Card::AceOfSpades as u8 => Card::AceOfSpades,
-            x if x == Card::TwoOfSpades as u8 => Card::TwoOfSpades,
-            x if x == Card::ThreeOfSpades as u8 => Card::ThreeOfSpades,
-            x if x == Card::FourOfSpades as u8 => Card::FourOfSpades,
-            x if x == Card::FiveOfSpades as u8 => Card::FiveOfSpades,
-            x if x == Card::SixOfSpades as u8 => Card::SixOfSpades,
-            x if x == Card::SevenOfSpades as u8 => Card::SevenOfSpades,
-            x if x == Card::EightOfSpades as u8 => Card::EightOfSpades,
-            x if x == Card::NineOfSpades as u8 => Card::NineOfSpades,
-            x if x == Card::TenOfSpades as u8 => Card::TenOfSpades,
-            x if x == Card::JackOfSpades as u8 => Card::JackOfSpades,
-            x if x == Card::QueenOfSpades as u8 => Card::QueenOfSpades,
-            x if x == Card::KingOfSpades as u8 => Card::KingOfSpades,
-            x if x == Card::AceOfDiamonds as u8 => Card::AceOfDiamonds,
-            x if x == Card::TwoOfDiamonds as u8 => Card::TwoOfDiamonds,
-            x if x == Card::ThreeOfDiamonds as u8 => Card::ThreeOfDiamonds,
-            x if x == Card::FourOfDiamonds as u8 => Card::FourOfDiamonds,
-            x if x == Card::FiveOfDiamonds as u8 => Card::FiveOfDiamonds,
-            x if x == Card::SixOfDiamonds as u8 => Card::SixOfDiamonds,
-            x if x == Card::SevenOfDiamonds as u8 => Card::SevenOfDiamonds,
-            x if x == Card::EightOfDiamonds as u8 => Card::EightOfDiamonds,
-            x if x == Card::NineOfDiamonds as u8 => Card::NineOfDiamonds,
-            x if x == Card::TenOfDiamonds as u8 => Card::TenOfDiamonds,
-            x if x == Card::JackOfDiamonds as u8 => Card::JackOfDiamonds,
-            x if x == Card::QueenOfDiamonds as u8 => Card::QueenOfDiamonds,
-            x if x == Card::KingOfDiamonds as u8 => Card::KingOfDiamonds,
-            x if x == Card::AceOfClubs as u8 => Card::AceOfClubs,
-            x if x == Card::TwoOfClubs as u8 => Card::TwoOfClubs,
-            x if x == Card::ThreeOfClubs as u8 => Card::ThreeOfClubs,
-            x if x == Card::FourOfClubs as u8 => Card::FourOfClubs,
-            x if x == Card::FiveOfClubs as u8 => Card::FiveOfClubs,
-            x if x == Card::SixOfClubs as u8 => Card::SixOfClubs,
-            x if x == Card::SevenOfClubs as u8 => Card::SevenOfClubs,
-            x if x == Card::EightOfClubs as u8 => Card::EightOfClubs,
-            x if x == Card::NineOfClubs as u8 => Card::NineOfClubs,
-            x if x == Card::TenOfClubs as u8 => Card::TenOfClubs,
-            x if x == Card::JackOfClubs as u8 => Card::JackOfClubs,
-            x if x == Card::QueenOfClubs as u8 => Card::QueenOfClubs,
-            x if x == Card::KingOfClubs as u8 => Card::KingOfClubs,
-            x if x == Card::AceOfHearts as u8 => Card::AceOfHearts,
-            x if x == Card::TwoOfHearts as u8 => Card::TwoOfHearts,
-            x if x == Card::ThreeOfHearts as u8 => Card::ThreeOfHearts,
-            x if x == Card::FourOfHearts as u8 => Card::FourOfHearts,
-            x if x == Card::FiveOfHearts as u8 => Card::FiveOfHearts,
-            x if x == Card::SixOfHearts as u8 => Card::SixOfHearts,
-            x if x == Card::SevenOfHearts as u8 => Card::SevenOfHearts,
-            x if x == Card::EightOfHearts as u8 => Card::EightOfHearts,
-            x if x == Card::NineOfHearts as u8 => Card::NineOfHearts,
-            x if x == Card::TenOfHearts as u8 => Card::TenOfHearts,
-            x if x == Card::JackOfHearts as u8 => Card::JackOfHearts,
-            x if x == Card::QueenOfHearts as u8 => Card::QueenOfHearts,
-            x if x == Card::KingOfHearts as u8 => Card::KingOfHearts,
-            _ => panic!("illegal value for card"),
-        }
+pub trait MustHaveCardStackInContext {
+    fn card(&self) -> Stack<Card>;
+    fn make_literal_card(&self, value: Card) -> Code;
+}
+
+impl<State: std::fmt::Debug + Clone> MustHaveCardStackInContext for Context<State> {
+    fn card(&self) -> Stack<Card> {
+        Stack::<Card>::new(self.get_stack("Card"))
+    }
+
+    fn make_literal_card(&self, value: Card) -> Code {
+        let id = self
+            .get_virtual_table()
+            .id_for_name(CardLiteralValue::name())
+            .unwrap();
+        Code::InstructionWithData(id, Some(InstructionData::from_u8(value as u8)))
     }
 }
+
+impl From<InstructionData> for Card {
+    fn from(data: InstructionData) -> Self {
+        Card::from_repr(data.get_u8().unwrap()).unwrap()
+    }
+}
+
+impl From<&InstructionData> for Card {
+    fn from(data: &InstructionData) -> Self {
+        Card::from_repr(data.get_u8().unwrap()).unwrap()
+    }
+}
+
+impl Into<InstructionData> for Card {
+    fn into(self) -> InstructionData {
+        InstructionData::from_u8(self as u8)
+    }
+}
+
+pub struct CardLiteralValue {}
+impl Instruction for CardLiteralValue {
+    /// Every instruction must have a name
+    fn name() -> &'static str {
+        "CARD.LITERALVALUE"
+    }
+
+    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
+    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
+    /// should cease.
+    fn parse(input: &str) -> IResult<&str, Option<InstructionData>> {
+        let (rest, card_name) = alt((
+            alt((
+                tag("AceOfSpades"),
+                tag("TwoOfSpades"),
+                tag("ThreeOfSpades"),
+                tag("FourOfSpades"),
+                tag("FiveOfSpades"),
+                tag("SixOfSpades"),
+                tag("SevenOfSpades"),
+                tag("EightOfSpades"),
+                tag("NineOfSpades"),
+                tag("TenOfSpades"),
+                tag("JackOfSpades"),
+                tag("QueenOfSpades"),
+                tag("KingOfSpades"),
+            )),
+            alt((
+                tag("AceOfDiamonds"),
+                tag("TwoOfDiamonds"),
+                tag("ThreeOfDiamonds"),
+                tag("FourOfDiamonds"),
+                tag("FiveOfDiamonds"),
+                tag("SixOfDiamonds"),
+                tag("SevenOfDiamonds"),
+                tag("EightOfDiamonds"),
+                tag("NineOfDiamonds"),
+                tag("TenOfDiamonds"),
+                tag("JackOfDiamonds"),
+                tag("QueenOfDiamonds"),
+                tag("KingOfDiamonds"),
+            )),
+            alt((
+                tag("AceOfClubs"),
+                tag("TwoOfClubs"),
+                tag("ThreeOfClubs"),
+                tag("FourOfClubs"),
+                tag("FiveOfClubs"),
+                tag("SixOfClubs"),
+                tag("SevenOfClubs"),
+                tag("EightOfClubs"),
+                tag("NineOfClubs"),
+                tag("TenOfClubs"),
+                tag("JackOfClubs"),
+                tag("QueenOfClubs"),
+                tag("KingOfClubs"),
+            )),
+            alt((
+                tag("AceOfHearts"),
+                tag("TwoOfHearts"),
+                tag("ThreeOfHearts"),
+                tag("FourOfHearts"),
+                tag("FiveOfHearts"),
+                tag("SixOfHearts"),
+                tag("SevenOfHearts"),
+                tag("EightOfHearts"),
+                tag("NineOfHearts"),
+                tag("TenOfHearts"),
+                tag("JackOfHearts"),
+                tag("QueenOfHearts"),
+                tag("KingOfHearts"),
+            )),
+        ))(input)?;
+        Ok((rest, Some(Card::from_str(card_name).unwrap().into())))
+    }
+
+    /// All instructions must also be able to write to a string that can later be parsed by nom.
+    fn nom_fmt(
+        data: &Option<InstructionData>,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", Card::from(data.as_ref().unwrap()))
+    }
+
+    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
+    /// If it does not use InstructionData, it just returns None
+    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
+        let value = rng.gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
+        Some(InstructionData::from_u8(value))
+    }
+
+    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
+    /// Context and/or data and all outputs are updates to the Context.
+    fn execute<State: std::fmt::Debug + Clone>(
+        context: &Context<State>,
+        data: Option<InstructionData>,
+    ) {
+        if let Some(stack) = context.get_stack("Card") {
+            stack.push(data.unwrap());
+        }
+    }
+
+    fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
+        table.add_entry(
+            Self::name(),
+            Self::parse,
+            Self::nom_fmt,
+            Self::random_value,
+            Self::execute,
+        );
+    }
+}
+
+// /// Pops the Card stack and pushes TRUE onto the Bool stack if that Card is the next one to go on the Finished Pile
+// "CARD.READYTOFINISH"
+
+// /// Pops the Card stack twice to determine if the first Card popped can be played on the second card via a Solitaire
+// /// move (opposite color and one higher in rank)
+// "CARD.ISLEGALMOVE"
+
+// /// Pops the Card stack and pushes the associate FinishedPile for the Card onto the Pile stack.
+// "CARD.FINISHPILE"
+
+// "CARD.RAND"
+
+// "CARD.DEFINE"
+
+// "CARD.DUP"
+
+// "CARD.EQUAL"
+
+// "CARD.FLUSH"
+
+// "CARD.FROMINT"
+
+// "CARD.POP"
+
+// "CARD.ROT"
+
+// "CARD.SHOVE"
+
+// "CARD.STACKDEPTH"
+
+// "CARD.SWAP"
+
+// "CARD.YANKDUP"
+
+// "CARD.YANK"

@@ -6,7 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
+nom = "7.1"
+pushgp = { path = "../pushgp" }
+pushgp-macros = { path = "../pushgp-macros" }
+strum = "0.24"
+strum_macros = "0.24"
 
 [dependencies.rand]
 version = "0.8"

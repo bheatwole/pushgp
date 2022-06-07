@@ -1,5 +1,6 @@
 mod card;
 mod game_state;
+mod pile;
 mod suit;
 
 pub use card::Card;
@@ -14,6 +15,7 @@ fn main() {
     // island_migration_count: 10
     // island_migration_selection_curve: PreferenceForFit
     // island_migration_replacement_selection_curve: StrongPreferenceForUnfit
+    // island_genetic_operation_selection_curve: PreferenceForFit
     // generation_state: struct with vec of 100 seeds
     // pre_generation_setup: fn that randomly selects 100 seeds
     // island_one_fitness_score_fn: run 100 games and score on most games won, then smallest code size
@@ -24,22 +26,18 @@ fn main() {
     // island_six_fitness_score_fn: run 100 games and score on smallest code size, then win rate
     // island_seven_fitness_score_fn: run 100 games and score on fewest instructions executed, then win rate
 
+
+    // Create the virtual table that includes all of our instructions
+
+    // Create the configuration including weights of all instructions
+
+    // Create the base context for all runs
+
+    // Create the world with its parameters
+
+    // Add each island to the world
+
+    // Run the world for 10_000 generations
+
     println!("Hello, world!");
-
-    push_context!(
-        name: SolitaireContext,
-        state: GameState,
-        global_state: None,
-        stacks: [ bool, i64, Decimal, f64, Code, Exec, Name, Card, Suit ],
-        islands: [
-            {
-                name: Main,
-                state: IslandState,
-                fitness: main_island_fitness,
-            }
-        ]
-        instructions: ["BOOL.AND", "GAME.DRAWTHREE"],
-    );
 }
-
-fn main_island_fitness()

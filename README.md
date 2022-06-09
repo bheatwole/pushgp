@@ -52,3 +52,24 @@ to find a viable individual because the elements will be mixed with other Intege
 
 This is accomplished with a macro that takes a series of types as parameters and produces both a generated Context and
 a generated Configuration.
+
+
+
+Code is the component that knows how to parse strings and turn them into Instructions. It also knows how to create a new
+random instruction for the Code type.
+
+An Instruction knows how to execute itself within a virtual machine and may hold data as well. The Instruction trait
+meets all the requirements so that Instructions can be used at trait objects.
+
+Some Instructions, when executed, produce a new random Instruction by calling out to its associated Code. An Instruction
+depends upon certain traits of the Virtual Machine such that it won't compile without it. (i.e. an instruction requires
+the Bool stack to exist, or for certain State trait implementations)
+
+Instructions also know how to turn themselves back to strings.
+
+Both the Code and Exec stacks hold `Box<dyn Instruction>`
+
+The Virtual Machine holds the RNG and the memory (both Stack and State). It is a unique struct created by the user of
+this library and, with some helper macros, implements all the traits necessary to execute Instructions.
+
+The weights for random code are stored in the Virtual Machine as well

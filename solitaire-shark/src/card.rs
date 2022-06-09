@@ -1,5 +1,6 @@
 use nom::{branch::alt, bytes::complete::tag, IResult};
-use pushgp::{Code, Context, Instruction, InstructionData, Stack, StackTrait, VirtualTable};
+use pushgp::*;
+use pushgp_macros::instruction;
 use rand::{prelude::SliceRandom, Rng};
 use std::convert::From;
 use std::str::FromStr;
@@ -9,7 +10,7 @@ use strum_macros::{AsRefStr, EnumIter, EnumString, FromRepr};
 use crate::Suit;
 
 #[derive(
-    AsRefStr, Copy, Clone, Eq, PartialEq, EnumString, EnumIter, FromRepr, strum_macros::Display,
+    AsRefStr, Copy, Clone, Debug, Eq, PartialEq, EnumString, EnumIter, FromRepr, strum_macros::Display,
 )]
 #[repr(u8)]
 pub enum Card {
@@ -288,19 +289,66 @@ impl Instruction for CardLiteralValue {
 // /// Pops the Card stack and pushes the associate FinishedPile for the Card onto the Pile stack.
 // "CARD.FINISHPILE"
 
-// "CARD.RAND"
+instruction! {
+    /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CARD stack
+    /// onto the EXEC stack.
+    #[stack(Card)]
+    fn define(context: &mut Context, value: Card, name: Name) {
+        context.define_name(name, context.make_literal_card(value));
+    }
+}
 
-// "CARD.DEFINE"
+instruction! {
+    /// Duplicates the top item on the CARD stack. Does not pop its argument (which, if it did, would negate the
+    /// effect of the duplication!).
+    #[stack(Card)]
+    fn dup(context: &mut Context) {
+        context.card().duplicate_top_item();
+    }
+}
 
-// "CARD.DUP"
+instruction! {
+    /// Pushes TRUE if the top two items on the CARD stack are equal, or FALSE otherwise.
+    #[stack(Card)]
+    fn equal(context: &mut Context, a: Card, b: Card) {
+        context.bool().push(a == b);
+    }
+}
 
-// "CARD.EQUAL"
+instruction! {
+    /// Empties the Card stack.
+    #[stack(Card)]
+    fn flush(context: &mut Context) {
+        context.card().clear();
+    }
+}
 
-// "CARD.FLUSH"
+instruction! {
+    /// Pops the top INTEGER and determines which Card it is (0..52) pushing the result onto the CARD stack. The integer
+    /// is taken modulus 52 so that it is always a valid Card
+    #[stack(Card)]
+    fn from_int(context: &mut Context, value: Integer) {
+        let value = (value % 52) as u8;
+        context.card().push(Card::from_repr(value).unwrap());
+    }
+}
 
-// "CARD.FROMINT"
+instruction! {
+    /// Pops the CARD stack
+    #[stack(Card)]
+    fn pop(context: &mut Context, _a: Card) {}
+}
 
-// "CARD.POP"
+instruction! {
+    /// Pushes a random Card onto the CARD stack
+    #[stack(Card)]
+    fn rand(context: &mut Context) {
+        let random_card = context.run_random_function(CardLiteralValue::random_value).unwrap();
+        if let Some(stack) = context.get_stack("Card") {
+            stack.push(random_card);
+        }
+    }
+}
 
 // "CARD.ROT"
 

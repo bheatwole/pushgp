@@ -3,6 +3,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use crate::Card;
 use crate::Suit;
 
+#[derive(Clone, Debug)]
 pub struct GameState {
     draw_pile: Vec<Card>,
     play_pile: Vec<Card>,

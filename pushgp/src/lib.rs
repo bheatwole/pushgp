@@ -19,6 +19,7 @@ mod parse_error;
 mod selection_curve;
 mod stack;
 mod util;
+mod virtual_machine;
 mod virtual_table;
 
 pub use code::Code;

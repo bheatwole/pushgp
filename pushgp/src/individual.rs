@@ -1,16 +1,16 @@
-use crate::Code;
+use crate::Instruction;
 
-pub struct Individual<S> {
-    code: Code,
+pub struct Individual<S, Vm> {
+    code: Box<dyn Instruction<Vm>>,
     state: S,
 }
 
-impl<S> Individual<S> {
-    pub fn new(code: Code, initial_state: S) -> Individual<S> {
+impl<S, Vm> Individual<S, Vm> {
+    pub fn new(code: Box<dyn Instruction<Vm>>, initial_state: S) -> Individual<S, Vm> {
         Individual { code, state: initial_state }
     }
 
-    pub fn get_code(&self) -> Code {
+    pub fn get_code(&self) -> Box<dyn Instruction<Vm>> {
         self.code.clone()
     }
 

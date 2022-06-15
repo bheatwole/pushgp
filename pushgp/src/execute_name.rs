@@ -2,215 +2,200 @@ use crate::*;
 use base64::*;
 use byte_slice_cast::*;
 use pushgp_macros::*;
-use rand::Rng;
 
 pub type Name = String;
 
-pub trait MustHaveNameStackInContext {
-    fn name(&self) -> Stack<Name>;
-    fn make_literal_name(&self, value: Name) -> Code;
+pub trait VirtualMachineMustHaveName<Vm> {
+    fn name(&mut self) -> &mut Stack<Name>;
+    fn should_quote_next_name(&self) -> bool;
+    fn set_should_quote_next_name(&mut self, quote_next_name: bool);
+    fn definition_for_name(&self, name: &String) -> Option<Code<Vm>>;
+    fn define_name(&mut self, name: String, code: Code<Vm>);
+    fn all_defined_names(&self) -> Vec<String>;
+    fn defined_names_len(&self) -> usize;
 }
 
-impl<State: std::fmt::Debug + Clone> MustHaveNameStackInContext for Context<State> {
-    fn name(&self) -> Stack<Name> {
-        Stack::<Name>::new(self.get_stack("Name"))
-    }
-
-    fn make_literal_name(&self, value: Name) -> Code {
-        let id = self.get_virtual_table().id_for_name(NameLiteralValue::name()).unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
-    }
+struct NameLiteralValue {
+    value: Name,
 }
 
-impl From<InstructionData> for Name {
-    fn from(data: InstructionData) -> Self {
-        data.get_string().unwrap()
+impl NameLiteralValue {
+    fn new(value: Name) -> NameLiteralValue {
+        NameLiteralValue { value }
     }
 }
 
-impl Into<InstructionData> for Name {
-    fn into(self) -> InstructionData {
-        InstructionData::from_string(self)
-    }
-}
-
-pub struct NameLiteralValue {}
-impl Instruction for NameLiteralValue {
-    /// Every instruction must have a name
-    fn name() -> &'static str {
+impl StaticName for NameLiteralValue {
+    fn static_name() -> &'static str {
         "NAME.LITERALVALUE"
     }
+}
 
-    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
-    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
-    /// should cease.
-    fn parse(input: &str) -> nom::IResult<&str, Option<InstructionData>> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm> for NameLiteralValue {
+    fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
         let (rest, value) = crate::parse::parse_code_name(input)?;
-        Ok((rest, Some(InstructionData::from_string(value))))
+        Ok((rest, Box::new(NameLiteralValue::new(value))))
     }
 
-    /// All instructions must also be able to write to a string that can later be parsed by nom.
-    fn nom_fmt(data: &Option<InstructionData>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", data.as_ref().unwrap().get_string().unwrap())
-    }
-
-    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
-    /// If it does not use InstructionData, it just returns None
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
-        let random_value = rng.gen_range(0..=u64::MAX);
+    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>> {
+        use rand::Rng;
+        let random_value = vm.get_rng().gen_range(0..=u64::MAX);
 
         let slice: [u64; 1] = [random_value];
         let b64 = encode(slice.as_byte_slice());
         let name = "RND.".to_owned() + &b64;
-        Some(InstructionData::from_string(name))
+        Box::new(NameLiteralValue::new(name))
+    }
+}
+
+impl std::fmt::Display for NameLiteralValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm> for NameLiteralValue {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 
-    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
-    /// Context and/or data and all outputs are updates to the Context.
-    fn execute<State: std::fmt::Debug + Clone>(
-        context: &crate::context::Context<State>,
-        data: Option<InstructionData>,
-    ) {
-        if let Some(stack) = context.get_stack("Name") {
-            let name = data.unwrap().get_string().unwrap();
-            if context.should_quote_next_name() {
-                stack.push(InstructionData::from_string(name));
-                context.set_should_quote_next_name(false);
-            } else {
-                match context.definition_for_name(&name) {
-                    None => stack.push(InstructionData::from_string(name)),
-                    Some(code) => context.exec().push(code.into()),
-                }
+    fn name(&self) -> &'static str {
+        NameLiteralValue::static_name()
+    }
+
+    fn clone(&self) -> Box<dyn Instruction<Vm>> {
+        Box::new(NameLiteralValue::new(self.value.clone()))
+    }
+
+    /// Executing a NameLiteralValue typically pushes the definition of a name onto the Exec stack if the Name is
+    /// defined, or pushes the Name onto the Name stack if the Name is not defined yet. However the NAME.QUOTE
+    /// instruction can alter this behavior by forcing the next Name to be pushed to the Name stack whether or not it
+    /// already has a definition.
+    fn execute(&self, vm: &mut Vm) {
+        if vm.should_quote_next_name() {
+            vm.name().push(self.value.clone());
+            vm.set_should_quote_next_name(false);
+        } else {
+            match vm.definition_for_name(&self.value) {
+                None => vm.name().push(self.value.clone()),
+                Some(code) => vm.exec().push(code.clone()),
             }
         }
     }
 
-    fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
-        table.add_entry(Self::name(), Self::parse, Self::nom_fmt, Self::random_value, Self::execute);
-    }
-}
-
-instruction! {
-    /// Duplicates the top item on the NAME stack. Does not pop its argument (which, if it did, would negate the effect
-    /// of the duplication!).
-    #[stack(Name)]
-    fn dup(context: &mut Context) {
-        context.name().duplicate_top_item();
-    }
-}
-
-instruction! {
-    /// Pushes TRUE if the top two NAMEs are equal, or FALSE otherwise.
-    #[stack(Name)]
-    fn equal(context: &mut Context, a: Name, b: Name) {
-        context.bool().push(a == b);
-    }
-}
-
-instruction! {
-    /// Empties the NAME stack.
-    #[stack(Name)]
-    fn flush(context: &mut Context) {
-        context.name().clear()
-    }
-}
-
-instruction! {
-    /// Pops the NAME stack.
-    #[stack(Name)]
-    fn pop(context: &mut Context, _popped: Name) {}
-}
-
-instruction! {
-    /// Sets a flag indicating that the next name encountered will be pushed onto the NAME stack (and not have its
-    /// associated value pushed onto the EXEC stack), regardless of whether or not it has a definition. Upon
-    /// encountering such a name and pushing it onto the NAME stack the flag will be cleared (whether or not the pushed
-    /// name had a definition).
-    #[stack(Name)]
-    fn quote(context: &mut Context) {
-        context.set_should_quote_next_name(true)
-    }
-}
-
-instruction! {
-    /// Pushes a randomly selected NAME that already has a definition.
-    #[stack(Name)]
-    fn rand_bound_name(context: &mut Context) {
-        let defined_names = context.all_defined_names();
-        if defined_names.len() > 0 {
-            let random_value = context.run_random_function(|rng| {
-                let pick: usize = rng.gen_range(0..defined_names.len());
-                defined_names[pick].clone()
-            });
-            context.name().push(random_value);
+    /// Eq for NameLiteralValue must check that the other instruction is also a NameLiteralValue and, if so, that the
+    /// value is equivalent
+    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<NameLiteralValue>() {
+            self.value == other.value
+        } else {
+            false
         }
     }
-}
 
-instruction! {
-    /// Pushes a newly generated random NAME.
-    #[stack(Name)]
-    fn rand(context: &mut Context) {
-        let random_value = context.run_random_function(NameLiteralValue::random_value).unwrap();
-        if let Some(stack) = context.get_stack("Name") {
-            stack.push(random_value);
-        }
+    /// The hash value for NameLiteralValue include the value in the hash as well as the name
+    fn hash(&self) -> u64 {
+        let mut to_hash: Vec<u8> = NameLiteralValue::static_name().as_bytes().iter().map(|c| *c).collect();
+        to_hash.extend_from_slice(self.value.as_bytes());
+        seahash::hash(&to_hash[..])
     }
 }
 
-instruction! {
-    /// Rotates the top three items on the NAME stack, pulling the third item out and pushing it on top. This is
-    /// equivalent to "2 NAME.YANK".
-    #[stack(Name)]
-    fn rot(context: &mut Context) {
-        context.name().rotate();
+/// Duplicates the top item on the NAME stack. Does not pop its argument (which, if it did, would negate the effect
+/// of the duplication!).
+#[stack_instruction(Name)]
+fn dup(context: &mut Context) {
+    context.name().duplicate_top_item();
+}
+
+/// Pushes TRUE if the top two NAMEs are equal, or FALSE otherwise.
+#[stack_instruction(Name)]
+fn equal(context: &mut Context, a: Name, b: Name) {
+    context.bool().push(a == b);
+}
+
+/// Empties the NAME stack.
+#[stack_instruction(Name)]
+fn flush(context: &mut Context) {
+    context.name().clear()
+}
+
+/// Pops the NAME stack.
+#[stack_instruction(Name)]
+fn pop(context: &mut Context, _popped: Name) {}
+
+/// Sets a flag indicating that the next name encountered will be pushed onto the NAME stack (and not have its
+/// associated value pushed onto the EXEC stack), regardless of whether or not it has a definition. Upon
+/// encountering such a name and pushing it onto the NAME stack the flag will be cleared (whether or not the pushed
+/// name had a definition).
+#[stack_instruction(Name)]
+fn quote(context: &mut Context) {
+    context.set_should_quote_next_name(true)
+}
+
+/// Pushes a randomly selected NAME that already has a definition.
+#[stack_instruction(Name)]
+fn rand_bound_name(context: &mut Context) {
+    let defined_names = context.all_defined_names();
+    if defined_names.len() > 0 {
+        let random_value = context.run_random_function(|rng| {
+            let pick: usize = rng.gen_range(0..defined_names.len());
+            defined_names[pick].clone()
+        });
+        context.name().push(random_value);
     }
 }
 
-instruction! {
-    /// Inserts the top NAME "deep" in the stack, at the position indexed by the top INTEGER.
-    #[stack(Name)]
-    fn shove(context: &mut Context, position: Integer) {
-        if !context.name().shove(position) {
-            context.integer().push(position);
-        }
+/// Pushes a newly generated random NAME.
+#[stack_instruction(Name)]
+fn rand(context: &mut Context) {
+    let random_value = context.run_random_function(NameLiteralValue::random_value).unwrap();
+    if let Some(stack) = context.get_stack("Name") {
+        stack.push(random_value);
     }
 }
 
-instruction! {
-    /// Pushes the stack depth onto the INTEGER stack.
-    #[stack(Name)]
-    fn stack_depth(context: &mut Context) {
-        context.integer().push(context.name().len() as i64);
+/// Rotates the top three items on the NAME stack, pulling the third item out and pushing it on top. This is
+/// equivalent to "2 NAME.YANK".
+#[stack_instruction(Name)]
+fn rot(context: &mut Context) {
+    context.name().rotate();
+}
+
+/// Inserts the top NAME "deep" in the stack, at the position indexed by the top INTEGER.
+#[stack_instruction(Name)]
+fn shove(context: &mut Context, position: Integer) {
+    if !context.name().shove(position) {
+        context.integer().push(position);
     }
 }
 
-instruction! {
-    /// Swaps the top two NAMEs.
-    #[stack(Name)]
-    fn swap(context: &mut Context) {
-        context.name().swap();
+/// Pushes the stack depth onto the INTEGER stack.
+#[stack_instruction(Name)]
+fn stack_depth(context: &mut Context) {
+    context.integer().push(context.name().len() as i64);
+}
+
+/// Swaps the top two NAMEs.
+#[stack_instruction(Name)]
+fn swap(context: &mut Context) {
+    context.name().swap();
+}
+
+/// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
+/// The index is taken from the INTEGER stack.
+#[stack_instruction(Name)]
+fn yank_dup(context: &mut Context, position: Integer) {
+    if !context.name().yank_duplicate(position) {
+        context.integer().push(position);
     }
 }
 
-instruction! {
-    /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
-    /// The index is taken from the INTEGER stack.
-    #[stack(Name)]
-    fn yank_dup(context: &mut Context, position: Integer) {
-        if !context.name().yank_duplicate(position) {
-            context.integer().push(position);
-        }
-    }
-}
-
-instruction! {
-    /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
-    /// INTEGER stack.
-    #[stack(Name)]
-    fn yank(context: &mut Context, position: Integer) {
-        if !context.name().yank(position) {
-            context.integer().push(position);
-        }
+/// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
+/// INTEGER stack.
+#[stack_instruction(Name)]
+fn yank(context: &mut Context, position: Integer) {
+    if !context.name().yank(position) {
+        context.integer().push(position);
     }
 }

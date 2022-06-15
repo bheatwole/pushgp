@@ -1,114 +1,55 @@
 use crate::util::stack_to_vec;
-use crate::InstructionData;
-use std::cell::RefCell;
 
-/// Defines a stack of values that uses interior mutability for all operations
-pub trait StackTrait<T: Clone> {
-    /// Returns the top item from the Stack or None if the stack is empty
-    fn pop(&self) -> Option<T>;
-
-    /// Pushes the specified item onto the top of the stack
-    fn push(&self, item: T);
-
-    /// Returns a clone of the top item from the Stack or None if the stack is empty
-    fn peek(&self) -> Option<T>;
-
-    /// Returns the length of the Stack
-    fn len(&self) -> usize;
-
-    /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    fn duplicate_top_item(&self);
-
-    /// Deletes all items from the Stack
-    fn clear(&self);
-
-    /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
-    /// modify the stack if there are fewer than three items
-    fn rotate(&self);
-
-    /// Pops the top item of the stack and pushes it down the specified number of positions. Thus `shove(0)` has no
-    /// effect. The position is taken modulus the original size of the stack. I.E. `shove(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
-    ///
-    /// Returns true if a shove was performed (even if it had no effect)
-    fn shove(&self, position: i64) -> bool;
-
-    /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    fn swap(&self);
-
-    /// Removes an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
-    /// the original size of the stack. I.E. `yank(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
-    ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    fn yank(&self, position: i64) -> bool;
-
-    /// Copies an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
-    /// the original size of the stack. I.E. `yank_duplicate(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
-    ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    fn yank_duplicate(&self, position: i64) -> bool;
+pub struct Stack<T: Clone> {
+    stack: Vec<T>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct InstructionDataStack {
-    stack: RefCell<Vec<InstructionData>>,
-}
-
-impl InstructionDataStack {
-    pub fn new() -> InstructionDataStack {
-        InstructionDataStack { stack: RefCell::new(vec![]) }
+impl<T: Clone> Stack<T> {
+    pub fn new() -> Stack<T> {
+        Stack { stack: vec![] }
     }
 
-    pub fn new_from_vec(stack: Vec<InstructionData>) -> InstructionDataStack {
-        InstructionDataStack { stack: RefCell::new(stack) }
+    pub fn new_from_vec(stack: Vec<T>) -> Stack<T> {
+        Stack { stack }
     }
-}
 
-impl StackTrait<InstructionData> for InstructionDataStack {
     /// Returns the top item from the Stack or None if the stack is empty
-    fn pop(&self) -> Option<InstructionData> {
-        self.stack.borrow_mut().pop()
+    pub fn pop(&mut self) -> Option<T> {
+        self.stack.pop()
     }
 
     /// Pushes the specified item onto the top of the stack
-    fn push(&self, item: InstructionData) {
-        self.stack.borrow_mut().push(item)
-    }
-
-    /// Returns a clone of the top item from the Stack or None if the stack is empty
-    fn peek(&self) -> Option<InstructionData> {
-        self.stack.borrow_mut().last().map(|item| item.clone())
+    pub fn push(&mut self, item: T) {
+        self.stack.push(item)
     }
 
     /// Returns the length of the Stack
-    fn len(&self) -> usize {
-        self.stack.borrow().len()
+    pub fn len(&self) -> usize {
+        self.stack.len()
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    fn duplicate_top_item(&self) {
+    pub fn duplicate_top_item(&mut self) {
         let mut duplicate = None;
 
         // This patten avoid mutable and immutable borrow of stack at the same time
-        if let Some(top_item) = self.stack.borrow().last() {
+        if let Some(top_item) = self.stack.last() {
             duplicate = Some(top_item.clone());
         }
         if let Some(new_item) = duplicate {
-            self.stack.borrow_mut().push(new_item);
+            self.stack.push(new_item);
         }
     }
 
     /// Deletes all items from the Stack
-    fn clear(&self) {
-        self.stack.borrow_mut().clear()
+    pub fn clear(&mut self) {
+        self.stack.clear()
     }
 
     /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
     /// modify the stack if there are fewer than three items
-    fn rotate(&self) {
-        if self.stack.borrow().len() >= 3 {
+    pub fn rotate(&mut self) {
+        if self.stack.len() >= 3 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             let third = self.pop().unwrap();
@@ -123,11 +64,11 @@ impl StackTrait<InstructionData> for InstructionDataStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
     ///
     /// Returns true if a shove was performed (even if it had no effect)
-    fn shove(&self, position: i64) -> bool {
-        if self.stack.borrow().len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.borrow().len());
-            let item = self.stack.borrow_mut().pop().unwrap();
-            self.stack.borrow_mut().insert(vec_index, item);
+    pub fn shove(&mut self, position: i64) -> bool {
+        if self.stack.len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.len());
+            let item = self.stack.pop().unwrap();
+            self.stack.insert(vec_index, item);
             true
         } else {
             false
@@ -135,8 +76,8 @@ impl StackTrait<InstructionData> for InstructionDataStack {
     }
 
     /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    fn swap(&self) {
-        if self.stack.borrow().len() >= 2 {
+    pub fn swap(&mut self) {
+        if self.stack.len() >= 2 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             self.push(first);
@@ -149,11 +90,11 @@ impl StackTrait<InstructionData> for InstructionDataStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
     ///
     /// Returns true if a yank was performed (even if it had no effect)
-    fn yank(&self, position: i64) -> bool {
-        if self.stack.borrow().len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.borrow().len());
-            let item = self.stack.borrow_mut().remove(vec_index);
-            self.stack.borrow_mut().push(item);
+    pub fn yank(&mut self, position: i64) -> bool {
+        if self.stack.len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.len());
+            let item = self.stack.remove(vec_index);
+            self.stack.push(item);
             true
         } else {
             false
@@ -165,128 +106,12 @@ impl StackTrait<InstructionData> for InstructionDataStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
     ///
     /// Returns true if a yank was performed (even if it had no effect)
-    fn yank_duplicate(&self, position: i64) -> bool {
-        if self.stack.borrow().len() > 0 {
-            let vec_index = stack_to_vec(position, self.stack.borrow().len());
-            let duplicate = self.stack.borrow().get(vec_index).unwrap().clone();
-            self.stack.borrow_mut().push(duplicate);
+    pub fn yank_duplicate(&mut self, position: i64) -> bool {
+        if self.stack.len() > 0 {
+            let vec_index = stack_to_vec(position, self.stack.len());
+            let duplicate = self.stack.get(vec_index).unwrap().clone();
+            self.stack.push(duplicate);
             true
-        } else {
-            false
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Stack<'a, T: Clone + From<InstructionData> + Into<InstructionData>> {
-    stack: Option<&'a InstructionDataStack>,
-    phantom: std::marker::PhantomData<T>,
-}
-
-impl<'a, T: Clone + From<InstructionData> + Into<InstructionData>> Stack<'a, T> {
-    pub fn new(stack: Option<&'a InstructionDataStack>) -> Stack<T> {
-        Stack::<'a, T> { stack, phantom: std::marker::PhantomData }
-    }
-}
-
-impl<'a, T: Clone + From<InstructionData> + Into<InstructionData>> StackTrait<T> for Stack<'a, T> {
-    /// Returns the top item from the Stack or None if the stack is empty
-    fn pop(&self) -> Option<T> {
-        if let Some(stack) = self.stack {
-            stack.pop().map(|v| std::convert::From::from(v))
-        } else {
-            None
-        }
-    }
-
-    /// Pushes the specified item onto the top of the stack
-    fn push(&self, item: T) {
-        if let Some(stack) = self.stack {
-            stack.push(item.into())
-        }
-    }
-
-    /// Returns a clone of the top item from the Stack or None if the stack is empty
-    fn peek(&self) -> Option<T> {
-        if let Some(stack) = self.stack {
-            stack.peek().map(|v| std::convert::From::from(v))
-        } else {
-            None
-        }
-    }
-
-    /// Returns the length of the Stack
-    fn len(&self) -> usize {
-        if let Some(stack) = self.stack {
-            stack.len()
-        } else {
-            0
-        }
-    }
-
-    /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    fn duplicate_top_item(&self) {
-        if let Some(stack) = self.stack {
-            stack.duplicate_top_item()
-        }
-    }
-
-    /// Deletes all items from the Stack
-    fn clear(&self) {
-        if let Some(stack) = self.stack {
-            stack.clear()
-        }
-    }
-
-    /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
-    /// modify the stack if there are fewer than three items
-    fn rotate(&self) {
-        if let Some(stack) = self.stack {
-            stack.rotate()
-        }
-    }
-
-    /// Pops the top item of the stack and pushes it down the specified number of positions. Thus `shove(0)` has no
-    /// effect. The position is taken modulus the original size of the stack. I.E. `shove(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
-    ///
-    /// Returns true if a shove was performed (even if it had no effect)
-    fn shove(&self, position: i64) -> bool {
-        if let Some(stack) = self.stack {
-            stack.shove(position)
-        } else {
-            false
-        }
-    }
-
-    /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    fn swap(&self) {
-        if let Some(stack) = self.stack {
-            stack.swap()
-        }
-    }
-
-    /// Removes an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
-    /// the original size of the stack. I.E. `yank(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
-    ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    fn yank(&self, position: i64) -> bool {
-        if let Some(stack) = self.stack {
-            stack.yank(position)
-        } else {
-            false
-        }
-    }
-
-    /// Copies an item by its index from deep in the stack and pushes it onto the top. The position is taken modulus
-    /// the original size of the stack. I.E. `yank_duplicate(5)` on a stack consisting of
-    /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
-    ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    fn yank_duplicate(&self, position: i64) -> bool {
-        if let Some(stack) = self.stack {
-            stack.yank_duplicate(position)
         } else {
             false
         }
@@ -295,7 +120,7 @@ impl<'a, T: Clone + From<InstructionData> + Into<InstructionData>> StackTrait<T>
 
 #[cfg(test)]
 mod tests {
-    use crate::{InstructionData, InstructionDataStack, Stack, StackTrait};
+    use crate::Stack;
 
     fn new_stack<'a, T: Clone + From<InstructionData> + Into<InstructionData>>(
         base_stack: &'a InstructionDataStack,

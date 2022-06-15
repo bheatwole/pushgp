@@ -1,4 +1,4 @@
-use crate::{Code, ParseError, VirtualTable};
+use crate::{Instruction, ParseError, StaticInstruction, VirtualMachine};
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -9,35 +9,63 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub(crate) fn parse<State: std::fmt::Debug + Clone>(
-    virtual_table: &VirtualTable<State>,
-    input: &str,
-) -> Result<Code, ParseError> {
-    parse_one_code(virtual_table, input).map_err(|e| ParseError::new(e)).map(|v| v.1)
+pub struct Parser<Vm: VirtualMachine> {
+    parsers: Vec<fn(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>>>,
 }
 
-fn parse_one_code<'a, State: std::fmt::Debug + Clone>(
-    virtual_table: &'a VirtualTable<State>,
-    input: &'a str,
-) -> IResult<&'a str, Code> {
-    match virtual_table.call_parse(input) {
-        Ok((rest, code)) => return Ok((rest, code)),
-        Err(_) => parse_code_list(virtual_table, input),
+impl<Vm: VirtualMachine> Parser<Vm> {
+    pub fn new() -> Parser<Vm> {
+        Parser { parsers: vec![] }
+    }
+
+    pub fn add_instruction<C: StaticInstruction<Vm>>(&mut self) {
+        self.parsers.push(C::parse)
+    }
+
+    pub fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Box<dyn Instruction<Vm>>> {
+        for parse_fn in self.parsers.iter() {
+            match parse_fn(input) {
+                Ok((rest, instruction)) => return Ok((rest, instruction)),
+                Err(_) => {
+                    // Continue searching
+                }
+            }
+        }
+
+        // Return an error if none of our parsers could parse the string
+        Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify)))
     }
 }
 
-fn parse_code_list<'a, State: std::fmt::Debug + Clone>(
-    virtual_table: &'a VirtualTable<State>,
-    input: &'a str,
-) -> IResult<&'a str, Code> {
-    let parse_one = |fn_input| parse_one_code(virtual_table, fn_input);
+// pub(crate) fn parse<State: std::fmt::Debug + Clone>(
+//     virtual_table: &VirtualTable<State>,
+//     input: &str,
+// ) -> Result<Code, ParseError> {
+//     parse_one_code(virtual_table, input).map_err(|e| ParseError::new(e)).map(|v| v.1)
+// }
 
-    // A list is a start tag, zero or more codes and an end tag
-    let (input, _) = start_list(input)?;
-    let (input, codes) = many0(parse_one)(input)?;
-    let (input, _) = end_list(input)?;
-    Ok((input, Code::List(codes)))
-}
+// fn parse_one_code<'a, State: std::fmt::Debug + Clone>(
+//     virtual_table: &'a VirtualTable<State>,
+//     input: &'a str,
+// ) -> IResult<&'a str, Code> {
+//     match virtual_table.call_parse(input) {
+//         Ok((rest, code)) => return Ok((rest, code)),
+//         Err(_) => parse_code_list(virtual_table, input),
+//     }
+// }
+
+// fn parse_code_list<'a, State: std::fmt::Debug + Clone>(
+//     virtual_table: &'a VirtualTable<State>,
+//     input: &'a str,
+// ) -> IResult<&'a str, Code> {
+//     let parse_one = |fn_input| parse_one_code(virtual_table, fn_input);
+
+//     // A list is a start tag, zero or more codes and an end tag
+//     let (input, _) = start_list(input)?;
+//     let (input, codes) = many0(parse_one)(input)?;
+//     let (input, _) = end_list(input)?;
+//     Ok((input, Code::List(codes)))
+// }
 
 fn start_list(input: &str) -> IResult<&str, ()> {
     let (input, _) = tag("( ")(input)?;

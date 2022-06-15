@@ -9,6 +9,7 @@ mod instruction;
 mod instruction_list;
 mod item_fn;
 mod signature;
+mod stack_instruction;
 
 #[proc_macro]
 pub fn instruction_list(input: TokenStream) -> TokenStream {
@@ -19,6 +20,15 @@ pub fn instruction_list(input: TokenStream) -> TokenStream {
 pub fn instruction(input: TokenStream) -> TokenStream {
     let mut item_fn = parse_macro_input!(input as ItemFn);
     instruction::handle_instruction_macro(&mut item_fn)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+#[proc_macro_attribute]
+pub fn stack_instruction(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let stack_ident = parse_macro_input!(attr as syn::Ident);
+    let mut item_fn = parse_macro_input!(input as ItemFn);
+    stack_instruction::handle_macro(&stack_ident, &mut item_fn)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

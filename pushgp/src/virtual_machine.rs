@@ -17,6 +17,11 @@ pub trait VirtualMachine: Sized {
 
     fn add_instruction<C: StaticInstruction<Self>>(&mut self);
     fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Self>>;
+    fn must_parse(&self, input: &str) -> Code<Self> {
+        let (rest, code) = self.parse(input).unwrap();
+        assert_eq!(rest.len(), 0);
+        code
+    }
 
     fn set_code(&mut self, input: &str) -> Result<(), ParseError>;
 }
@@ -197,4 +202,3 @@ impl VirtualMachineMustHaveName<BaseVm> for BaseVm {
         self.defined_names.len()
     }
 }
-

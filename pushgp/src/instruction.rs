@@ -88,9 +88,9 @@ pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
     }
 
     /// The discrepancy output is a HashMap of every unique sub-list and atom from the specified code
-    fn discrepancy_items(&self) -> fnv::FnvHashMap<u64, i64> {
+    fn discrepancy_items(&self) -> fnv::FnvHashMap<Code<Vm>, i64> {
         let mut items = fnv::FnvHashMap::default();
-        let counter = items.entry(self.hash()).or_insert(0);
+        let counter = items.entry(self.clone()).or_insert(0);
         *counter += 1;
 
         items
@@ -133,11 +133,7 @@ pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
     }
 
     /// Replaces the specified search code with the specified replacement code
-    fn replace(
-        &self,
-        look_for: &dyn Instruction<Vm>,
-        replace_with: &dyn Instruction<Vm>,
-    ) -> Box<dyn Instruction<Vm>> {
+    fn replace(&self, look_for: &dyn Instruction<Vm>, replace_with: &dyn Instruction<Vm>) -> Box<dyn Instruction<Vm>> {
         if self.eq(look_for) {
             return replace_with.clone();
         }
@@ -166,5 +162,14 @@ impl<Vm> std::fmt::Debug for Box<dyn Instruction<Vm>> {
 impl<Vm> std::cmp::PartialEq for Box<dyn Instruction<Vm>> {
     fn eq(&self, other: &Box<dyn Instruction<Vm>>) -> bool {
         self.as_ref().eq(other.as_ref())
+    }
+}
+impl<Vm> std::cmp::Eq for Box<dyn Instruction<Vm>> {}
+
+/// While we cannot implement Hash for the raw trait object, we CAN implement Hash for the boxed instruction,
+/// which allows us to put the Box<dyn Instruction> into a HashMap
+impl<Vm> std::hash::Hash for Box<dyn Instruction<Vm>> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u64(self.as_ref().hash())
     }
 }

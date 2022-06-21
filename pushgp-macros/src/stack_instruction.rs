@@ -55,6 +55,7 @@ pub fn handle_macro(stack_ident: &Ident, inner_fn: &mut ItemFn) -> Result<TokenS
     let docs = inner_fn.attrs.iter();
 
     Ok(quote! {
+        #[derive(Debug, PartialEq)]
         pub struct #struct_name {}
 
         impl StaticName for #struct_name {
@@ -62,19 +63,48 @@ pub fn handle_macro(stack_ident: &Ident, inner_fn: &mut ItemFn) -> Result<TokenS
                 #instruction_name_str
             }
         }
+        
+        impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> for #struct_name {
+            fn parse(input: &str) -> nom::IResult<&str, #pushgp::Code<Vm>> {
+                let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
+                let (rest, _) = crate::parse::space_or_end(rest)?;
+
+                Ok((rest, Box::new(#struct_name {})))
+            }
+
+            fn random_value(_vm: &mut Vm) -> #pushgp::Code<Vm> {
+                Box::new(#struct_name {})
+            }
+        }
+
+        impl std::fmt::Display for #struct_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str(#struct_name::static_name())
+            }
+        }
+
+        impl<Vm: VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for #struct_name {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        
+            fn name(&self) -> &'static str {
+                #struct_name::static_name()
+            }
+        
+            fn clone(&self) -> #pushgp::Code<Vm> {
+                Box::new(#struct_name{})
+            }
+        
+            #(#docs)*
+            fn execute(&mut self, vm: &mut Vm) {
+                // if vm.bool().len() >= 2 {
+                //     let a = vm.bool().pop().unwrap();
+                //     let b = vm.bool().pop().unwrap();
+                //     vm.bool().push(a && b);
+                // }
+            }
+        
+        }
     })
-
-    // Ok(quote! {
-    //     #(#docs)*
-    //     pub struct #struct_name {}
-    //     impl #pushgp::Instruction for #struct_name {
-
-    //         fn name() -> &'static str {
-    //             #instruction_name_str
-    //         }
-
-    //         fn execute<State: std::fmt::Debug + Clone>(context: &#pushgp::Context<State>, data: Option<#pushgp::InstructionData>) #body
-    //     }
-    // }
-    // .into())
 }

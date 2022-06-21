@@ -8,12 +8,12 @@ pub trait VirtualMachineMustHaveInteger<Vm> {
     fn integer(&mut self) -> &mut Stack<Integer>;
 }
 
-struct IntegerLiteralValue {
+pub struct IntegerLiteralValue {
     value: Integer,
 }
 
 impl IntegerLiteralValue {
-    fn new(value: Integer) -> IntegerLiteralValue {
+    pub fn new(value: Integer) -> IntegerLiteralValue {
         IntegerLiteralValue { value }
     }
 }
@@ -57,7 +57,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for
     }
 
     /// Executing a IntegerLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, vm: &mut Vm) {
+    fn execute(&mut self, vm: &mut Vm) {
         vm.integer().push(self.value)
     }
 

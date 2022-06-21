@@ -1,19 +1,21 @@
-use crate::{Instruction, ParseError, StaticInstruction, VirtualMachine};
+use crate::*;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, digit1, none_of, space0, space1},
     combinator::{eof, opt},
-    multi::{many0, many1},
+    multi::many1,
     IResult,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
+pub type ParseFn<Vm> = fn(input: &str) -> IResult<&str, Code<Vm>>;
+
 pub struct Parser<Vm: VirtualMachine> {
-    parsers: Vec<fn(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>>>,
+    parsers: Vec<ParseFn<Vm>>,
 }
 
-impl<Vm: VirtualMachine> Parser<Vm> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + 'static> Parser<Vm> {
     pub fn new() -> Parser<Vm> {
         Parser { parsers: vec![] }
     }
@@ -22,7 +24,38 @@ impl<Vm: VirtualMachine> Parser<Vm> {
         self.parsers.push(C::parse)
     }
 
-    pub fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Box<dyn Instruction<Vm>>> {
+    pub fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
+        match self.parse_list(input) {
+            Ok((rest, code)) => return Ok((rest, code)),
+            Err(_) => {}
+        }
+        self.parse_one(input)
+    }
+
+    pub fn must_parse(&self, input: &str) -> Code<Vm> {
+        let (rest, code) = self.parse(input).unwrap();
+        assert_eq!(rest.len(), 0);
+        code
+    }
+
+    fn parse_list<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
+        let mut list = vec![];
+        let (mut input, _) = start_list(input)?;
+        'outer: loop {
+            match self.parse(input) {
+                Ok((rest, one)) => {
+                    input = rest;
+                    list.push(one);
+                }
+                Err(_) => break 'outer,
+            }
+        }
+        (input, _) = end_list(input)?;
+
+        Ok((input, Box::new(PushList::<Vm>::new(list))))
+    }
+
+    fn parse_one<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
         for parse_fn in self.parsers.iter() {
             match parse_fn(input) {
                 Ok((rest, instruction)) => return Ok((rest, instruction)),
@@ -37,35 +70,28 @@ impl<Vm: VirtualMachine> Parser<Vm> {
     }
 }
 
-// pub(crate) fn parse<State: std::fmt::Debug + Clone>(
-//     virtual_table: &VirtualTable<State>,
-//     input: &str,
-// ) -> Result<Code, ParseError> {
-//     parse_one_code(virtual_table, input).map_err(|e| ParseError::new(e)).map(|v| v.1)
-// }
+impl<Vm: VirtualMachine> std::fmt::Debug for Parser<Vm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Parser with {} entries", self.parsers.len())
+    }
+}
 
-// fn parse_one_code<'a, State: std::fmt::Debug + Clone>(
-//     virtual_table: &'a VirtualTable<State>,
-//     input: &'a str,
-// ) -> IResult<&'a str, Code> {
-//     match virtual_table.call_parse(input) {
-//         Ok((rest, code)) => return Ok((rest, code)),
-//         Err(_) => parse_code_list(virtual_table, input),
-//     }
-// }
-
-// fn parse_code_list<'a, State: std::fmt::Debug + Clone>(
-//     virtual_table: &'a VirtualTable<State>,
-//     input: &'a str,
-// ) -> IResult<&'a str, Code> {
-//     let parse_one = |fn_input| parse_one_code(virtual_table, fn_input);
-
-//     // A list is a start tag, zero or more codes and an end tag
-//     let (input, _) = start_list(input)?;
-//     let (input, codes) = many0(parse_one)(input)?;
-//     let (input, _) = end_list(input)?;
-//     Ok((input, Code::List(codes)))
-// }
+impl<Vm: VirtualMachine> std::cmp::PartialEq for Parser<Vm> {
+    fn eq(&self, other: &Parser<Vm>) -> bool {
+        if self.parsers.len() == other.parsers.len() {
+            for i in 0..self.parsers.len() {
+                let lhs = self.parsers[i];
+                let rhs = other.parsers[i];
+                if lhs as usize != rhs as usize {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
+}
 
 fn start_list(input: &str) -> IResult<&str, ()> {
     let (input, _) = tag("( ")(input)?;
@@ -161,42 +187,9 @@ pub fn parse_code_name(input: &str) -> IResult<&str, String> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parse::{
-        parse, parse_code_bool, parse_code_float, parse_code_integer, parse_code_list, parse_code_name,
-    };
+    use crate::parse::{parse_code_bool, parse_code_float, parse_code_integer, parse_code_name};
     use crate::*;
-    use rust_decimal::{prelude::ToPrimitive, Decimal};
-
-    fn make_literal_bool<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: bool) -> Code {
-        let id = virtual_table.id_for_name(BoolLiteralValue::name()).unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_bool(value)))
-    }
-
-    fn make_literal_float<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: Float) -> Code {
-        let id = virtual_table.id_for_name(FloatLiteralValue::name()).unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_f64(value.to_f64().unwrap())))
-    }
-
-    fn make_literal_integer<State: std::fmt::Debug + Clone>(virtual_table: &VirtualTable<State>, value: i64) -> Code {
-        let id = virtual_table.id_for_name(IntegerLiteralValue::name()).unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_i64(value)))
-    }
-
-    fn make_literal_name<State: std::fmt::Debug + Clone, S: Into<String>>(
-        virtual_table: &VirtualTable<State>,
-        value: S,
-    ) -> Code {
-        let id = virtual_table.id_for_name(NameLiteralValue::name()).unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_string(value)))
-    }
-
-    fn make_instruction<State: std::fmt::Debug + Clone>(
-        virtual_table: &VirtualTable<State>,
-        instruction: &'static str,
-    ) -> Code {
-        let id = virtual_table.id_for_name(instruction).unwrap();
-        Code::InstructionWithData(id, None)
-    }
+    use rust_decimal::Decimal;
 
     #[test]
     fn parse_bool() {
@@ -237,39 +230,53 @@ mod tests {
 
     #[test]
     fn parse_instruction() {
-        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
-        let expected = make_instruction(&virtual_table, "BOOL.AND");
-        assert_eq!(Code::must_parse(&virtual_table, "BOOL.AND"), expected);
+        let mut parser = Parser::<BaseVm>::new();
+        parser.add_instruction::<BoolAnd>();
+        let expected: Box<dyn Instruction<BaseVm>> = Box::new(BoolAnd {});
+        assert_eq!(&parser.must_parse("BOOL.AND"), &expected);
     }
 
     #[test]
     fn parse_list() {
-        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
-        let expected = Code::List(vec![]);
-        assert_eq!(parse_code_list(&virtual_table, "( )").unwrap().1, expected);
-        let expected =
-            Code::List(vec![make_literal_bool(&virtual_table, true), make_literal_integer(&virtual_table, 123)]);
-        assert_eq!(parse_code_list(&virtual_table, "( TRUE 123 )").unwrap().1, expected);
+        let mut parser = Parser::new();
+        parser.add_instruction::<BoolAnd>();
+        parser.add_instruction::<BoolLiteralValue>();
+        parser.add_instruction::<IntegerLiteralValue>();
+        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![]));
+        assert_eq!(&parser.must_parse("( )"), &expected);
 
-        let expected = Code::List(vec![make_instruction(&virtual_table, "BOOL.AND")]);
-        assert_eq!(parse_code_list(&virtual_table, "( BOOL.AND )").unwrap().1, expected);
+        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![
+            Box::new(BoolLiteralValue::new(true)),
+            Box::new(IntegerLiteralValue::new(123)),
+        ]));
+        assert_eq!(&parser.must_parse("( TRUE 123 )"), &expected);
+
+        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![Box::new(BoolAnd {})]));
+        assert_eq!(&parser.must_parse("( BOOL.AND )"), &expected);
 
         // no trailing paren should fail
-        assert!(parse_code_list(&virtual_table, "( 123").is_err());
+        assert!(parser.parse("( 123").is_err());
     }
 
     #[test]
     fn code_parsing() {
-        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
-        let expected = Code::List(vec![
-            Code::List(vec![
-                make_literal_bool(&virtual_table, true),
-                make_literal_float(&virtual_table, Decimal::new(12345, 6)),
-                make_literal_integer(&virtual_table, -12784),
-            ]),
-            make_instruction(&virtual_table, "BOOL.AND"),
-            make_literal_name(&virtual_table, "TRUENAME"),
-        ]);
-        assert_eq!(parse(&virtual_table, "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )").unwrap(), expected);
+        let mut parser = Parser::new();
+        parser.add_instruction::<BoolAnd>();
+        parser.add_instruction::<BoolLiteralValue>();
+        parser.add_instruction::<FloatLiteralValue>();
+        parser.add_instruction::<IntegerLiteralValue>();
+        parser.add_instruction::<NameLiteralValue>();
+
+        let code = "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )";
+        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![
+            Box::new(PushList::<BaseVm>::new(vec![
+                Box::new(BoolLiteralValue::new(true)),
+                Box::new(FloatLiteralValue::new(Decimal::new(12345, 6))),
+                Box::new(IntegerLiteralValue::new(-12784)),
+            ])),
+            Box::new(BoolAnd {}),
+            Box::new(NameLiteralValue::new("TRUENAME")),
+        ]));
+        assert_eq!(&parser.must_parse(code), &expected);
     }
 }

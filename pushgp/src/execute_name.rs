@@ -15,13 +15,13 @@ pub trait VirtualMachineMustHaveName<Vm> {
     fn defined_names_len(&self) -> usize;
 }
 
-struct NameLiteralValue {
+pub struct NameLiteralValue {
     value: Name,
 }
 
 impl NameLiteralValue {
-    fn new(value: Name) -> NameLiteralValue {
-        NameLiteralValue { value }
+    pub fn new<S: ToString>(value: S) -> NameLiteralValue {
+        NameLiteralValue { value: value.to_string() }
     }
 }
 
@@ -31,7 +31,9 @@ impl StaticName for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm> for NameLiteralValue {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm>
+    for NameLiteralValue
+{
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
         let (rest, value) = crate::parse::parse_code_name(input)?;
         Ok((rest, Box::new(NameLiteralValue::new(value))))
@@ -54,7 +56,9 @@ impl std::fmt::Display for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm> for NameLiteralValue {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
+    for NameLiteralValue
+{
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -71,7 +75,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
     /// defined, or pushes the Name onto the Name stack if the Name is not defined yet. However the NAME.QUOTE
     /// instruction can alter this behavior by forcing the next Name to be pushed to the Name stack whether or not it
     /// already has a definition.
-    fn execute(&self, vm: &mut Vm) {
+    fn execute(&mut self, vm: &mut Vm) {
         if vm.should_quote_next_name() {
             vm.name().push(self.value.clone());
             vm.set_should_quote_next_name(false);

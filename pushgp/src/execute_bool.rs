@@ -7,12 +7,12 @@ pub trait VirtualMachineMustHaveBool<Vm> {
     fn bool(&mut self) -> &mut Stack<Bool>;
 }
 
-struct BoolLiteralValue {
+pub struct BoolLiteralValue {
     value: bool,
 }
 
 impl BoolLiteralValue {
-    fn new(value: bool) -> BoolLiteralValue {
+    pub fn new(value: bool) -> BoolLiteralValue {
         BoolLiteralValue { value }
     }
 }
@@ -55,7 +55,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for Bo
     }
 
     /// Executing a BoolLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, vm: &mut Vm) {
+    fn execute(&mut self, vm: &mut Vm) {
         vm.bool().push(self.value)
     }
 

@@ -11,12 +11,12 @@ pub trait VirtualMachineMustHaveFloat<Vm> {
     fn float(&mut self) -> &mut Stack<Float>;
 }
 
-struct FloatLiteralValue {
+pub struct FloatLiteralValue {
     value: Float,
 }
 
 impl FloatLiteralValue {
-    fn new(value: Float) -> FloatLiteralValue {
+    pub fn new(value: Float) -> FloatLiteralValue {
         FloatLiteralValue { value }
     }
 }
@@ -60,7 +60,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
     }
 
     /// Executing a FloatLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, vm: &mut Vm) {
+    fn execute(&mut self, vm: &mut Vm) {
         vm.float().push(self.value)
     }
 

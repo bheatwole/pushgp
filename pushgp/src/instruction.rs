@@ -1,15 +1,15 @@
-use crate::{Extraction, VirtualMachine};
+use crate::{Code, Extraction, VirtualMachine};
 
 /// This trait includes the functions of an instruction that must remain static. If they were included on the Instruction
 /// trait, it could no longer be a trait object
 pub trait StaticInstruction<Vm: VirtualMachine> {
     /// All Code must be parsable by 'nom' from a string.
-    fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>>;
+    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>>;
 
     /// All Code must be able to create a new 'random' value. For pure instructions that have no data, the 'random'
     /// value is always the same: the instruction. For instructions that do have data (BOOL.LITERALVALUE,
     /// INTEGER.LITERALVALUE, CODE.CODE, etc.), the instruction created will be random
-    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>>;
+    fn random_value(vm: &mut Vm) -> Code<Vm>;
 }
 
 /// The Instruction is a trait that allows use as a trait object. This significantly restricts what kinds of methods
@@ -31,7 +31,7 @@ pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
 
     /// The instruction must be able to execute on a virtual machine. The instruction must never panic and may only
     /// update the state of the virtual machine
-    fn execute(&self, vm: &mut Vm);
+    fn execute(&mut self, vm: &mut Vm);
 
     /// An instruction must be able to determine if it is equal to another instruction. We cannot simply use PartialEq
     /// and Eq because then Instruction could not become a trait object.
@@ -150,5 +150,21 @@ pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
 impl<Vm> Clone for Box<dyn Instruction<Vm>> {
     fn clone(&self) -> Self {
         self.as_ref().clone()
+    }
+}
+
+/// While we cannot implement Debug for the raw trait object, we CAN implement Debug for the boxed instruction, which
+/// allows us to put the Box<dyn Instruction> into a Stack<T: Debug>
+impl<Vm> std::fmt::Debug for Box<dyn Instruction<Vm>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
+
+/// While we cannot implement PartialEq for the raw trait object, we CAN implement PartialEq for the boxed instruction,
+/// which allows us to put the Box<dyn Instruction> into a Stack<T: PartialEq>
+impl<Vm> std::cmp::PartialEq for Box<dyn Instruction<Vm>> {
+    fn eq(&self, other: &Box<dyn Instruction<Vm>>) -> bool {
+        self.as_ref().eq(other.as_ref())
     }
 }

@@ -187,20 +187,17 @@
 mod tests {
     use crate::*;
 
-    fn load_and_run(src: &str) -> Context<()> {
-        let weights = vec![];
-        let virtual_table = VirtualTable::<()>::new_with_all_instructions();
-        let config = Configuration::new(Some(1), 100, &virtual_table, &weights[..]);
-        let stacks = vec!["Bool", "Code", "Float", "Integer", "Name"];
-        let context = Context::<()>::new(&virtual_table, config, &stacks[..], None);
-        let code = Code::must_parse(&virtual_table, src);
-        context.exec().push(code);
-        context.run(1000);
+    fn load_and_run(src: &str) -> BaseVm {
+        let mut vm = BaseVm::new();
+        add_base_instructions(&mut vm);
+        add_base_literals(&mut vm);
+        vm.set_code(src).unwrap();
+        vm.run(1000);
 
         // Reset the random seed after every run
-        context.set_seed(Some(1));
+        vm.set_rng_seed(Some(1));
 
-        context
+        vm
     }
 
     macro_rules! context_tests {
@@ -210,11 +207,11 @@ mod tests {
             fn $name() {
                 let (input, expected, mut expected_definitions): (&str, &str, Vec<(&str, &str)>) = $value;
                 let input_run = load_and_run(input);
-                let expected_run = load_and_run(expected);
+                let mut expected_run = load_and_run(expected);
 
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
-                    let code = Code::must_parse(expected_run.get_virtual_table(), src);
+                    let (_, code) = expected_run.parse(src).unwrap();
                     expected_run.define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
@@ -412,9 +409,10 @@ mod tests {
 
     #[test]
     fn code_quote() {
-        let to_run = load_and_run("( CODE.QUOTE TRUE )");
+        let mut to_run = load_and_run("( CODE.QUOTE TRUE )");
+        let (_, expected) = to_run.parse("TRUE").unwrap();
         assert_eq!(0, to_run.exec().len());
         assert_eq!(0, to_run.bool().len());
-        assert_eq!(Some(to_run.make_literal_bool(true)), to_run.code().pop());
+        assert_eq!(Some(expected), to_run.code().pop());
     }
 }

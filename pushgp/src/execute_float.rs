@@ -85,46 +85,46 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
 
 /// Pushes the cosine of the top item.F
 #[stack_instruction(Float)]
-fn cos(context: &mut Context, value: Float) {
-    context.float().push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
+fn cos(vm: &mut Vm, value: Float) {
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the FLOAT stack onto
 /// the EXEC stack.
 #[stack_instruction(Float)]
-fn define(context: &mut Context, value: Float, name: Name) {
-    context.define_name(name, context.make_literal_float(value));
+fn define(vm: &mut Vm, value: Float, name: Name) {
+    vm.name().define_name(name, Box::new(FloatLiteralValue::new(value)));
 }
 
 /// Pushes the difference of the top two items; that is, the second item minus the top item.
 #[stack_instruction(Float)]
-fn difference(context: &mut Context, right: Float, left: Float) {
-    context.float().push(left - right);
+fn difference(vm: &mut Vm, right: Float, left: Float) {
+    vm.float().push(left - right);
 }
 
 /// Duplicates the top item on the FLOAT stack. Does not pop its argument (which, if it did, would negate the effect
 /// of the duplication!).
 #[stack_instruction(Float)]
-fn dup(context: &mut Context) {
-    context.float().duplicate_top_item();
+fn dup(vm: &mut Vm) {
+    vm.float().duplicate_top_item();
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the top two items are equal, or FALSE otherwise.
 #[stack_instruction(Float)]
-fn equal(context: &mut Context, a: Float, b: Float) {
-    context.bool().push(a == b);
+fn equal(vm: &mut Vm, a: Float, b: Float) {
+    vm.bool().push(a == b);
 }
 
 /// Empties the FLOAT stack.
 #[stack_instruction(Float)]
-fn flush(context: &mut Context) {
-    context.float().clear();
+fn flush(vm: &mut Vm) {
+    vm.float().clear();
 }
 
 /// Pushes 1.0 if the top BOOLEAN is TRUE, or 0.0 if the top BOOLEAN is FALSE.
 #[stack_instruction(Float)]
-fn from_boolean(context: &mut Context, value: Bool) {
-    context.float().push(if value {
+fn from_boolean(vm: &mut Vm, value: Bool) {
+    vm.float().push(if value {
         Decimal::new(1, 0)
     } else {
         Decimal::new(0, 0)
@@ -133,32 +133,32 @@ fn from_boolean(context: &mut Context, value: Bool) {
 
 /// Pushes a floating point version of the top INTEGER.
 #[stack_instruction(Float)]
-fn from_integer(context: &mut Context, value: Integer) {
-    context.float().push(Decimal::new(value, 0));
+fn from_integer(vm: &mut Vm, value: Integer) {
+    vm.float().push(Decimal::new(value, 0));
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is greater than the top item, or FALSE otherwise.
 #[stack_instruction(Float)]
-fn greater(context: &mut Context, right: Float, left: Float) {
-    context.bool().push(left > right);
+fn greater(vm: &mut Vm, right: Float, left: Float) {
+    vm.bool().push(left > right);
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is less than the top item, or FALSE otherwise.
 #[stack_instruction(Float)]
-fn less(context: &mut Context, right: Float, left: Float) {
-    context.bool().push(left < right);
+fn less(vm: &mut Vm, right: Float, left: Float) {
+    vm.bool().push(left < right);
 }
 
 /// Pushes the maximum of the top two items.
 #[stack_instruction(Float)]
-fn max(context: &mut Context, a: Float, b: Float) {
-    context.float().push(if a > b { a } else { b });
+fn max(vm: &mut Vm, a: Float, b: Float) {
+    vm.float().push(if a > b { a } else { b });
 }
 
 /// Pushes the minimum of the top two items.
 #[stack_instruction(Float)]
-fn min(context: &mut Context, a: Float, b: Float) {
-    context.float().push(if a < b { a } else { b });
+fn min(vm: &mut Vm, a: Float, b: Float) {
+    vm.float().push(if a < b { a } else { b });
 }
 
 /// Pushes the second stack item modulo the top stack item. If the top item is zero this acts as a NOOP. The modulus
@@ -166,101 +166,100 @@ fn min(context: &mut Context, a: Float, b: Float) {
 /// infinity. (This is taken from the definition for the generic MOD function in Common Lisp, which is described for
 /// example at http://www.lispworks.com/reference/HyperSpec/Body/f_mod_r.htm.)
 #[stack_instruction(Float)]
-fn modulo(context: &mut Context, bottom: Float, top: Float) {
+fn modulo(vm: &mut Vm, bottom: Float, top: Float) {
     if bottom != Decimal::ZERO {
-        context.float().push(top % bottom);
+        vm.float().push(top % bottom);
     }
 }
 
 /// Pops the FLOAT stack.
 #[stack_instruction(Float)]
-fn pop(context: &mut Context, _popped: Float) {
+fn pop(vm: &mut Vm, _popped: Float) {
 }
 
 /// Pushes the product of the top two items.
 #[stack_instruction(Float)]
-fn product(context: &mut Context, right: Float, left: Float) {
-    context.float().push(left * right);
+fn product(vm: &mut Vm, right: Float, left: Float) {
+    vm.float().push(left * right);
 }
 
 /// Pushes the quotient of the top two items; that is, the second item divided by the top item. If the top item is
 /// zero this acts as a NOOP.
 #[stack_instruction(Float)]
-fn quotient(context: &mut Context, bottom: Float, top: Float) {
+fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
     if bottom != Decimal::ZERO {
-        context.float().push(top / bottom);
+        vm.float().push(top / bottom);
     }
 }
 
 /// Pushes a newly generated random FLOAT that is greater than or equal to MIN-RANDOM-FLOAT and less than or equal
 /// to MAX-RANDOM-FLOAT.
 #[stack_instruction(Float)]
-fn rand(context: &mut Context) {
-    let random_value = context.run_random_function(FloatLiteralValue::random_value).unwrap();
-    if let Some(stack) = context.get_stack("Float") {
-        stack.push(random_value);
-    }
+fn rand(vm: &mut Vm) {
+    let mut random_value = FloatLiteralValue::random_value(vm);
+    random_value.execute(vm);
 }
 
 /// Rotates the top three items on the FLOAT stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 FLOAT.YANK".
 #[stack_instruction(Float)]
-fn rot(context: &mut Context) {
-    context.float().rotate();
+fn rot(vm: &mut Vm) {
+    vm.float().rotate();
 }
 
 /// Inserts the top FLOAT "deep" in the stack, at the position indexed by the top INTEGER.
 #[stack_instruction(Float)]
-fn shove(context: &mut Context, position: Integer) {
-    if !context.float().shove(position) {
-        context.integer().push(position);
+fn shove(vm: &mut Vm, position: Integer) {
+    if !vm.float().shove(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Pushes the sine of the top item.
 #[stack_instruction(Float)]
-fn sin(context: &mut Context, value: Float) {
-    context.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
+fn sin(vm: &mut Vm, value: Float) {
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
 #[stack_instruction(Float)]
-fn stack_depth(context: &mut Context) {
-    context.integer().push(context.float().len() as i64);
+fn stack_depth(vm: &mut Vm) {
+    let len = vm.float().len() as i64;
+    vm.integer().push(len);
 }
 
 /// Pushes the sum of the top two items.
 #[stack_instruction(Float)]
-fn sum(context: &mut Context, right: Float, left: Float) {
-    context.float().push(left + right);
+fn sum(vm: &mut Vm, right: Float, left: Float) {
+    vm.float().push(left + right);
 }
 
 /// Swaps the top two BOOLEANs.
 #[stack_instruction(Float)]
-fn swap(context: &mut Context) {
-    context.float().swap();
+fn swap(vm: &mut Vm) {
+    vm.float().swap();
 }
 
 /// Pushes the tangent of the top item.
 #[stack_instruction(Float)]
-fn tan(context: &mut Context, value: Float) {
-    context.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
+fn tan(vm: &mut Vm, value: Float) {
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack.
 #[stack_instruction(Float)]
-fn yank_dup(context: &mut Context, position: Integer) {
-    if !context.float().yank_duplicate(position) {
-        context.integer().push(position);
+fn yank_dup(vm: &mut Vm, position: Integer) {
+    if !vm.float().yank_duplicate(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack.
 #[stack_instruction(Float)]
-fn yank(context: &mut Context, position: Integer) {
-    if !context.float().yank(position) {
-        context.integer().push(position);
+fn yank(vm: &mut Vm, position: Integer) {
+    if !vm.float().yank(position) {
+        vm.integer().push(position);
     }
 }

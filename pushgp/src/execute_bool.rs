@@ -24,12 +24,12 @@ impl StaticName for BoolLiteralValue {
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> for BoolLiteralValue {
-    fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
+    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
         let (rest, value) = crate::parse::parse_code_bool(input)?;
         Ok((rest, Box::new(BoolLiteralValue::new(value))))
     }
 
-    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>> {
+    fn random_value(vm: &mut Vm) -> Code<Vm> {
         use rand::Rng;
         Box::new(BoolLiteralValue::new(if 0 == vm.get_rng().gen_range(0..=1) { false } else { true }))
     }
@@ -50,7 +50,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for Bo
         BoolLiteralValue::static_name()
     }
 
-    fn clone(&self) -> Box<dyn Instruction<Vm>> {
+    fn clone(&self) -> Code<Vm> {
         Box::new(BoolLiteralValue::new(self.value))
     }
 
@@ -86,7 +86,7 @@ fn and(vm: &mut Vm, a: Bool, b: Bool) {
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
 #[stack_instruction(Bool)]
 fn define(vm: &mut Vm, value: Bool, name: Name) {
-    vm.define_name(name, vm.make_literal_bool(value));
+    vm.name().define_name(name, Box::new(BoolLiteralValue::new(value)));
 }
 
 /// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
@@ -139,10 +139,8 @@ fn pop(vm: &mut Vm, _a: Bool) {}
 /// Pushes a random BOOLEAN
 #[stack_instruction(Bool)]
 fn rand(vm: &mut Vm) {
-    let random_bool = vm.run_random_function(BoolLiteralValue::random_value).unwrap();
-    if let Some(stack) = vm.get_stack("Bool") {
-        stack.push(random_bool);
-    }
+    let mut random_bool = BoolLiteralValue::random_value(vm);
+    random_bool.execute(vm);
 }
 
 /// Rotates the top three items on the BOOLEAN stack, pulling the third item out and pushing it on top. This is
@@ -163,7 +161,8 @@ fn shove(vm: &mut Vm, position: Integer) {
 /// Pushes the stack depth onto the INTEGER stack
 #[stack_instruction(Bool)]
 fn stack_depth(vm: &mut Vm) {
-    vm.integer().push(vm.bool().len() as i64);
+    let len = vm.bool().len() as i64;
+    vm.integer().push(len);
 }
 
 /// Swaps the top two BOOLEANs

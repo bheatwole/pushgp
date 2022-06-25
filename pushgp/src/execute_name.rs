@@ -6,13 +6,7 @@ use pushgp_macros::*;
 pub type Name = String;
 
 pub trait VirtualMachineMustHaveName<Vm> {
-    fn name(&mut self) -> &mut Stack<Name>;
-    fn should_quote_next_name(&self) -> bool;
-    fn set_should_quote_next_name(&mut self, quote_next_name: bool);
-    fn definition_for_name(&self, name: &String) -> Option<Code<Vm>>;
-    fn define_name(&mut self, name: String, code: Code<Vm>);
-    fn all_defined_names(&self) -> Vec<String>;
-    fn defined_names_len(&self) -> usize;
+    fn name(&mut self) -> &mut NameStack<Vm>;
 }
 
 pub struct NameLiteralValue {
@@ -76,11 +70,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
     /// instruction can alter this behavior by forcing the next Name to be pushed to the Name stack whether or not it
     /// already has a definition.
     fn execute(&mut self, vm: &mut Vm) {
-        if vm.should_quote_next_name() {
+        if vm.name().should_quote_next_name() {
             vm.name().push(self.value.clone());
-            vm.set_should_quote_next_name(false);
+            vm.name().set_should_quote_next_name(false);
         } else {
-            match vm.definition_for_name(&self.value) {
+            match vm.name().definition_for_name(&self.value) {
                 None => vm.name().push(self.value.clone()),
                 Some(code) => vm.exec().push(code.clone()),
             }
@@ -108,98 +102,100 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
 /// Duplicates the top item on the NAME stack. Does not pop its argument (which, if it did, would negate the effect
 /// of the duplication!).
 #[stack_instruction(Name)]
-fn dup(context: &mut Context) {
-    context.name().duplicate_top_item();
+fn dup(vm: &mut Vm) {
+    vm.name().duplicate_top_item();
 }
 
 /// Pushes TRUE if the top two NAMEs are equal, or FALSE otherwise.
 #[stack_instruction(Name)]
-fn equal(context: &mut Context, a: Name, b: Name) {
-    context.bool().push(a == b);
+fn equal(vm: &mut Vm, a: Name, b: Name) {
+    vm.bool().push(a == b);
 }
 
 /// Empties the NAME stack.
 #[stack_instruction(Name)]
-fn flush(context: &mut Context) {
-    context.name().clear()
+fn flush(vm: &mut Vm) {
+    vm.name().clear()
 }
 
 /// Pops the NAME stack.
 #[stack_instruction(Name)]
-fn pop(context: &mut Context, _popped: Name) {}
+fn pop(vm: &mut Vm, _popped: Name) {}
 
 /// Sets a flag indicating that the next name encountered will be pushed onto the NAME stack (and not have its
 /// associated value pushed onto the EXEC stack), regardless of whether or not it has a definition. Upon
 /// encountering such a name and pushing it onto the NAME stack the flag will be cleared (whether or not the pushed
 /// name had a definition).
 #[stack_instruction(Name)]
-fn quote(context: &mut Context) {
-    context.set_should_quote_next_name(true)
+fn quote(vm: &mut Vm) {
+    vm.name().set_should_quote_next_name(true)
 }
 
 /// Pushes a randomly selected NAME that already has a definition.
 #[stack_instruction(Name)]
-fn rand_bound_name(context: &mut Context) {
-    let defined_names = context.all_defined_names();
+fn rand_bound_name(vm: &mut Vm) {
+    use rand::Rng;
+    
+    let defined_names = vm.name().all_defined_names();
     if defined_names.len() > 0 {
-        let random_value = context.run_random_function(|rng| {
-            let pick: usize = rng.gen_range(0..defined_names.len());
-            defined_names[pick].clone()
-        });
-        context.name().push(random_value);
+        let pick: usize = vm.get_rng().gen_range(0..defined_names.len());
+        let random_value = defined_names[pick].clone();
+        vm.name().push(random_value);
     }
 }
 
 /// Pushes a newly generated random NAME.
 #[stack_instruction(Name)]
-fn rand(context: &mut Context) {
-    let random_value = context.run_random_function(NameLiteralValue::random_value).unwrap();
-    if let Some(stack) = context.get_stack("Name") {
-        stack.push(random_value);
-    }
+fn rand(vm: &mut Vm) {
+    let mut random_value = NameLiteralValue::random_value(vm);
+    let should_quote = vm.name().should_quote_next_name();
+    vm.name().set_should_quote_next_name(false);
+    random_value.execute(vm);
+    vm.name().set_should_quote_next_name(should_quote);
 }
 
 /// Rotates the top three items on the NAME stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 NAME.YANK".
 #[stack_instruction(Name)]
-fn rot(context: &mut Context) {
-    context.name().rotate();
+fn rot(vm: &mut Vm) {
+    vm.name().rotate();
 }
 
 /// Inserts the top NAME "deep" in the stack, at the position indexed by the top INTEGER.
 #[stack_instruction(Name)]
-fn shove(context: &mut Context, position: Integer) {
-    if !context.name().shove(position) {
-        context.integer().push(position);
+fn shove(vm: &mut Vm, position: Integer) {
+    if !vm.name().shove(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
 #[stack_instruction(Name)]
-fn stack_depth(context: &mut Context) {
-    context.integer().push(context.name().len() as i64);
+fn stack_depth(vm: &mut Vm) {
+    let len = vm.name().len() as i64;
+    vm.integer().push(len);
 }
 
 /// Swaps the top two NAMEs.
 #[stack_instruction(Name)]
-fn swap(context: &mut Context) {
-    context.name().swap();
+fn swap(vm: &mut Vm) {
+    vm.name().swap();
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack.
 #[stack_instruction(Name)]
-fn yank_dup(context: &mut Context, position: Integer) {
-    if !context.name().yank_duplicate(position) {
-        context.integer().push(position);
+fn yank_dup(vm: &mut Vm, position: Integer) {
+    if !vm.name().yank_duplicate(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack.
 #[stack_instruction(Name)]
-fn yank(context: &mut Context, position: Integer) {
-    if !context.name().yank(position) {
-        context.integer().push(position);
+fn yank(vm: &mut Vm, position: Integer) {
+    if !vm.name().yank(position) {
+        vm.integer().push(position);
     }
 }

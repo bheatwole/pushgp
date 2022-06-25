@@ -19,6 +19,11 @@ impl<T: Clone> Stack<T> {
         self.stack.pop()
     }
 
+    /// Returns a clone of the top item from the Stack or None if the stack is empty
+    pub fn peek(&self) -> Option<T> {
+        self.stack.last().map(|item| item.clone())
+    }
+
     /// Pushes the specified item onto the top of the stack
     pub fn push(&mut self, item: T) {
         self.stack.push(item)

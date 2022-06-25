@@ -23,7 +23,8 @@ pub trait VirtualMachine: Sized {
         code
     }
 
-    fn set_code(&mut self, input: &str) -> Result<(), ParseError>;
+    fn parse_and_set_code(&mut self, input: &str) -> Result<(), ParseError>;
+    fn set_code(&mut self, code: Code<Self>);
 }
 
 #[derive(Debug, PartialEq)]
@@ -34,10 +35,8 @@ pub struct BaseVm {
     code_stack: Stack<Code<BaseVm>>,
     float_stack: Stack<Float>,
     integer_stack: Stack<Integer>,
-    name_stack: Stack<String>,
+    name_stack: NameStack<BaseVm>,
     parser: Parser<BaseVm>,
-    quote_next_name: bool,
-    defined_names: fnv::FnvHashMap<String, Code<BaseVm>>,
 }
 
 impl BaseVm {
@@ -49,10 +48,8 @@ impl BaseVm {
             code_stack: Stack::new(),
             float_stack: Stack::new(),
             integer_stack: Stack::new(),
-            name_stack: Stack::new(),
+            name_stack: NameStack::new(),
             parser: Parser::new(),
-            quote_next_name: false,
-            defined_names: fnv::FnvHashMap::default(),
         };
 
         vm
@@ -75,8 +72,6 @@ impl VirtualMachine for BaseVm {
         self.float_stack.clear();
         self.integer_stack.clear();
         self.name_stack.clear();
-        self.quote_next_name = false;
-        self.defined_names.clear();
     }
 
     fn run(&mut self, max: usize) -> usize {
@@ -113,7 +108,7 @@ impl VirtualMachine for BaseVm {
         self.parser.parse(input)
     }
 
-    fn set_code(&mut self, input: &str) -> Result<(), ParseError> {
+    fn parse_and_set_code(&mut self, input: &str) -> Result<(), ParseError> {
         self.clear();
         let (rest, code) = self.parse(input).map_err(|e| ParseError::new(e))?;
         if rest.len() == 0 {
@@ -122,6 +117,11 @@ impl VirtualMachine for BaseVm {
         } else {
             return Err(ParseError::new_with_message("the code did not finish parsing"));
         }
+    }
+
+    fn set_code(&mut self, code: Code<Self>) {
+        self.clear();
+        self.exec_stack.push(code);
     }
 }
 
@@ -164,41 +164,7 @@ impl VirtualMachineMustHaveInteger<BaseVm> for BaseVm {
 }
 
 impl VirtualMachineMustHaveName<BaseVm> for BaseVm {
-    fn name(&mut self) -> &mut Stack<String> {
+    fn name(&mut self) -> &mut NameStack<BaseVm> {
         &mut self.name_stack
-    }
-
-    /// Returns true if the next Name encountered on the Exec stack should be pushed to the Name stack instead of
-    /// possibly running the Code associated with the Name.
-    fn should_quote_next_name(&self) -> bool {
-        self.quote_next_name
-    }
-
-    /// Sets whether or not the next Name encountered on the Exec stack should be pushed to the Name stack instead of
-    /// possibly running the Code associated with the Name. Uses interior mutability.
-    fn set_should_quote_next_name(&mut self, quote_next_name: bool) {
-        self.quote_next_name = quote_next_name;
-    }
-
-    /// Returns the Code defined with the specified Name or None
-    fn definition_for_name(&self, name: &String) -> Option<Box<dyn Instruction<BaseVm>>> {
-        self.defined_names.get(name).map(|c| c.clone())
-    }
-
-    /// Defines the Code that will be placed on the top of the Exec stack when the specified Name is encountered. If the
-    /// name was previously defined, the new definition replaces the old value.
-    fn define_name(&mut self, name: String, code: Box<dyn Instruction<BaseVm>>) {
-        self.defined_names.insert(name, code);
-    }
-
-    /// Returns a list of all previously defined names. May be empty if no names have been defined
-    fn all_defined_names(&self) -> Vec<String> {
-        self.defined_names.keys().map(|k| k.clone()).collect()
-    }
-
-    /// Returns the number of previously defined names. Avoids an expensive copy of all names if only the count is
-    /// needed.
-    fn defined_names_len(&self) -> usize {
-        self.defined_names.len()
     }
 }

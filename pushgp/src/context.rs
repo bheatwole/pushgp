@@ -191,7 +191,7 @@ mod tests {
         let mut vm = BaseVm::new();
         add_base_instructions(&mut vm);
         add_base_literals(&mut vm);
-        vm.set_code(src).unwrap();
+        vm.parse_and_set_code(src).unwrap();
         vm.run(1000);
 
         // Reset the random seed after every run
@@ -212,7 +212,7 @@ mod tests {
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
                     let (_, code) = expected_run.parse(src).unwrap();
-                    expected_run.define_name(name.to_owned(), code);
+                    expected_run.name().define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
             }

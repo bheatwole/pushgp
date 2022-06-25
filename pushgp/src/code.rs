@@ -26,7 +26,7 @@ impl<Vm> std::cmp::PartialEq for Extraction<Vm> {
 }
 
 pub fn add_base_instructions<
-    Vm: VirtualMachine
+    Vm: VirtualMachine + 'static
         + VirtualMachineMustHaveBool<Vm>
         + VirtualMachineMustHaveCode<Vm>
         + VirtualMachineMustHaveExec<Vm>

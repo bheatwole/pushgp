@@ -83,69 +83,69 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the INTEGER stack
 /// onto the EXEC stack.
 #[stack_instruction(Integer)]
-fn define(context: &mut Context, value: Integer, name: Name) {
-    context.define_name(name, context.make_literal_integer(value));
+fn define(vm: &mut Vm, value: Integer, name: Name) {
+    vm.name().define_name(name, Box::new(IntegerLiteralValue::new(value)));
 }
 
 /// Pushes the difference of the top two items; that is, the second item minus the top item.
 #[stack_instruction(Integer)]
-fn difference(context: &mut Context, right: Integer, left: Integer) {
-    context.integer().push(left - right);
+fn difference(vm: &mut Vm, right: Integer, left: Integer) {
+    vm.integer().push(left - right);
 }
 
 /// Duplicates the top item on the INTEGER stack. Does not pop its argument (which, if it did, would negate the
 /// effect of the duplication!).
 #[stack_instruction(Integer)]
-fn dup(context: &mut Context) {
-    context.integer().duplicate_top_item();
+fn dup(vm: &mut Vm) {
+    vm.integer().duplicate_top_item();
 }
 
 /// Pushes TRUE if the top two items on the INTEGER stack are equal, or FALSE otherwise.
 #[stack_instruction(Integer)]
-fn equal(context: &mut Context, a: Integer, b: Integer) {
-    context.bool().push(a == b);
+fn equal(vm: &mut Vm, a: Integer, b: Integer) {
+    vm.bool().push(a == b);
 }
 
 /// Empties the INTEGER stack.
 #[stack_instruction(Integer)]
-fn flush(context: &mut Context) {
-    context.integer().clear();
+fn flush(vm: &mut Vm) {
+    vm.integer().clear();
 }
 
 /// Pushes 1 if the top BOOLEAN is TRUE, or 0 if the top BOOLEAN is FALSE.
 #[stack_instruction(Integer)]
-fn from_boolean(context: &mut Context, value: Bool) {
-    context.integer().push(if value { 1 } else { 0 });
+fn from_boolean(vm: &mut Vm, value: Bool) {
+    vm.integer().push(if value { 1 } else { 0 });
 }
 
 /// Pushes the result of truncating the top FLOAT.
 #[stack_instruction(Integer)]
-fn from_float(context: &mut Context, value: Float) {
-    context.integer().push(value.to_i64().unwrap());
+fn from_float(vm: &mut Vm, value: Float) {
+    vm.integer().push(value.to_i64().unwrap());
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is greater than the top item, or FALSE otherwise.
 #[stack_instruction(Integer)]
-fn greater(context: &mut Context, right: Integer, left: Integer) {
-    context.bool().push(left > right);
+fn greater(vm: &mut Vm, right: Integer, left: Integer) {
+    vm.bool().push(left > right);
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is less than the top item, or FALSE otherwise.
 #[stack_instruction(Integer)]
-fn less(context: &mut Context, right: Integer, left: Integer) {
-    context.bool().push(left < right);
+fn less(vm: &mut Vm, right: Integer, left: Integer) {
+    vm.bool().push(left < right);
 }
 
 /// Pushes the maximum of the top two items.
 #[stack_instruction(Integer)]
-fn max(context: &mut Context, a: Integer, b: Integer) {
-    context.integer().push(if a > b { a } else { b });
+fn max(vm: &mut Vm, a: Integer, b: Integer) {
+    vm.integer().push(if a > b { a } else { b });
 }
 
 /// Pushes the minimum of the top two items.
 #[stack_instruction(Integer)]
-fn min(context: &mut Context, a: Integer, b: Integer) {
-    context.integer().push(if a < b { a } else { b });
+fn min(vm: &mut Vm, a: Integer, b: Integer) {
+    vm.integer().push(if a < b { a } else { b });
 }
 
 /// Pushes the second stack item modulo the top stack item. If the top item is zero this acts as a NOOP. The modulus
@@ -153,90 +153,89 @@ fn min(context: &mut Context, a: Integer, b: Integer) {
 /// infinity. (This is taken from the definition for the generic MOD function in Common Lisp, which is described for
 /// example at http://www.lispworks.com/reference/HyperSpec/Body/f_mod_r.htm.)
 #[stack_instruction(Integer)]
-fn modulo(context: &mut Context, bottom: Integer, top: Integer) {
+fn modulo(vm: &mut Vm, bottom: Integer, top: Integer) {
     if bottom != 0 {
-        context.integer().push(top % bottom);
+        vm.integer().push(top % bottom);
     }
 }
 
 /// Pops the INTEGER stack.
 #[stack_instruction(Integer)]
-fn pop(context: &mut Context, _popped: Integer) {
+fn pop(vm: &mut Vm, _popped: Integer) {
 }
 
 /// Pushes the product of the top two items.
 #[stack_instruction(Integer)]
-fn product(context: &mut Context, right: Integer, left: Integer) {
-    context.integer().push(left * right);
+fn product(vm: &mut Vm, right: Integer, left: Integer) {
+    vm.integer().push(left * right);
 }
 
 /// Pushes the quotient of the top two items; that is, the second item divided by the top item. If the top item is
 /// zero this acts as a NOOP.
 #[stack_instruction(Integer)]
-fn quotient(context: &mut Context, bottom: Integer, top: Integer) {
+fn quotient(vm: &mut Vm, bottom: Integer, top: Integer) {
     if bottom != 0 {
-        context.integer().push(top / bottom);
+        vm.integer().push(top / bottom);
     }
 }
 
 /// Pushes a newly generated random INTEGER that is greater than or equal to MIN-RANDOM-INTEGER and less than or
 /// equal to MAX-RANDOM-INTEGER.
 #[stack_instruction(Integer)]
-fn rand(context: &mut Context) {
-    let random_value = context.run_random_function(IntegerLiteralValue::random_value).unwrap();
-    if let Some(stack) = context.get_stack("Integer") {
-        stack.push(random_value);
-    }
+fn rand(vm: &mut Vm) {
+    let mut random_value = IntegerLiteralValue::random_value(vm);
+    random_value.execute(vm);
 }
 
 /// Rotates the top three items on the INTEGER stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 INTEGER.YANK".
 #[stack_instruction(Integer)]
-fn rot(context: &mut Context) {
-    context.integer().rotate()
+fn rot(vm: &mut Vm) {
+    vm.integer().rotate()
 }
 
 /// Inserts the second INTEGER "deep" in the stack, at the position indexed by the top INTEGER. The index position
 /// is calculated after the index is removed.
 #[stack_instruction(Integer)]
-fn shove(context: &mut Context, position: Integer) {
-    if !context.integer().shove(position) {
-        context.integer().push(position);
+fn shove(vm: &mut Vm, position: Integer) {
+    if !vm.integer().shove(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Pushes the stack depth onto the INTEGER stack (thereby increasing it!).
 #[stack_instruction(Integer)]
-fn stack_depth(context: &mut Context) {
-    context.integer().push(context.integer().len() as i64);
+fn stack_depth(vm: &mut Vm) {
+    let len = vm.integer().len() as i64;
+    vm.integer().push(len);
 }
 
 /// Pushes the sum of the top two items.
 #[stack_instruction(Integer)]
-fn sum(context: &mut Context, a: Integer, b: Integer) {
-    context.integer().push(a + b);
+fn sum(vm: &mut Vm, a: Integer, b: Integer) {
+    vm.integer().push(a + b);
 }
 
 /// Swaps the top two INTEGERs.
 #[stack_instruction(Integer)]
-fn swap(context: &mut Context) {
-    context.integer().swap();
+fn swap(vm: &mut Vm) {
+    vm.integer().swap();
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack, and the indexing is done after the index is removed.
 #[stack_instruction(Integer)]
-fn yank_dup(context: &mut Context, position: Integer) {
-    if !context.integer().yank_duplicate(position) {
-        context.integer().push(position);
+fn yank_dup(vm: &mut Vm, position: Integer) {
+    if !vm.integer().yank_duplicate(position) {
+        vm.integer().push(position);
     }
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack, and the indexing is done after the index is removed.
 #[stack_instruction(Integer)]
-fn yank(context: &mut Context, position: Integer) {
-    if !context.integer().yank(position) {
-        context.integer().push(position);
+fn yank(vm: &mut Vm, position: Integer) {
+    if !vm.integer().yank(position) {
+        vm.integer().push(position);
     }
 }

@@ -188,7 +188,7 @@ mod tests {
     use crate::*;
 
     fn load_and_run(src: &str) -> BaseVm {
-        let mut vm = BaseVm::new();
+        let mut vm = BaseVm::new(Some(1));
         add_base_instructions(&mut vm);
         add_base_literals(&mut vm);
         vm.parse_and_set_code(src).unwrap();

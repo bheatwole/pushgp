@@ -40,9 +40,9 @@ pub struct BaseVm {
 }
 
 impl BaseVm {
-    pub fn new() -> BaseVm {
+    pub fn new(seed: Option<u64>) -> BaseVm {
         let vm = BaseVm {
-            rng: small_rng_from_optional_seed(None),
+            rng: small_rng_from_optional_seed(seed),
             exec_stack: Stack::new(),
             bool_stack: Stack::new(),
             code_stack: Stack::new(),

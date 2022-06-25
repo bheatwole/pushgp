@@ -245,7 +245,7 @@ mod tests {
     use crate::*;
 
     fn new_base_vm() -> BaseVm {
-        let mut vm = BaseVm::new();
+        let mut vm = BaseVm::new(None);
         add_base_instructions(&mut vm);
         add_base_literals(&mut vm);
 

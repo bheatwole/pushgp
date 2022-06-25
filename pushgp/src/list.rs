@@ -110,8 +110,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + 'static> Instruction<
     /// Returns true if the specified code is equal to this item or any child
     fn contains(&self, look_for: &dyn Instruction<Vm>) -> bool {
         for i in self.value.iter() {
-            if i.contains(look_for) {
+            if i.as_ref().eq(look_for) {
                 return true;
+            }
+
+            if i.is_list() {
+                if i.contains(look_for) {
+                    return true;
+                }
             }
         }
         false

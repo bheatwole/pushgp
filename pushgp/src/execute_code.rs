@@ -1,5 +1,6 @@
 use crate::*;
 use pushgp_macros::*;
+use rand::{prelude::SliceRandom, Rng};
 
 pub type Code<Vm> = Box<dyn Instruction<Vm>>;
 
@@ -413,11 +414,27 @@ fn quote(vm: &mut Vm, top_exec: Exec) {
 /// Pushes a newly-generated random program onto the CODE stack. The limit for the size of the expression is taken
 /// from the INTEGER stack; to ensure that it is in the appropriate range this is taken modulo the value of the
 /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
+/// 
+/// This instruction will select names that are already defined in the VM with the weight specified in the VM. If you do
+/// not want to include already defined names, use CODE.RANDNONAME instead
 #[stack_instruction(Code)]
 fn rand(vm: &mut Vm, points: Integer) {
-    // TODO
-    // let code = vm.random_code(Some(points as usize));
+    // let shape = generate_random_code_shape(vm, Some(points as usize));
+    // let code = fill_code_shape(vm, shape);
     // vm.code().push(code);
+}
+
+/// Pushes a newly-generated random program onto the CODE stack. The limit for the size of the expression is taken
+/// from the INTEGER stack; to ensure that it is in the appropriate range this is taken modulo the value of the
+/// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
+/// 
+/// This instruction ignores any previously defined names and is suitable to use for VirtualMachines that do not have a
+/// NAME stack.
+#[stack_instruction(Code)]
+fn rand_no_name(vm: &mut Vm, points: Integer) {
+    let shape = generate_random_code_shape(vm, Some(points as usize));
+    let code = fill_code_shape_no_name(vm, shape);
+    vm.code().push(code);
 }
 
 /// Rotates the top three items on the CODE stack, pulling the third item out and pushing it on top. This is
@@ -477,4 +494,96 @@ fn yank(vm: &mut Vm, position: Integer) {
     if !vm.code().yank(position) {
         vm.integer().push(position);
     }
+}
+
+/// Returns one random atom
+fn fill_code_shape<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm, shape: CodeShape) -> Code<Vm> {
+    // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
+    let defined_names_total = vm.name().defined_names_len() * vm.get_configuration().get_defined_name_weight() as usize;
+    let random_total = defined_names_total + vm.get_instruction_weights().get_sum_of_weights();
+
+    // Pick one
+    let pick = vm.get_rng().gen_range(0..random_total);
+
+    // Is it a defined name?
+    if pick < defined_names_total {
+        return random_defined_name(vm);
+    }
+
+    // Must be an instruction
+    vm.generate_random_instruction()
+}
+
+/// Returns one random atom
+fn fill_code_shape_no_name<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm>>(vm: &mut Vm, shape: CodeShape) -> Code<Vm> {
+    match shape {
+        CodeShape::Atom => vm.generate_random_instruction(),
+        CodeShape::List(mut list) => {
+            let mut code = vec![];
+            for s in list.drain(..) {
+                code.push(fill_code_shape_no_name(vm, s));
+            }
+            Box::new(PushList::new(code))
+        }
+    }
+    
+}
+
+/// Returns one random defined name
+pub fn random_defined_name<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm) -> Code<Vm>  {
+    let defined_names = vm.name().all_defined_names();
+    let pick = vm.get_rng().gen_range(0..defined_names.len());
+    vm.name().definition_for_name(&defined_names[pick]).unwrap()
+}
+
+/// Generates some random code using the configured weight parameters.
+///
+/// The generated code will have at least one code point and as many as `self.max_points_in_random_expressions`.
+/// The generated code will be in a general tree-like shape using lists of lists as the trunks and individual
+/// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
+fn generate_random_code_shape<Vm: VirtualMachine>(vm: &mut Vm, points: Option<usize>) -> CodeShape {
+    let max_points = if let Some(maybe_huge_max) = points {
+        let max = maybe_huge_max % vm.get_configuration().get_max_points_in_random_expressions();
+        if max > 0 {
+            max
+        } else {
+            1
+        }
+    } else {
+        vm.get_configuration().get_max_points_in_random_expressions()
+    };
+    let actual_points = vm.get_rng().gen_range(1..=max_points);
+    random_code_shape_with_size(vm, actual_points)
+}
+
+fn random_code_shape_with_size<Vm: VirtualMachine>(vm: &mut Vm, points: usize) -> CodeShape {
+    if 1 == points {
+        CodeShape::Atom
+    } else {
+        // Break this level down into a list of lists, or possibly specific leaf atoms.
+        let mut sizes_this_level = decompose(vm, points - 1, points - 1);
+        {
+            sizes_this_level.shuffle(vm.get_rng());
+        }
+        let mut list = vec![];
+        for size in sizes_this_level {
+            list.push(random_code_shape_with_size(vm, size));
+        }
+        CodeShape::List(list)
+    }
+}
+
+fn decompose<Vm: VirtualMachine>(vm: &mut Vm, number: usize, max_parts: usize) -> Vec<usize> {
+    if 1 == number || 1 == max_parts {
+        return vec![1];
+    }
+    let this_part = vm.get_rng().gen_range(1..=(number - 1));
+    let mut result = vec![this_part];
+    result.extend_from_slice(&decompose(vm, number - this_part, max_parts - 1));
+    result
+}
+
+enum CodeShape {
+    Atom,
+    List(Vec<CodeShape>),
 }

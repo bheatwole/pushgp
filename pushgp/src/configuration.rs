@@ -3,6 +3,87 @@
 // use std::cell::RefCell;
 // use std::ops::DerefMut;
 
+use crate::GeneticOperation;
+use fnv::FnvHashMap;
+
+#[derive(Debug, PartialEq)]
+pub struct Configuration {
+    max_points_in_random_expressions: usize,
+
+    crossover_rate: u8,
+    mutation_rate: u8,
+
+    defined_name_weight: u8,
+
+    instruction_weights: FnvHashMap<&'static str, u8>,
+}
+
+impl Configuration {
+    pub fn new(
+        max_points_in_random_expressions: usize,
+        crossover_rate: u8,
+        mutation_rate: u8,
+        defined_name_weight: u8,
+        instruction_weights: FnvHashMap<&'static str, u8>,
+    ) -> Configuration {
+        Configuration {
+            max_points_in_random_expressions,
+            crossover_rate,
+            mutation_rate,
+            defined_name_weight,
+            instruction_weights,
+        }
+    }
+
+    pub fn new_simple() -> Configuration {
+        Configuration {
+            max_points_in_random_expressions: 100,
+            crossover_rate: 99,
+            mutation_rate: 1,
+            defined_name_weight: 1,
+            instruction_weights: FnvHashMap::default(),
+        }
+    }
+
+    pub fn get_max_points_in_random_expressions(&self) -> usize {
+        self.max_points_in_random_expressions
+    }
+
+    pub fn get_crossover_rate(&self) -> u8 {
+        self.crossover_rate
+    }
+
+    pub fn get_mutation_rate(&self) -> u8 {
+        self.mutation_rate
+    }
+
+    pub fn get_defined_name_weight(&self) -> u8 {
+        self.defined_name_weight
+    }
+
+    /// Returns the weight of the specified instruction. If a weight the instruction was not specified earlier, a '1' is
+    /// always returned. To turn off random generation of an instruction, you must specify it with a '0' weight.
+    pub fn get_instruction_weight(&self, instruction_name: &'static str) -> u8 {
+        if let Some(weight) = self.instruction_weights.get(&instruction_name) {
+            *weight
+        } else {
+            1
+        }
+    }
+
+    /// Returns a random genetic operation
+    pub fn random_genetic_operation<R: rand::Rng>(&self, rng: &mut R) -> GeneticOperation {
+        let total: usize = self.mutation_rate as usize + self.crossover_rate as usize;
+        let pick = rng.gen_range(0..total);
+
+        if pick < self.mutation_rate as usize {
+            GeneticOperation::Mutation
+        } else {
+            GeneticOperation::Crossover
+        }
+    }
+}
+
 // /// A Configuration is a Vec of u8 where each u8 represents the weight of one of the possible randomly generated items
 // /// for Code. The first u8 is the likelihood of picking an already defined name. The last set of u8s is the chance of
 // /// picking each of the instructions.  Any weight set to zero means the random code generator will not pick that item.
@@ -208,22 +289,5 @@
 //         (1, weights)
 //     } else {
 //         (weights[0], &weights[1..])
-//     }
-// }
-
-// #[cfg(test)]
-// mod tests {
-
-//     #[test]
-//     fn verify_partition_point_function() {
-//         // The instruction entries table depend upon the following behavior from partition_point. If it ever stops
-//         // working like this, we need to know. Specifically only the first of a series of identical values is returned
-//         let entries = [1, 5, 5, 5, 10];
-//         assert_eq!(0, entries.partition_point(|&x| x < 1));
-//         assert_eq!(1, entries.partition_point(|&x| x < 2));
-//         assert_eq!(1, entries.partition_point(|&x| x < 3));
-//         assert_eq!(1, entries.partition_point(|&x| x < 4));
-//         assert_eq!(1, entries.partition_point(|&x| x < 5));
-//         assert_eq!(4, entries.partition_point(|&x| x < 6));
 //     }
 // }

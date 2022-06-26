@@ -1,8 +1,8 @@
-use crate::{Code, Extraction, VirtualMachine};
+use crate::{Code, Extraction, StaticName, VirtualMachine};
 
 /// This trait includes the functions of an instruction that must remain static. If they were included on the Instruction
 /// trait, it could no longer be a trait object
-pub trait StaticInstruction<Vm: VirtualMachine> {
+pub trait StaticInstruction<Vm: VirtualMachine>: StaticName {
     /// All Code must be parsable by 'nom' from a string.
     fn parse(input: &str) -> nom::IResult<&str, Code<Vm>>;
 

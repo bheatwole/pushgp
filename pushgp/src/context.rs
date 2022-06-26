@@ -188,7 +188,7 @@ mod tests {
     use crate::*;
 
     fn load_and_run(src: &str) -> BaseVm {
-        let mut vm = BaseVm::new(Some(1));
+        let mut vm = BaseVm::new(Some(1), Configuration::new_simple());
         add_base_instructions(&mut vm);
         add_base_literals(&mut vm);
         vm.parse_and_set_code(src).unwrap();
@@ -301,6 +301,7 @@ mod tests {
         test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),
         test_code_rand_no_points: ("( CODE.RAND )", "( )", vec![]),
         test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.INSERT FLOAT.EQUAL INTEGER.YANK ) )", vec![]),
+        test_code_rand_no_name_points: ("( 5 CODE.RANDNONAME )", "( CODE.QUOTE ( CODE.YANKDUP CODE.LIST FLOAT.YANK ) )", vec![]),
         test_code_rot: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C CODE.ROT )", "( CODE.QUOTE B CODE.QUOTE C CODE.QUOTE A )", vec![]),
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),
         test_code_shove_zero: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 0 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),

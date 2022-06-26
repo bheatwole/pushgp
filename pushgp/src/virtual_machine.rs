@@ -16,6 +16,11 @@ pub trait VirtualMachine: Sized {
     fn next(&mut self) -> Option<usize>;
 
     fn add_instruction<C: StaticInstruction<Self>>(&mut self);
+    fn get_configuration(&self) -> &Configuration;
+    fn reset_configuration(&mut self, config: Configuration);
+    fn get_instruction_weights(&self) -> &InstructionWeights<Self>;
+    fn generate_random_instruction(&mut self) -> Code<Self>;
+
     fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Self>>;
     fn must_parse(&self, input: &str) -> Code<Self> {
         let (rest, code) = self.parse(input).unwrap();
@@ -37,10 +42,12 @@ pub struct BaseVm {
     integer_stack: Stack<Integer>,
     name_stack: NameStack<BaseVm>,
     parser: Parser<BaseVm>,
+    config: Configuration,
+    weights: InstructionWeights<BaseVm>,
 }
 
 impl BaseVm {
-    pub fn new(seed: Option<u64>) -> BaseVm {
+    pub fn new(seed: Option<u64>, config: Configuration) -> BaseVm {
         let vm = BaseVm {
             rng: small_rng_from_optional_seed(seed),
             exec_stack: Stack::new(),
@@ -50,6 +57,8 @@ impl BaseVm {
             integer_stack: Stack::new(),
             name_stack: NameStack::new(),
             parser: Parser::new(),
+            config,
+            weights: InstructionWeights::new(),
         };
 
         vm
@@ -100,8 +109,28 @@ impl VirtualMachine for BaseVm {
     }
 
     fn add_instruction<C: StaticInstruction<Self>>(&mut self) {
-        self.parser.add_instruction::<C>()
-        // TODO: Add to random weight table
+        self.parser.add_instruction::<C>();
+        self.weights.add_instruction::<C>(self.config.get_instruction_weight(C::static_name()));
+    }
+
+    fn get_configuration(&self) -> &Configuration {
+        &self.config
+    }
+
+    fn reset_configuration(&mut self, config: Configuration) {
+        self.config = config;
+
+        // Iterate through all instruction names and re-assign the weights for the instructions
+        self.weights.reset_weights_from_configuration(&self.config);
+    }
+
+    fn get_instruction_weights(&self) -> &InstructionWeights<Self> {
+        &self.weights
+    }
+
+    fn generate_random_instruction(&mut self) -> Code<Self> {
+        let generator = self.weights.pick_random_instruction_generator(&mut self.rng);
+        generator(self)
     }
 
     fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<BaseVm>> {

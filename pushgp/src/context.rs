@@ -300,7 +300,7 @@ mod tests {
         test_code_position_not_found: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( -1 )", vec![]),
         test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),
         test_code_rand_no_points: ("( CODE.RAND )", "( )", vec![]),
-        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.INSERT FLOAT.EQUAL INTEGER.YANK ) )", vec![]),
+        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( CODE.LIST FLOAT.FLUSH EXEC.K ) )", vec![]),
         test_code_rand_no_name_points: ("( 5 CODE.RANDNONAME )", "( CODE.QUOTE ( CODE.YANKDUP CODE.LIST FLOAT.YANK ) )", vec![]),
         test_code_rot: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C CODE.ROT )", "( CODE.QUOTE B CODE.QUOTE C CODE.QUOTE A )", vec![]),
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),

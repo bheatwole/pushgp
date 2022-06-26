@@ -1,4 +1,4 @@
-use crate::item_fn::ItemFn;
+use crate::{item_fn::ItemFn, requirement_list::RequirementList};
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -17,7 +17,7 @@ struct FunctionParseResults {
     pub pop: HashMap<String, Vec<Ident>>,
 }
 
-pub fn handle_macro(stack_ident: &Ident, inner_fn: &mut ItemFn) -> Result<TokenStream> {
+pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Result<TokenStream> {
     let mut parse_results = FunctionParseResults {
         stacks: HashSet::default(),
         pop: HashMap::default(),
@@ -32,7 +32,7 @@ pub fn handle_macro(stack_ident: &Ident, inner_fn: &mut ItemFn) -> Result<TokenS
     let pushgp: Path = syn::parse_str::<Path>(&pushgp)?;
 
     // Determine the base stack name
-    let stack_name = format!("{}", stack_ident).to_case(Case::Pascal);
+    let stack_name = format!("{}", requirements.idents[0]).to_case(Case::Pascal);
     parse_results.stacks.insert(stack_name.clone());
 
     // Use the base stack name plus the name of the function to generate the name of the struct
@@ -62,7 +62,11 @@ pub fn handle_macro(stack_ident: &Ident, inner_fn: &mut ItemFn) -> Result<TokenS
     let body = wrap_body(body, &parse_results)?;
 
     // Make the bound types
-    let bound_types = make_bound_types(&parse_results, quote!(#pushgp).to_string())?;
+    let bound_types = make_bound_types(
+        &parse_results,
+        quote!(#pushgp).to_string(),
+        &requirements.idents[1..],
+    )?;
 
     Ok(quote! {
         #[derive(Debug, PartialEq)]
@@ -505,6 +509,7 @@ fn wrap_body(original_body: Block, parse_results: &FunctionParseResults) -> Resu
 fn make_bound_types(
     parse_results: &FunctionParseResults,
     pushgp: String,
+    additional_requirements: &[Ident],
 ) -> Result<Vec<TypeParamBound>> {
     let mut bound_types: Vec<TypeParamBound> = vec![];
 
@@ -537,6 +542,26 @@ fn make_bound_types(
 
             // Anything else is part of the user's namespace and they need to have it 'used'
             _ => Some(format!("VirtualMachineMustHave{}<Vm>", stack)),
+        } {
+            bound_types.push(syn::parse_str::<TypeParamBound>(&string_bound)?);
+        }
+    }
+
+    // Add the trait constraints they added manually
+    for extra in additional_requirements {
+        let extra_string = quote!(#extra).to_string();
+        let extra = extra_string.as_str();
+        if let Some(string_bound) = match extra {
+            // We already added this earlier
+            "Exec" => None,
+
+            // These are part the 'pushgp' namespace
+            "Bool" | "Code" | "Float" | "Integer" | "Name" => {
+                Some(format!("{}::VirtualMachineMustHave{}<Vm>", pushgp, extra))
+            }
+
+            // Anything else is part of the user's namespace and they need to have it 'used'
+            _ => Some(format!("VirtualMachineMustHave{}<Vm>", extra)),
         } {
             bound_types.push(syn::parse_str::<TypeParamBound>(&string_bound)?);
         }

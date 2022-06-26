@@ -1,16 +1,18 @@
-use crate::Instruction;
+use crate::Code;
+use fnv::FnvHashMap;
 
 pub struct Individual<S, Vm> {
-    code: Box<dyn Instruction<Vm>>,
+    code: Code<Vm>,
+    defined_names: FnvHashMap<String, Code<Vm>>,
     state: S,
 }
 
 impl<S, Vm> Individual<S, Vm> {
-    pub fn new(code: Box<dyn Instruction<Vm>>, initial_state: S) -> Individual<S, Vm> {
-        Individual { code, state: initial_state }
+    pub fn new(code: Code<Vm>, defined_names: FnvHashMap<String, Code<Vm>>, initial_state: S) -> Individual<S, Vm> {
+        Individual { code, defined_names, state: initial_state }
     }
 
-    pub fn get_code(&self) -> Box<dyn Instruction<Vm>> {
+    pub fn get_code(&self) -> Code<Vm> {
         self.code.clone()
     }
 

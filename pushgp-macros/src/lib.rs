@@ -1,13 +1,14 @@
 extern crate quote;
 
-use crate::item_fn::ItemFn;
+use crate::{item_fn::ItemFn, requirement_list::RequirementList};
 use proc_macro::TokenStream;
 use quote::*;
-use syn::{parse_macro_input};
+use syn::parse_macro_input;
 
 mod instruction;
 mod instruction_list;
 mod item_fn;
+mod requirement_list;
 mod signature;
 mod stack_instruction;
 
@@ -26,7 +27,7 @@ pub fn instruction(input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn stack_instruction(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let stack_ident = parse_macro_input!(attr as syn::Ident);
+    let stack_ident = parse_macro_input!(attr as RequirementList);
     let mut item_fn = parse_macro_input!(input as ItemFn);
     stack_instruction::handle_macro(&stack_ident, &mut item_fn)
         .unwrap_or_else(syn::Error::into_compile_error)

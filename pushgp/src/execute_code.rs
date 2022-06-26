@@ -414,20 +414,20 @@ fn quote(vm: &mut Vm, top_exec: Exec) {
 /// Pushes a newly-generated random program onto the CODE stack. The limit for the size of the expression is taken
 /// from the INTEGER stack; to ensure that it is in the appropriate range this is taken modulo the value of the
 /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
-/// 
+///
 /// This instruction will select names that are already defined in the VM with the weight specified in the VM. If you do
 /// not want to include already defined names, use CODE.RANDNONAME instead
-#[stack_instruction(Code)]
+#[stack_instruction(Code, Name)]
 fn rand(vm: &mut Vm, points: Integer) {
-    // let shape = generate_random_code_shape(vm, Some(points as usize));
-    // let code = fill_code_shape(vm, shape);
-    // vm.code().push(code);
+    let shape = generate_random_code_shape(vm, Some(points as usize));
+    let code = fill_code_shape(vm, shape);
+    vm.code().push(code);
 }
 
 /// Pushes a newly-generated random program onto the CODE stack. The limit for the size of the expression is taken
 /// from the INTEGER stack; to ensure that it is in the appropriate range this is taken modulo the value of the
 /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
-/// 
+///
 /// This instruction ignores any previously defined names and is suitable to use for VirtualMachines that do not have a
 /// NAME stack.
 #[stack_instruction(Code)]
@@ -497,25 +497,43 @@ fn yank(vm: &mut Vm, position: Integer) {
 }
 
 /// Returns one random atom
-fn fill_code_shape<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm, shape: CodeShape) -> Code<Vm> {
-    // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
-    let defined_names_total = vm.name().defined_names_len() * vm.get_configuration().get_defined_name_weight() as usize;
-    let random_total = defined_names_total + vm.get_instruction_weights().get_sum_of_weights();
+fn fill_code_shape<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>>(
+    vm: &mut Vm,
+    shape: CodeShape,
+) -> Code<Vm> {
+    match shape {
+        CodeShape::Atom => {
+            // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
+            let defined_names_total =
+                vm.name().defined_names_len() * vm.get_configuration().get_defined_name_weight() as usize;
+            let random_total = defined_names_total + vm.get_instruction_weights().get_sum_of_weights();
 
-    // Pick one
-    let pick = vm.get_rng().gen_range(0..random_total);
+            // Pick one
+            let pick = vm.get_rng().gen_range(0..random_total);
 
-    // Is it a defined name?
-    if pick < defined_names_total {
-        return random_defined_name(vm);
+            // Is it a defined name?
+            if pick < defined_names_total {
+                random_defined_name(vm)
+            } else {
+                // Must be an instruction
+                vm.generate_random_instruction()
+            }
+        }
+        CodeShape::List(mut list) => {
+            let mut code = vec![];
+            for s in list.drain(..) {
+                code.push(fill_code_shape(vm, s));
+            }
+            Box::new(PushList::new(code))
+        }
     }
-
-    // Must be an instruction
-    vm.generate_random_instruction()
 }
 
 /// Returns one random atom
-fn fill_code_shape_no_name<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm>>(vm: &mut Vm, shape: CodeShape) -> Code<Vm> {
+fn fill_code_shape_no_name<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm>>(
+    vm: &mut Vm,
+    shape: CodeShape,
+) -> Code<Vm> {
     match shape {
         CodeShape::Atom => vm.generate_random_instruction(),
         CodeShape::List(mut list) => {
@@ -526,11 +544,10 @@ fn fill_code_shape_no_name<Vm: VirtualMachine + 'static + VirtualMachineMustHave
             Box::new(PushList::new(code))
         }
     }
-    
 }
 
 /// Returns one random defined name
-pub fn random_defined_name<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm) -> Code<Vm>  {
+pub fn random_defined_name<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm) -> Code<Vm> {
     let defined_names = vm.name().all_defined_names();
     let pick = vm.get_rng().gen_range(0..defined_names.len());
     vm.name().definition_for_name(&defined_names[pick]).unwrap()

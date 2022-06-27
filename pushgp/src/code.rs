@@ -91,6 +91,7 @@ pub fn add_base_instructions<
     vm.add_instruction::<crate::execute_code::CodeRand>();
     vm.add_instruction::<crate::execute_code::CodeRandNoName>();
     vm.add_instruction::<crate::execute_code::CodeRot>();
+    vm.add_instruction::<crate::execute_code::CodeSelectGeneticOperation>();
     vm.add_instruction::<crate::execute_code::CodeShove>();
     vm.add_instruction::<crate::execute_code::CodeSize>();
     vm.add_instruction::<crate::execute_code::CodeStackDepth>();

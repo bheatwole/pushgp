@@ -496,6 +496,22 @@ fn yank(vm: &mut Vm, position: Integer) {
     }
 }
 
+/// Randomly selects either a crossover or mutation as the genetic operation to perform. Pushes is_mutation on the top
+/// of the BOOL stack.
+#[stack_instruction(Code)]
+fn select_genetic_operation(vm: &mut Vm) {
+    let config = vm.get_configuration();
+    let mutation_rate = config.get_mutation_rate() as usize;
+    let total = config.get_crossover_rate() as usize + mutation_rate;
+    let pick = vm.get_rng().gen_range(0..total);
+    vm.bool().push(pick < mutation_rate as usize);
+}
+
+
+// TODO: CODE.RANDCHILD: Pops the top two code items and pushes either a mutation of the first or the crossover of both
+// onto the code stack, based on randomly selected genetic algorithms. Actually implemented by pushing instructions to
+// perform the task
+
 /// Returns one random atom
 fn fill_code_shape<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>>(
     vm: &mut Vm,

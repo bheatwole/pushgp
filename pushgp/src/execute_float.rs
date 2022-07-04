@@ -42,7 +42,12 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm>
 
 impl std::fmt::Display for FloatLiteralValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        // Decimals without a fractional part will parse as an integer
+        if self.value.fract().is_zero() {
+            write!(f, "{}.0", self.value)
+        } else {
+            write!(f, "{}", self.value)
+        }
     }
 }
 
@@ -124,11 +129,7 @@ fn flush(vm: &mut Vm) {
 /// Pushes 1.0 if the top BOOLEAN is TRUE, or 0.0 if the top BOOLEAN is FALSE.
 #[stack_instruction(Float)]
 fn from_boolean(vm: &mut Vm, value: Bool) {
-    vm.float().push(if value {
-        Decimal::new(1, 0)
-    } else {
-        Decimal::new(0, 0)
-    });
+    vm.float().push(if value { Decimal::new(1, 0) } else { Decimal::new(0, 0) });
 }
 
 /// Pushes a floating point version of the top INTEGER.
@@ -174,8 +175,7 @@ fn modulo(vm: &mut Vm, bottom: Float, top: Float) {
 
 /// Pops the FLOAT stack.
 #[stack_instruction(Float)]
-fn pop(vm: &mut Vm, _popped: Float) {
-}
+fn pop(vm: &mut Vm, _popped: Float) {}
 
 /// Pushes the product of the top two items.
 #[stack_instruction(Float)]

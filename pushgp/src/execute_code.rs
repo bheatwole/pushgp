@@ -577,9 +577,53 @@ fn extract_known_point<Vm: VirtualMachine>(code: &Code<Vm>, point: i64) -> Code<
     }
 }
 
-// TODO: CODE.RANDCHILD: Pops the top two code items and pushes either a mutation of the first or the crossover of both
-// onto the code stack, based on randomly selected genetic algorithms. Actually implemented by pushing instructions to
-// perform the task
+/// Pops the top two code items and pushes either a mutation of the first or the crossover of both onto the code stack,
+/// based on randomly selected genetic algorithms. Implemented by pushing other instructions to perform the task
+///
+/// This instruction will select names that are already defined in the VM with the weight specified in the VM. If you do
+/// not want to include already defined names, use CODE.RANDCHILDNONAME instead
+#[stack_instruction(Code, Bool, Exec, Name)]
+fn rand_child(vm: &mut Vm) {
+    let next = Box::new(PushList::new(vec![
+        // Pushes a Bool that represents 'is_mutation'
+        Box::new(CodeSelectGeneticOperation {}),
+        Box::new(ExecIf {}),
+        // Stuff to do 'if_mutation'
+        Box::new(PushList::new(vec![
+            // Pop the extra parent, since mutation only uses one
+            Box::new(CodePop {}),
+            // Do the mutation
+            Box::new(CodeMutate {}),
+        ])),
+        // If we're not doing a mutation, do a crossover
+        Box::new(CodeCrossover {}),
+    ]));
+    vm.exec().push(next);
+}
+
+/// Pops the top two code items and pushes either a mutation of the first or the crossover of both onto the code stack,
+/// based on randomly selected genetic algorithms. Implemented by pushing other instructions to perform the task
+///
+/// This instruction ignores any previously defined names and is suitable to use for VirtualMachines that do not have a
+/// NAME stack.
+#[stack_instruction(Code, Bool, Exec)]
+fn rand_child_no_name(vm: &mut Vm) {
+    let next = Box::new(PushList::new(vec![
+        // Pushes a Bool that represents 'is_mutation'
+        Box::new(CodeSelectGeneticOperation {}),
+        Box::new(ExecIf {}),
+        // Stuff to do 'if_mutation'
+        Box::new(PushList::new(vec![
+            // Pop the extra parent, since mutation only uses one
+            Box::new(CodePop {}),
+            // Do the mutation
+            Box::new(CodeMutateNoName {}),
+        ])),
+        // If we're not doing a mutation, do a crossover
+        Box::new(CodeCrossover {}),
+    ]));
+    vm.exec().push(next);
+}
 
 /// Returns one random atom
 fn fill_code_shape<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>>(

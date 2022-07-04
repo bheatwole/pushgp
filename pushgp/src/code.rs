@@ -93,6 +93,8 @@ pub fn add_base_instructions<
     vm.add_instruction::<crate::execute_code::CodePosition>();
     vm.add_instruction::<crate::execute_code::CodeQuote>();
     vm.add_instruction::<crate::execute_code::CodeRand>();
+    vm.add_instruction::<crate::execute_code::CodeRandChild>();
+    vm.add_instruction::<crate::execute_code::CodeRandChildNoName>();
     vm.add_instruction::<crate::execute_code::CodeRandNoName>();
     vm.add_instruction::<crate::execute_code::CodeRot>();
     vm.add_instruction::<crate::execute_code::CodeSelectGeneticOperation>();

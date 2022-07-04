@@ -544,7 +544,7 @@ fn select_mutation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Cod
         Extraction::Used(_) => 1,
         Extraction::Extracted(sub) => sub.points()
     };
-    let replace_shape = generate_random_code_shape(vm, Some(replace_size as usize));
+    let replace_shape = random_code_shape_with_size(vm, replace_size as usize);
 
     (selected_point, replace_shape)
 }
@@ -658,6 +658,7 @@ fn decompose<Vm: VirtualMachine>(vm: &mut Vm, number: usize, max_parts: usize) -
     result
 }
 
+#[derive(Clone, Debug)]
 enum CodeShape {
     Atom,
     List(Vec<CodeShape>),

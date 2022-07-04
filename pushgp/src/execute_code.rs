@@ -507,6 +507,48 @@ fn select_genetic_operation(vm: &mut Vm) {
     vm.bool().push(pick < mutation_rate as usize);
 }
 
+/// Mutates the top Code item by randomly selecting a point in the code, generating a new random code item of the same
+/// size, and replacing the selected point with the new code.
+///
+/// This instruction will select names that are already defined in the VM with the weight specified in the VM. If you do
+/// not want to include already defined names, use CODE.MUTATENONAME instead
+#[stack_instruction(Code, Name)]
+fn mutate(vm: &mut Vm, parent: Code) {
+    let (selected_point, replace_shape) = select_mutation_point_and_shape(vm, &parent);
+    let replacement_code = fill_code_shape(vm, replace_shape);
+    let (child, _) = parent.replace_point(selected_point, replacement_code.as_ref());
+    vm.code().push(child);
+}
+
+/// Mutates the top Code item by randomly selecting a point in the code, generating a new random code item of the same
+/// size, and replacing the selected point with the new code.
+///
+/// This instruction ignores any previously defined names and is suitable to use for VirtualMachines that do not have a
+/// NAME stack.
+#[stack_instruction(Code)]
+fn mutate_no_name(vm: &mut Vm, parent: Code) {
+    let (selected_point, replace_shape) = select_mutation_point_and_shape(vm, &parent);
+    let replacement_code = fill_code_shape_no_name(vm, replace_shape);
+    let (child, _) = parent.replace_point(selected_point, replacement_code.as_ref());
+    vm.code().push(child);
+}
+
+fn select_random_point<Vm: VirtualMachine>(vm: &mut Vm, code: &Code<Vm>) -> i64 {
+    let total_points = code.points();
+    vm.get_rng().gen_range(0..total_points)
+}
+
+fn select_mutation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Code<Vm>) -> (i64, CodeShape) {
+    let selected_point = select_random_point(vm, parent);
+    let replace_size = match parent.extract_point(selected_point) {
+        Extraction::Used(_) => 1,
+        Extraction::Extracted(sub) => sub.points()
+    };
+    let replace_shape = generate_random_code_shape(vm, Some(replace_size as usize));
+
+    (selected_point, replace_shape)
+}
+
 
 // TODO: CODE.RANDCHILD: Pops the top two code items and pushes either a mutation of the first or the crossover of both
 // onto the code stack, based on randomly selected genetic algorithms. Actually implemented by pushing instructions to

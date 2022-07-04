@@ -284,6 +284,8 @@ mod tests {
         test_code_list: ("( CODE.QUOTE A CODE.QUOTE ( B ) CODE.LIST )", "( CODE.QUOTE ( A ( B ) ) )", vec![]),
         test_code_member_true: ("( CODE.QUOTE A CODE.QUOTE ( A ( B ) ) CODE.MEMBER )", "( TRUE )", vec![]),
         test_code_member_false: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.MEMBER )", "( FALSE )", vec![]),
+        test_code_mutate: ("( CODE.QUOTE ( A ( ( B ) C ) D ) CODE.MUTATE )", "( )", vec![]),
+        test_code_mutate_no_name: ("( CODE.QUOTE ( 1 ( ( 2 ) 3 ) 4 ) CODE.MUTATENONAME )", "( )", vec![]),
         test_code_nth: ("( CODE.QUOTE ( A ( B ) C ) 2 CODE.NTH )", "( CODE.QUOTE C )", vec![]),
         test_code_nth_modulo: ("( CODE.QUOTE ( A ( B ) C ) 4 CODE.NTH )", "( CODE.QUOTE ( B ) )", vec![]),
         test_code_nth_empty: ("( CODE.QUOTE ( ) 3 CODE.NTH )", "( CODE.QUOTE ( ) )", vec![]),

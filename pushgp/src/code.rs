@@ -81,6 +81,8 @@ pub fn add_base_instructions<
     vm.add_instruction::<crate::execute_code::CodeLength>();
     vm.add_instruction::<crate::execute_code::CodeList>();
     vm.add_instruction::<crate::execute_code::CodeMember>();
+    vm.add_instruction::<crate::execute_code::CodeMutate>();
+    vm.add_instruction::<crate::execute_code::CodeMutateNoName>();
     vm.add_instruction::<crate::execute_code::CodeNoop>();
     vm.add_instruction::<crate::execute_code::CodeNthCdr>();
     vm.add_instruction::<crate::execute_code::CodeNth>();

@@ -298,11 +298,11 @@ mod tests {
         let vm = new_base_vm();
         let (_, code) = vm.parse("( A ( B ) )").unwrap();
         let replace_with = vm.must_parse("C");
-        assert_eq!(&code.replace_point(0, replace_with.clone().as_ref()).0, &vm.must_parse("C"));
-        assert_eq!(&code.replace_point(1, replace_with.clone().as_ref()).0, &vm.must_parse("( C ( B ) )"));
-        assert_eq!(&code.replace_point(2, replace_with.clone().as_ref()).0, &vm.must_parse("( A C )"));
-        assert_eq!(&code.replace_point(3, replace_with.clone().as_ref()).0, &vm.must_parse("( A ( C ) )"));
-        assert_eq!(&code.replace_point(4, replace_with.clone().as_ref()).0, &vm.must_parse("( A ( B ) )"));
+        assert_eq!(&code.replace_point(0, replace_with.as_ref()).0, &vm.must_parse("C"));
+        assert_eq!(&code.replace_point(1, replace_with.as_ref()).0, &vm.must_parse("( C ( B ) )"));
+        assert_eq!(&code.replace_point(2, replace_with.as_ref()).0, &vm.must_parse("( A C )"));
+        assert_eq!(&code.replace_point(3, replace_with.as_ref()).0, &vm.must_parse("( A ( C ) )"));
+        assert_eq!(&code.replace_point(4, replace_with.as_ref()).0, &vm.must_parse("( A ( B ) )"));
     }
 
     #[test]

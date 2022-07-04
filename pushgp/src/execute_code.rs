@@ -514,7 +514,7 @@ fn select_genetic_operation(vm: &mut Vm) {
 /// not want to include already defined names, use CODE.MUTATENONAME instead
 #[stack_instruction(Code, Name)]
 fn mutate(vm: &mut Vm, parent: Code) {
-    let (selected_point, replace_shape) = select_mutation_point_and_shape(vm, &parent);
+    let (selected_point, replace_shape) = select_operation_point_and_shape(vm, &parent);
     let replacement_code = fill_code_shape(vm, replace_shape);
     let (child, _) = parent.replace_point(selected_point, replacement_code.as_ref());
     vm.code().push(child);
@@ -527,9 +527,27 @@ fn mutate(vm: &mut Vm, parent: Code) {
 /// NAME stack.
 #[stack_instruction(Code)]
 fn mutate_no_name(vm: &mut Vm, parent: Code) {
-    let (selected_point, replace_shape) = select_mutation_point_and_shape(vm, &parent);
+    let (selected_point, replace_shape) = select_operation_point_and_shape(vm, &parent);
     let replacement_code = fill_code_shape_no_name(vm, replace_shape);
     let (child, _) = parent.replace_point(selected_point, replacement_code.as_ref());
+    vm.code().push(child);
+}
+
+/// Pops the top two Code items and performs a crossover operation. A random point from each code tree will be selected
+/// and child inserted for each parent that has the selected point from that parent replaced with the code tree of the
+/// selected point of the other parent. The children are pushed back onto the Code stack.
+///
+/// Because the instruction does not generate code, it operates the same whether the VM supports the Name stack or not.
+#[stack_instruction(Code)]
+fn crossover(vm: &mut Vm, left: Code, right: Code) {
+    let left_selected_point = select_random_point(vm, &left);
+    let left_code = extract_known_point(&left, left_selected_point);
+    let right_selected_point = select_random_point(vm, &right);
+    let right_code = extract_known_point(&right, right_selected_point);
+
+    let (child, _) = right.replace_point(right_selected_point, left_code.as_ref());
+    vm.code().push(child);
+    let (child, _) = left.replace_point(left_selected_point, right_code.as_ref());
     vm.code().push(child);
 }
 
@@ -538,17 +556,26 @@ fn select_random_point<Vm: VirtualMachine>(vm: &mut Vm, code: &Code<Vm>) -> i64 
     vm.get_rng().gen_range(0..total_points)
 }
 
-fn select_mutation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Code<Vm>) -> (i64, CodeShape) {
+fn select_operation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Code<Vm>) -> (i64, CodeShape) {
     let selected_point = select_random_point(vm, parent);
     let replace_size = match parent.extract_point(selected_point) {
         Extraction::Used(_) => 1,
-        Extraction::Extracted(sub) => sub.points()
+        Extraction::Extracted(sub) => sub.points(),
     };
     let replace_shape = random_code_shape_with_size(vm, replace_size as usize);
 
     (selected_point, replace_shape)
 }
 
+// Returns the sub-tree of code from a larger piece of code where 'point' is known to be less than `code.points()`
+fn extract_known_point<Vm: VirtualMachine>(code: &Code<Vm>, point: i64) -> Code<Vm> {
+    match code.extract_point(point) {
+        Extraction::Used(_) => {
+            panic!("do not call extract_known_point unless point is known to be less than code.points()")
+        }
+        Extraction::Extracted(sub) => sub,
+    }
+}
 
 // TODO: CODE.RANDCHILD: Pops the top two code items and pushes either a mutation of the first or the crossover of both
 // onto the code stack, based on randomly selected genetic algorithms. Actually implemented by pushing instructions to

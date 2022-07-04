@@ -26,7 +26,8 @@ impl<Vm> std::cmp::PartialEq for Extraction<Vm> {
 }
 
 pub fn add_base_instructions<
-    Vm: VirtualMachine + 'static
+    Vm: VirtualMachine
+        + 'static
         + VirtualMachineMustHaveBool<Vm>
         + VirtualMachineMustHaveCode<Vm>
         + VirtualMachineMustHaveExec<Vm>
@@ -60,6 +61,7 @@ pub fn add_base_instructions<
     vm.add_instruction::<crate::execute_code::CodeCons>();
     vm.add_instruction::<crate::execute_code::CodeContainer>();
     vm.add_instruction::<crate::execute_code::CodeContains>();
+    vm.add_instruction::<crate::execute_code::CodeCrossover>();
     vm.add_instruction::<crate::execute_code::CodeDefine>();
     vm.add_instruction::<crate::execute_code::CodeDefinition>();
     vm.add_instruction::<crate::execute_code::CodeDiscrepancy>();

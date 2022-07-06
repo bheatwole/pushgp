@@ -2,8 +2,9 @@ mod card;
 mod game_state;
 mod pile;
 mod suit;
+mod vm;
 
-pub use card::Card;
+pub use card::{Card, VirtualMachineMustHaveCard};
 pub use game_state::GameState;
 pub use suit::Suit;
 

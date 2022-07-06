@@ -9,6 +9,7 @@ edition = "2021"
 nom = "7.1"
 pushgp = { path = "../pushgp" }
 pushgp-macros = { path = "../pushgp-macros" }
+seahash = "4.1"
 strum = "0.24"
 strum_macros = "0.24"
 

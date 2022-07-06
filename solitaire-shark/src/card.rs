@@ -1,8 +1,7 @@
-use nom::{branch::alt, bytes::complete::tag, IResult};
+use nom::{branch::alt, bytes::complete::tag};
 use pushgp::*;
-use pushgp_macros::instruction;
+use pushgp_macros::stack_instruction;
 use rand::{prelude::SliceRandom, Rng};
-use std::convert::From;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use strum_macros::{AsRefStr, EnumIter, EnumString, FromRepr};
@@ -10,7 +9,16 @@ use strum_macros::{AsRefStr, EnumIter, EnumString, FromRepr};
 use crate::Suit;
 
 #[derive(
-    AsRefStr, Copy, Clone, Debug, Eq, PartialEq, EnumString, EnumIter, FromRepr, strum_macros::Display,
+    AsRefStr,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    EnumString,
+    EnumIter,
+    FromRepr,
+    strum_macros::Display,
 )]
 #[repr(u8)]
 pub enum Card {
@@ -129,54 +137,30 @@ impl Card {
     }
 }
 
-pub trait MustHaveCardStackInContext {
-    fn card(&self) -> Stack<Card>;
-    fn make_literal_card(&self, value: Card) -> Code;
+pub trait VirtualMachineMustHaveCard<Vm> {
+    fn card(&mut self) -> &mut Stack<Card>;
 }
 
-impl<State: std::fmt::Debug + Clone> MustHaveCardStackInContext for Context<State> {
-    fn card(&self) -> Stack<Card> {
-        Stack::<Card>::new(self.get_stack("Card"))
-    }
+pub struct CardLiteralValue {
+    value: Card,
+}
 
-    fn make_literal_card(&self, value: Card) -> Code {
-        let id = self
-            .get_virtual_table()
-            .id_for_name(CardLiteralValue::name())
-            .unwrap();
-        Code::InstructionWithData(id, Some(InstructionData::from_u8(value as u8)))
+impl CardLiteralValue {
+    pub fn new(value: Card) -> CardLiteralValue {
+        CardLiteralValue { value }
     }
 }
 
-impl From<InstructionData> for Card {
-    fn from(data: InstructionData) -> Self {
-        Card::from_repr(data.get_u8().unwrap()).unwrap()
-    }
-}
-
-impl From<&InstructionData> for Card {
-    fn from(data: &InstructionData) -> Self {
-        Card::from_repr(data.get_u8().unwrap()).unwrap()
-    }
-}
-
-impl Into<InstructionData> for Card {
-    fn into(self) -> InstructionData {
-        InstructionData::from_u8(self as u8)
-    }
-}
-
-pub struct CardLiteralValue {}
-impl Instruction for CardLiteralValue {
-    /// Every instruction must have a name
-    fn name() -> &'static str {
+impl StaticName for CardLiteralValue {
+    fn static_name() -> &'static str {
         "CARD.LITERALVALUE"
     }
+}
 
-    /// All instructions must be parsable by 'nom' from a string. Parsing an instruction will either return an error to
-    /// indicate the instruction was not found, or the optional data, indicating the instruction was found and parsing
-    /// should cease.
-    fn parse(input: &str) -> IResult<&str, Option<InstructionData>> {
+impl<Vm: VirtualMachine  + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
+    for CardLiteralValue
+{
+    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
         let (rest, card_name) = alt((
             alt((
                 tag("AceOfSpades"),
@@ -239,43 +223,63 @@ impl Instruction for CardLiteralValue {
                 tag("KingOfHearts"),
             )),
         ))(input)?;
-        Ok((rest, Some(Card::from_str(card_name).unwrap().into())))
+        Ok((
+            rest,
+            Box::new(CardLiteralValue::new(Card::from_str(card_name).unwrap())),
+        ))
     }
 
-    /// All instructions must also be able to write to a string that can later be parsed by nom.
-    fn nom_fmt(
-        data: &Option<InstructionData>,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> std::fmt::Result {
-        write!(f, "{}", Card::from(data.as_ref().unwrap()))
+    fn random_value(vm: &mut Vm) -> Code<Vm> {
+        let value = vm
+            .get_rng()
+            .gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
+        Box::new(CardLiteralValue::new(Card::from_repr(value).unwrap()))
+    }
+}
+
+impl std::fmt::Display for CardLiteralValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+impl<Vm: VirtualMachine  + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for CardLiteralValue {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 
-    /// If the instruction makes use of InstructionData, it must be able to generate a random value for code generation.
-    /// If it does not use InstructionData, it just returns None
-    fn random_value(rng: &mut rand::rngs::SmallRng) -> Option<InstructionData> {
-        let value = rng.gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
-        Some(InstructionData::from_u8(value))
+    fn name(&self) -> &'static str {
+        CardLiteralValue::static_name()
     }
 
-    /// Instructions are pure functions on a Context and optional InstructionData. All parameters are read from the
-    /// Context and/or data and all outputs are updates to the Context.
-    fn execute<State: std::fmt::Debug + Clone>(
-        context: &Context<State>,
-        data: Option<InstructionData>,
-    ) {
-        if let Some(stack) = context.get_stack("Card") {
-            stack.push(data.unwrap());
+    fn clone(&self) -> Code<Vm> {
+        Box::new(CardLiteralValue::new(self.value))
+    }
+
+    /// Executing a CardLiteralValue pushes the literal value that was part of the data onto the stack
+    fn execute(&mut self, vm: &mut Vm) {
+        vm.card().push(self.value)
+    }
+
+    /// Eq for CardLiteralValue must check that the other instruction is also a CardLiteralValue and, if so, that the
+    /// value is equivalent
+    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
+        if let Some(other) = other.as_any().downcast_ref::<CardLiteralValue>() {
+            self.value == other.value
+        } else {
+            false
         }
     }
 
-    fn add_to_virtual_table<State: std::fmt::Debug + Clone>(table: &mut VirtualTable<State>) {
-        table.add_entry(
-            Self::name(),
-            Self::parse,
-            Self::nom_fmt,
-            Self::random_value,
-            Self::execute,
-        );
+    /// The hash value for CardLiteralValue include the value in the hash as well as the name
+    fn hash(&self) -> u64 {
+        let mut to_hash: Vec<u8> = CardLiteralValue::static_name()
+            .as_bytes()
+            .iter()
+            .map(|c| *c)
+            .collect();
+        to_hash.push(self.value as u8);
+        seahash::hash(&to_hash[..])
     }
 }
 
@@ -289,65 +293,50 @@ impl Instruction for CardLiteralValue {
 // /// Pops the Card stack and pushes the associate FinishedPile for the Card onto the Pile stack.
 // "CARD.FINISHPILE"
 
-instruction! {
-    /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CARD stack
-    /// onto the EXEC stack.
-    #[stack(Card)]
-    fn define(context: &mut Context, value: Card, name: Name) {
-        context.define_name(name, context.make_literal_card(value));
-    }
+/// Defines the name on top of the NAME stack as an instruction that will push the top item of the CARD stack
+/// onto the EXEC stack.
+#[stack_instruction(Card)]
+fn define(vm: &mut Vm, value: Card, name: Name) {
+    vm.name()
+        .define_name(name, Box::new(CardLiteralValue::new(value)));
 }
 
-instruction! {
-    /// Duplicates the top item on the CARD stack. Does not pop its argument (which, if it did, would negate the
-    /// effect of the duplication!).
-    #[stack(Card)]
-    fn dup(context: &mut Context) {
-        context.card().duplicate_top_item();
-    }
+/// Duplicates the top item on the CARD stack. Does not pop its argument (which, if it did, would negate the
+/// effect of the duplication!).
+#[stack_instruction(Card)]
+fn dup(vm: &mut Vm) {
+    vm.card().duplicate_top_item();
 }
 
-instruction! {
-    /// Pushes TRUE if the top two items on the CARD stack are equal, or FALSE otherwise.
-    #[stack(Card)]
-    fn equal(context: &mut Context, a: Card, b: Card) {
-        context.bool().push(a == b);
-    }
+/// Pushes TRUE if the top two items on the CARD stack are equal, or FALSE otherwise.
+#[stack_instruction(Card)]
+fn equal(vm: &mut Vm, a: Card, b: Card) {
+    vm.bool().push(a == b);
 }
 
-instruction! {
-    /// Empties the Card stack.
-    #[stack(Card)]
-    fn flush(context: &mut Context) {
-        context.card().clear();
-    }
+/// Empties the Card stack.
+#[stack_instruction(Card)]
+fn flush(vm: &mut Vm) {
+    vm.card().clear();
 }
 
-instruction! {
-    /// Pops the top INTEGER and determines which Card it is (0..52) pushing the result onto the CARD stack. The integer
-    /// is taken modulus 52 so that it is always a valid Card
-    #[stack(Card)]
-    fn from_int(context: &mut Context, value: Integer) {
-        let value = (value % 52) as u8;
-        context.card().push(Card::from_repr(value).unwrap());
-    }
+/// Pops the top INTEGER and determines which Card it is (0..52) pushing the result onto the CARD stack. The integer
+/// is taken modulus 52 so that it is always a valid Card
+#[stack_instruction(Card)]
+fn from_int(vm: &mut Vm, value: Integer) {
+    let value = (value % 52) as u8;
+    vm.card().push(Card::from_repr(value).unwrap());
 }
 
-instruction! {
-    /// Pops the CARD stack
-    #[stack(Card)]
-    fn pop(context: &mut Context, _a: Card) {}
-}
+/// Pops the CARD stack
+#[stack_instruction(Card)]
+fn pop(vm: &mut Vm, _a: Card) {}
 
-instruction! {
-    /// Pushes a random Card onto the CARD stack
-    #[stack(Card)]
-    fn rand(context: &mut Context) {
-        let random_card = context.run_random_function(CardLiteralValue::random_value).unwrap();
-        if let Some(stack) = context.get_stack("Card") {
-            stack.push(random_card);
-        }
-    }
+/// Pushes a random Card onto the CARD stack
+#[stack_instruction(Card)]
+fn rand(vm: &mut Vm) {
+    let mut random_card = CardLiteralValue::random_value(vm);
+    random_card.execute(vm);
 }
 
 // "CARD.ROT"

@@ -25,7 +25,7 @@ impl StaticName for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm>
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm>
     for NameLiteralValue
 {
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
@@ -50,7 +50,7 @@ impl std::fmt::Display for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
     for NameLiteralValue
 {
     fn as_any(&self) -> &dyn std::any::Any {
@@ -135,7 +135,7 @@ fn quote(vm: &mut Vm) {
 #[stack_instruction(Name)]
 fn rand_bound_name(vm: &mut Vm) {
     use rand::Rng;
-    
+
     let defined_names = vm.name().all_defined_names();
     if defined_names.len() > 0 {
         let pick: usize = vm.get_rng().gen_range(0..defined_names.len());

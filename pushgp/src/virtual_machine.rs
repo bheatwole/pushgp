@@ -2,7 +2,7 @@ use crate::*;
 use rand::prelude::SeedableRng;
 use rand::rngs::SmallRng;
 
-pub trait VirtualMachine: Sized {
+pub trait VirtualMachine: Sized + 'static {
     /// All virtual machines must expose a random number generator.
     fn get_rng(&mut self) -> &mut SmallRng;
 

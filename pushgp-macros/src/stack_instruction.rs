@@ -519,9 +519,6 @@ fn make_bound_types(
         pushgp
     ))?);
 
-    // The VirtualMachine *type* must have a static lifetime
-    bound_types.push(syn::parse_str::<TypeParamBound>("'static")?);
-
     // All the literals also require the 'Exec' stack, and every VirtualMachine MUST implement Exec so add it whether it
     // was explicitly called or not
     bound_types.push(syn::parse_str::<TypeParamBound>(&format!(

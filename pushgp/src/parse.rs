@@ -15,7 +15,7 @@ pub struct Parser<Vm: VirtualMachine> {
     parsers: Vec<ParseFn<Vm>>,
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + 'static> Parser<Vm> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Parser<Vm> {
     pub fn new() -> Parser<Vm> {
         Parser { parsers: vec![] }
     }

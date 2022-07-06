@@ -27,7 +27,6 @@ impl<Vm: 'static> std::cmp::PartialEq for Extraction<Vm> {
 
 pub fn add_base_instructions<
     Vm: VirtualMachine
-        + 'static
         + VirtualMachineMustHaveBool<Vm>
         + VirtualMachineMustHaveCode<Vm>
         + VirtualMachineMustHaveExec<Vm>
@@ -193,8 +192,7 @@ pub fn add_base_literals<
         + VirtualMachineMustHaveExec<Vm>
         + VirtualMachineMustHaveFloat<Vm>
         + VirtualMachineMustHaveInteger<Vm>
-        + VirtualMachineMustHaveName<Vm>
-        + 'static,
+        + VirtualMachineMustHaveName<Vm>,
 >(
     vm: &mut Vm,
 ) {

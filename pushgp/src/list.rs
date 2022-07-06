@@ -18,7 +18,7 @@ impl<Vm> StaticName for PushList<Vm> {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + 'static> StaticInstruction<Vm> for PushList<Vm> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> StaticInstruction<Vm> for PushList<Vm> {
     // The PushList cannot be parsed this way because it requires recursive parsing (and thus access to the parser). See
     // parse.rs for the implementation of recursive parsing
     fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
@@ -42,7 +42,7 @@ impl<Vm> std::fmt::Display for PushList<Vm> {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + 'static> Instruction<Vm> for PushList<Vm> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for PushList<Vm> {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

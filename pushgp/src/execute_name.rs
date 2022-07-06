@@ -25,7 +25,7 @@ impl StaticName for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm>
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> StaticInstruction<Vm>
     for NameLiteralValue
 {
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
@@ -50,7 +50,7 @@ impl std::fmt::Display for NameLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
     for NameLiteralValue
 {
     fn as_any(&self) -> &dyn std::any::Any {

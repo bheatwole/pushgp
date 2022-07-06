@@ -24,7 +24,7 @@ impl StaticName for IntegerLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> StaticInstruction<Vm> for IntegerLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveInteger<Vm>> StaticInstruction<Vm> for IntegerLiteralValue {
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
         let (rest, value) = crate::parse::parse_code_integer(input)?;
         Ok((rest, Box::new(IntegerLiteralValue::new(value))))
@@ -43,7 +43,7 @@ impl std::fmt::Display for IntegerLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for IntegerLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for IntegerLiteralValue {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

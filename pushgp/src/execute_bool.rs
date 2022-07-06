@@ -23,7 +23,7 @@ impl StaticName for BoolLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> for BoolLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> for BoolLiteralValue {
     fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
         let (rest, value) = crate::parse::parse_code_bool(input)?;
         Ok((rest, Box::new(BoolLiteralValue::new(value))))
@@ -41,7 +41,7 @@ impl std::fmt::Display for BoolLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for BoolLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for BoolLiteralValue {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

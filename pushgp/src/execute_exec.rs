@@ -3,7 +3,7 @@ use pushgp_macros::*;
 
 pub type Exec<Vm> = Box<dyn Instruction<Vm>>;
 
-pub trait VirtualMachineMustHaveExec<Vm> {
+pub trait VirtualMachineMustHaveExec<Vm: 'static> {
     fn exec(&mut self) -> &mut Stack<Exec<Vm>>;
 }
 

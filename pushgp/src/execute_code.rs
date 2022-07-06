@@ -4,7 +4,7 @@ use rand::{prelude::SliceRandom, Rng};
 
 pub type Code<Vm> = Box<dyn Instruction<Vm>>;
 
-pub trait VirtualMachineMustHaveCode<Vm> {
+pub trait VirtualMachineMustHaveCode<Vm: 'static> {
     fn code(&mut self) -> &mut Stack<Code<Vm>>;
 }
 
@@ -551,12 +551,12 @@ fn crossover(vm: &mut Vm, left: Code, right: Code) {
     vm.code().push(child);
 }
 
-fn select_random_point<Vm: VirtualMachine>(vm: &mut Vm, code: &Code<Vm>) -> i64 {
+fn select_random_point<Vm: VirtualMachine + 'static>(vm: &mut Vm, code: &Code<Vm>) -> i64 {
     let total_points = code.points();
     vm.get_rng().gen_range(0..total_points)
 }
 
-fn select_operation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Code<Vm>) -> (i64, CodeShape) {
+fn select_operation_point_and_shape<Vm: VirtualMachine + 'static>(vm: &mut Vm, parent: &Code<Vm>) -> (i64, CodeShape) {
     let selected_point = select_random_point(vm, parent);
     let replace_size = match parent.extract_point(selected_point) {
         Extraction::Used(_) => 1,
@@ -568,7 +568,7 @@ fn select_operation_point_and_shape<Vm: VirtualMachine>(vm: &mut Vm, parent: &Co
 }
 
 // Returns the sub-tree of code from a larger piece of code where 'point' is known to be less than `code.points()`
-fn extract_known_point<Vm: VirtualMachine>(code: &Code<Vm>, point: i64) -> Code<Vm> {
+fn extract_known_point<Vm: VirtualMachine + 'static>(code: &Code<Vm>, point: i64) -> Code<Vm> {
     match code.extract_point(point) {
         Extraction::Used(_) => {
             panic!("do not call extract_known_point unless point is known to be less than code.points()")
@@ -676,7 +676,7 @@ fn fill_code_shape_no_name<Vm: VirtualMachine + 'static + VirtualMachineMustHave
 }
 
 /// Returns one random defined name
-pub fn random_defined_name<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm) -> Code<Vm> {
+pub fn random_defined_name<Vm: VirtualMachine + 'static + VirtualMachineMustHaveName<Vm>>(vm: &mut Vm) -> Code<Vm> {
     let defined_names = vm.name().all_defined_names();
     let pick = vm.get_rng().gen_range(0..defined_names.len());
     vm.name().definition_for_name(&defined_names[pick]).unwrap()

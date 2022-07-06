@@ -2,13 +2,13 @@ use crate::{Code, Name, Stack};
 use fnv::FnvHashMap;
 
 #[derive(Debug, PartialEq)]
-pub struct NameStack<Vm> {
+pub struct NameStack<Vm: 'static> {
     stack: Stack<Name>,
     quote_next_name: bool,
     defined_names: FnvHashMap<Name, Code<Vm>>,
 }
 
-impl<Vm> NameStack<Vm> {
+impl<Vm: 'static> NameStack<Vm> {
     pub fn new() -> NameStack<Vm> {
         NameStack {
             stack: Stack::new(),

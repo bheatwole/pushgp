@@ -10,7 +10,7 @@ pub enum Extraction<Vm> {
     Used(i64),
 }
 
-impl<Vm> std::cmp::PartialEq for Extraction<Vm> {
+impl<Vm: 'static> std::cmp::PartialEq for Extraction<Vm> {
     fn eq(&self, other: &Extraction<Vm>) -> bool {
         match self {
             Extraction::Extracted(self_code) => match other {

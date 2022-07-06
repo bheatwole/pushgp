@@ -7,7 +7,7 @@ pub struct Individual<S, Vm> {
     state: S,
 }
 
-impl<S, Vm> Individual<S, Vm> {
+impl<S, Vm: 'static> Individual<S, Vm> {
     pub fn new(code: Code<Vm>, defined_names: FnvHashMap<String, Code<Vm>>, initial_state: S) -> Individual<S, Vm> {
         Individual { code, defined_names, state: initial_state }
     }

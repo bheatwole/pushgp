@@ -18,7 +18,7 @@ pub trait StaticInstruction<Vm: VirtualMachine>: StaticName {
 /// It is generic for a VirtualMachine. Most instructions will place additional `where` constraints on the VM. I.E. an
 /// instruction may require the VM to implement VirtualMachineHasBoolStack, VirtualMachineHasCodeStack and
 /// VirtualMachineHasGameState. (VirtualMachineHasGameState being a trait defined in the user's code)
-pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
+pub trait Instruction<Vm: 'static>: std::any::Any + std::fmt::Display {
     /// The instruction must be able to report what type it is.
     fn as_any(&self) -> &dyn std::any::Any;
 
@@ -143,7 +143,7 @@ pub trait Instruction<Vm>: std::any::Any + std::fmt::Display {
 
 /// While we cannot implement Clone for the raw trait object, we CAN implement Clone for the boxed instruction, which
 /// allows us to put the Box<dyn Instruction> into a Stack<T: Clone>
-impl<Vm> Clone for Box<dyn Instruction<Vm>> {
+impl<Vm: 'static> Clone for Box<dyn Instruction<Vm>> {
     fn clone(&self) -> Self {
         self.as_ref().clone()
     }
@@ -159,16 +159,16 @@ impl<Vm> std::fmt::Debug for Box<dyn Instruction<Vm>> {
 
 /// While we cannot implement PartialEq for the raw trait object, we CAN implement PartialEq for the boxed instruction,
 /// which allows us to put the Box<dyn Instruction> into a Stack<T: PartialEq>
-impl<Vm> std::cmp::PartialEq for Box<dyn Instruction<Vm>> {
+impl<Vm: 'static> std::cmp::PartialEq for Box<dyn Instruction<Vm>> {
     fn eq(&self, other: &Box<dyn Instruction<Vm>>) -> bool {
         self.as_ref().eq(other.as_ref())
     }
 }
-impl<Vm> std::cmp::Eq for Box<dyn Instruction<Vm>> {}
+impl<Vm: 'static> std::cmp::Eq for Box<dyn Instruction<Vm>> {}
 
 /// While we cannot implement Hash for the raw trait object, we CAN implement Hash for the boxed instruction,
 /// which allows us to put the Box<dyn Instruction> into a HashMap
-impl<Vm> std::hash::Hash for Box<dyn Instruction<Vm>> {
+impl<Vm: 'static> std::hash::Hash for Box<dyn Instruction<Vm>> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u64(self.as_ref().hash())
     }

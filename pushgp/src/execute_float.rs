@@ -27,7 +27,7 @@ impl StaticName for FloatLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm> for FloatLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm> for FloatLiteralValue {
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
         let (rest, value) = crate::parse::parse_code_float(input)?;
         Ok((rest, Box::new(FloatLiteralValue::new(value))))
@@ -51,7 +51,7 @@ impl std::fmt::Display for FloatLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for FloatLiteralValue {
+impl<Vm: VirtualMachine + 'static + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for FloatLiteralValue {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

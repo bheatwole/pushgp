@@ -83,7 +83,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
         {
             fn parse(input: &str) -> nom::IResult<&str, #pushgp::Code<Vm>> {
                 let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
-                let (rest, _) = crate::parse::space_or_end(rest)?;
+                let (rest, _) = #pushgp::space_or_end(rest)?;
 
                 Ok((rest, Box::new(#struct_name {})))
             }

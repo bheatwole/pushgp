@@ -1,3 +1,4 @@
+use crate::VirtualMachineMustHaveGame;
 use nom::{branch::alt, bytes::complete::tag};
 use pushgp::*;
 use pushgp_macros::stack_instruction;
@@ -157,7 +158,7 @@ impl StaticName for CardLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine  + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
+impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
     for CardLiteralValue
 {
     fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
@@ -243,7 +244,7 @@ impl std::fmt::Display for CardLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine  + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for CardLiteralValue {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for CardLiteralValue {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -283,15 +284,86 @@ impl<Vm: VirtualMachine  + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for C
     }
 }
 
-// /// Pops the Card stack and pushes TRUE onto the Bool stack if that Card is the next one to go on the Finished Pile
-// "CARD.READYTOFINISH"
+/// Pops the Card stack and pushes TRUE onto the Bool stack if that Card is the next one to go on the Finished Pile
+#[stack_instruction(Card)]
+fn ready_to_finish(vm: &mut Vm, value: Card) {
+    let ready = vm.game().card_is_ready_to_finish(value);
+    vm.bool().push(ready);
+}
 
-// /// Pops the Card stack twice to determine if the first Card popped can be played on the second card via a Solitaire
-// /// move (opposite color and one higher in rank)
-// "CARD.ISLEGALMOVE"
+/// Draws the next three cards (if available) from the draw pile onto the play pile. If the draw pile is empty, the play
+/// pile is recycled. Push the new top card of the play pile onto the Card stack
+#[stack_instruction(Card)]
+fn draw_next_three(vm: &mut Vm) {
+    vm.game().draw_next_three();
+    if let Some(top_card_of_play_pile) = vm.game().top_card_of_play_pile() {
+        vm.card().push(top_card_of_play_pile);
+    }
+}
 
-// /// Pops the Card stack and pushes the associate FinishedPile for the Card onto the Pile stack.
-// "CARD.FINISHPILE"
+/// Moves the top play pile card to the appropriate finish pile. Pushes whether or not the action could be completed
+/// onto the Bool stack
+#[stack_instruction(Card)]
+fn move_top_play_pile_card_to_finish(vm: &mut Vm) {
+    let success = vm.game().move_top_play_pile_card_to_finish();
+    vm.bool().push(success);
+}
+
+/// Pops the Integer stack and uses that value modulus 7 to choose a work pile. The top card of that work pile is moved
+/// to the finish pile if possible. Pushes whether or not the action could be completed onto the Bool stack
+#[stack_instruction(Card)]
+fn move_top_work_pile_card_to_finish(vm: &mut Vm, work_pile: Integer) {
+    let work_pile = work_pile % 7;
+    let success = vm
+        .game()
+        .move_top_work_pile_card_to_finish(work_pile as usize);
+    vm.bool().push(success);
+}
+
+/// Pops the Integer stack three times. The top value is the number of cards to move. The second value is the index of
+/// the work pile to move from (modulus 7). The third value is the destination work pile (modulus 7).  Pushes whether or
+/// not the action could be completed onto the Bool stack
+#[stack_instruction(Card)]
+fn move_work_pile_cards_to_another_work_pile(
+    vm: &mut Vm,
+    card_count: Integer,
+    source_pile: Integer,
+    destination_pile: Integer,
+) {
+    let source_pile = (source_pile % 7) as usize;
+    let destination_pile = (destination_pile % 7) as usize;
+    let face_up_count = vm.game().number_of_face_up_cards_in_work_pile(source_pile);
+    let success = if face_up_count > 0 {
+        let card_count = (card_count as usize % face_up_count) as usize;
+        vm.game().move_work_pile_cards_to_another_work_pile(
+            source_pile,
+            card_count,
+            destination_pile,
+        )
+    } else {
+        false
+    };
+    vm.bool().push(success);
+}
+
+#[stack_instruction(Card)]
+fn draw_pile_len(vm: &mut Vm) {
+    let len = vm.game().number_of_cards_in_draw_pile();
+    vm.integer().push(len as i64);
+}
+
+#[stack_instruction(Card)]
+fn play_pile_len(vm: &mut Vm) {
+    let len = vm.game().number_of_cards_in_play_pile();
+    vm.integer().push(len as i64);
+}
+
+#[stack_instruction(Card)]
+fn top_play_pile(vm: &mut Vm) {
+    if let Some(card) = vm.game().top_card_of_play_pile() {
+        vm.card().push(card);
+    }
+}
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CARD stack
 /// onto the EXEC stack.

@@ -7,6 +7,7 @@ mod vm;
 pub use card::{Card, VirtualMachineMustHaveCard};
 pub use game_state::GameState;
 pub use suit::Suit;
+pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 
 fn main() {
     // Parameters:
@@ -26,7 +27,6 @@ fn main() {
     // island_five_fitness_score_fn: run 100 games and score on fewest cards in face_up piles, then win rate
     // island_six_fitness_score_fn: run 100 games and score on smallest code size, then win rate
     // island_seven_fitness_score_fn: run 100 games and score on fewest instructions executed, then win rate
-
 
     // Create the virtual table that includes all of our instructions
 

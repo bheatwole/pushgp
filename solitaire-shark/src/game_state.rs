@@ -3,7 +3,7 @@ use rand::{rngs::SmallRng, SeedableRng};
 use crate::Card;
 use crate::Suit;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct GameState {
     draw_pile: Vec<Card>,
     play_pile: Vec<Card>,
@@ -80,13 +80,19 @@ impl GameState {
         }
     }
 
-    fn card_is_ready_to_finish(&self, card: Card) -> bool {
-        let previous_card = self.top_card_in_finished_suits.get(card.suit() as usize).unwrap();
+    pub fn card_is_ready_to_finish(&self, card: Card) -> bool {
+        let previous_card = self
+            .top_card_in_finished_suits
+            .get(card.suit() as usize)
+            .unwrap();
         card.is_next_card_in_suit(*previous_card)
     }
 
     fn push_card_on_finished_pile(&mut self, card: Card) -> bool {
-        self.top_card_in_finished_suits.get_mut(card.suit() as usize).unwrap().replace(card);
+        self.top_card_in_finished_suits
+            .get_mut(card.suit() as usize)
+            .unwrap()
+            .replace(card);
         true
     }
 
@@ -223,28 +229,44 @@ impl GameState {
     }
 
     pub fn number_of_finished_spades(&self) -> usize {
-        match self.top_card_in_finished_suits.get(Suit::Spades as usize).unwrap() {
+        match self
+            .top_card_in_finished_suits
+            .get(Suit::Spades as usize)
+            .unwrap()
+        {
             None => 0,
             Some(card) => card.index_in_suit() + 1,
         }
     }
 
     pub fn number_of_finished_diamonds(&self) -> usize {
-        match self.top_card_in_finished_suits.get(Suit::Diamonds as usize).unwrap() {
+        match self
+            .top_card_in_finished_suits
+            .get(Suit::Diamonds as usize)
+            .unwrap()
+        {
             None => 0,
             Some(card) => card.index_in_suit() + 1,
         }
     }
 
     pub fn number_of_finished_clubs(&self) -> usize {
-        match self.top_card_in_finished_suits.get(Suit::Clubs as usize).unwrap() {
+        match self
+            .top_card_in_finished_suits
+            .get(Suit::Clubs as usize)
+            .unwrap()
+        {
             None => 0,
             Some(card) => card.index_in_suit() + 1,
         }
     }
 
     pub fn number_of_finished_hearts(&self) -> usize {
-        match self.top_card_in_finished_suits.get(Suit::Hearts as usize).unwrap() {
+        match self
+            .top_card_in_finished_suits
+            .get(Suit::Hearts as usize)
+            .unwrap()
+        {
             None => 0,
             Some(card) => card.index_in_suit() + 1,
         }

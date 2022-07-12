@@ -23,6 +23,7 @@ mod stack;
 mod static_name;
 mod util;
 mod virtual_machine;
+mod world;
 
 pub use code::*;
 pub use configuration::*;
@@ -46,3 +47,4 @@ pub use selection_curve::SelectionCurve;
 pub use stack::*;
 pub use static_name::StaticName;
 pub use virtual_machine::{BaseVm, VirtualMachine};
+pub use world::*;

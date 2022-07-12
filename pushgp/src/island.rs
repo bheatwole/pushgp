@@ -1,9 +1,8 @@
-use crate::{Individual};
+use crate::{Individual, VirtualMachine};
 
-pub trait Island<State: std::fmt::Debug + Clone, Vm> {
-    fn name() -> &'static str;
+pub trait Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     fn pre_generation_run(&mut self);
     fn post_generation_run(&mut self);
-    fn run_individual(&mut self, context: &mut Vm, individual: &mut Individual<State, Vm>);
-    fn sort_individuals(&self, a: &Individual<State, Vm>, b: &Individual<State, Vm>) -> std::cmp::Ordering;
+    fn run_individual(&mut self, context: &mut Vm, individual: &mut Individual<RunResult, Vm>);
+    fn sort_individuals(&self, a: &Individual<RunResult, Vm>, b: &Individual<RunResult, Vm>) -> std::cmp::Ordering;
 }

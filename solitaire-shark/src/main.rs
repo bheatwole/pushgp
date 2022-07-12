@@ -9,6 +9,8 @@ pub use game_state::GameState;
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 
+use crate::vm::add_instructions;
+
 fn main() {
     // Parameters:
     // max_instructions_per_context: 100_000
@@ -28,11 +30,12 @@ fn main() {
     // island_six_fitness_score_fn: run 100 games and score on smallest code size, then win rate
     // island_seven_fitness_score_fn: run 100 games and score on fewest instructions executed, then win rate
 
-    // Create the virtual table that includes all of our instructions
+    // Create the initial configuration
+    let config = pushgp::Configuration::new(1000, 99, 1, 1, fnv::FnvHashMap::default());
 
-    // Create the configuration including weights of all instructions
-
-    // Create the base context for all runs
+    // Create the base Virtual Machine and add all instructions
+    let mut vm = SolitareVm::new(1, config);
+    add_instructions(&mut vm);
 
     // Create the world with its parameters
 

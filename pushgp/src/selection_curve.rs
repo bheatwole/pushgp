@@ -23,3 +23,40 @@ pub enum SelectionCurve {
     // The less fit individuals will appear much more often
     StrongPreferenceForUnfit,
 }
+
+impl SelectionCurve {
+    /// Randomly selects a value in the range [0 .. number_of_individuals] according to the SelectionCurve properties
+    pub fn pick_one_index<R: rand::Rng>(&self, rng: &mut R, number_of_individuals: usize) -> usize {
+        // Pick a value in the range of (0.0 .. 1.0] (includes zero, but not one). This behavior is part of the
+        // guarantee of the rand::distributions::Standard spec
+        let pick: f64 = rng.gen();
+
+        // Multiply the pick by the number of individuals and turn it into an integer
+        (pick * number_of_individuals as f64).floor() as usize
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::SeedableRng;
+
+    use crate::*;
+
+    
+    #[test]
+    fn fair_selection_curve() { 
+        let mut rng = rand::rngs::SmallRng::seed_from_u64(1234);
+        let mut buckets = vec![0usize; 100];
+
+        // Pick from 0 to 100, 100_000 times
+        for _ in 0..100_000 {
+            let pick = SelectionCurve::Fair.pick_one_index(&mut rng, 100);
+            buckets[pick] += 1;
+        }
+
+        // Each bucket should have at least 900 and no more than 1100
+        for (i, &bucket) in buckets.iter().enumerate() {
+            assert!(bucket >= 900 && bucket <= 1100, "bucket[{}] had {}", i, bucket);
+        }
+    }
+}

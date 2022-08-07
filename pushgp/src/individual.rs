@@ -1,6 +1,7 @@
 use crate::{Code, VirtualMachine, Name};
 use fnv::FnvHashMap;
 
+#[derive(Clone)]
 pub struct Individual<RunResult, Vm: VirtualMachine> {
     code: Code<Vm>,
     defined_names: FnvHashMap<Name, Code<Vm>>,

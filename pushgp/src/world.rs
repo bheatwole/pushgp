@@ -1,4 +1,4 @@
-use crate::{MigrationAlgorithm, SelectionCurve, VirtualMachine};
+use crate::{Island, MigrationAlgorithm, SelectionCurve, VirtualMachine};
 use std::vec;
 
 pub struct WorldConfiguration {
@@ -38,7 +38,7 @@ impl Default for WorldConfiguration {
 pub struct World<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     vm: Vm,
     config: WorldConfiguration,
-    islands: Vec<crate::island::IslandData<RunResult, Vm>>,
+    islands: Vec<Island<RunResult, Vm>>,
     generations_remaining_before_migration: usize,
 }
 
@@ -48,7 +48,6 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         World { vm, config, islands: vec![], generations_remaining_before_migration }
     }
 
-    // TODO: rename Island as IslandCallbacks and IslandData as Island
     // TODO: create methods for adding islands to and getting islands from the world. Use index based identities
 
     /// Runs the next generation across all islands.

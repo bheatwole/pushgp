@@ -1,12 +1,12 @@
 use crate::{Individual, IslandCallbacks, SelectionCurve, VirtualMachine};
 
-pub struct IslandData<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
+pub struct Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     functions: Box<dyn IslandCallbacks<RunResult, Vm>>,
     individuals: Vec<Individual<RunResult, Vm>>,
     future: Vec<Individual<RunResult, Vm>>,
 }
 
-impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> IslandData<RunResult, Vm> {
+impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, Vm> {
     /// Uses the specified VM to run one generation of individuals. Calls all of the user-supplied functions from the
     /// `Island` trait.
     pub fn run_one_generation(&mut self, vm: &mut Vm) {

@@ -7,6 +7,14 @@ pub struct Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
 }
 
 impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, Vm> {
+    pub (crate) fn new(callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> Island<RunResult, Vm> {
+        Island {
+            functions: callbacks,
+            individuals: vec![],
+            future: vec![],
+        }
+    }
+
     /// Uses the specified VM to run one generation of individuals. Calls all of the user-supplied functions from the
     /// `Island` trait.
     pub fn run_one_generation(&mut self, vm: &mut Vm) {

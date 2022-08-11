@@ -4,9 +4,17 @@ use std::vec;
 pub type IslandId = usize;
 
 pub struct WorldConfiguration {
+    /// The number of individuals on each island. Before running a generation, the island will be filled with the
+    /// children of genetic selection if there was a previous generation, or new random individuals if there was no
+    /// previous generation.
+    individuals_per_island: usize,
+
     /// After this many generations across all islands, some of the individual will migrate to new islands. Set to zero
     /// to disable automatic migrations.
     generations_between_migrations: usize,
+
+    /// The number of individuals that will migrate from one island to another.
+    number_of_individuals_migrating: usize,
 
     /// When it is time for a migration, a new island will be selected for the individual according to the specified
     /// algorithm.
@@ -19,20 +27,17 @@ pub struct WorldConfiguration {
     /// The SelectionCurve that will be used when choosing which individual will participate in migration. The default
     /// is PreferenceForFit.
     select_for_migration: SelectionCurve,
-
-    /// The SelectionCurve that will be used when choosing which individuals to permanently remove from an island
-    /// because there is not enough room for newly migrating individuals. Default is StrongPreferenceForUnfit
-    select_for_overpopulation_removal: SelectionCurve,
 }
 
 impl Default for WorldConfiguration {
     fn default() -> Self {
         WorldConfiguration {
+            individuals_per_island: 100,
             generations_between_migrations: 10,
+            number_of_individuals_migrating: 10,
             migration_algorithm: MigrationAlgorithm::Circular,
             clone_migrated_individuals: true,
             select_for_migration: SelectionCurve::PreferenceForFit,
-            select_for_overpopulation_removal: SelectionCurve::StrongPreferenceForUnfit,
         }
     }
 }
@@ -85,5 +90,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         }
     }
 
-    pub fn migrate_individuals_between_islands(&mut self) {}
+    pub fn migrate_individuals_between_islands(&mut self) {
+
+    }
 }

@@ -1,14 +1,13 @@
 use crate::{Code, VirtualMachine, Name};
 use fnv::FnvHashMap;
 
-#[derive(Clone)]
-pub struct Individual<RunResult, Vm: VirtualMachine> {
+pub struct Individual<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     code: Code<Vm>,
     defined_names: FnvHashMap<Name, Code<Vm>>,
     run_result: Option<RunResult>,
 }
 
-impl<RunResult, Vm: VirtualMachine> Individual<RunResult, Vm> {
+impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Individual<RunResult, Vm> {
     pub fn new(
         code: Code<Vm>,
         defined_names: FnvHashMap<Name, Code<Vm>>,
@@ -47,5 +46,11 @@ impl<RunResult, Vm: VirtualMachine> Individual<RunResult, Vm> {
 
     pub fn set_run_result(&mut self, run_result: Option<RunResult>) {
         self.run_result = run_result;
+    }
+}
+
+impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Clone for Individual<RunResult, Vm> {
+    fn clone(&self) -> Self {
+        Self { code: self.code.clone(), defined_names: self.defined_names.clone(), run_result: self.run_result.clone() }
     }
 }

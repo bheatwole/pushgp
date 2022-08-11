@@ -1,4 +1,4 @@
-use crate::{Island, MigrationAlgorithm, SelectionCurve, VirtualMachine, IslandCallbacks};
+use crate::{Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
 use std::vec;
 
 pub type IslandId = usize;
@@ -55,7 +55,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         World { vm, config, islands: vec![], generations_remaining_before_migration }
     }
 
-    /// Adds a new island to the World that will use the specified callbacks to perform the various individual 
+    /// Adds a new island to the World that will use the specified callbacks to perform the various individual
     /// processing tasks required during its lifetime
     pub fn create_island(&mut self, callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> IslandId {
         let id = self.islands.len();
@@ -90,7 +90,25 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         }
     }
 
-    pub fn migrate_individuals_between_islands(&mut self) {
+    pub fn migrate_individuals_between_islands(&mut self) {}
 
+    fn migrate_one_individual_from_island_to_island(
+        &mut self,
+        source_island_id: IslandId,
+        destination_island_id: IslandId,
+    ) {
+        let curve = self.config.select_for_migration;
+
+        // Get the migrating individual from the source island
+        let source_island = self.islands.get_mut(source_island_id).unwrap();
+        let migrating: Individual<RunResult, Vm> = if self.config.clone_migrated_individuals {
+            source_island.select_one_individual(curve, self.vm.get_rng()).unwrap().clone()
+        } else {
+            source_island.select_and_remove_one_individual(curve, self.vm.get_rng()).unwrap()
+        };
+
+        // Add it to the destination island
+        let destination_island = self.islands.get_mut(destination_island_id).unwrap();
+        destination_island.add_individual_to_future_generation(migrating);
     }
 }

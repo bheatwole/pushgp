@@ -92,8 +92,9 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     }
 
     pub fn migrate_individuals_between_islands(&mut self) {
-        // It only makes sense to migrate if there are at least two islands
         let island_len = self.islands.len();
+
+        // It only makes sense to migrate if there are at least two islands
         if island_len > 1 {
             match self.config.migration_algorithm {
                 MigrationAlgorithm::Circular => self.migrate_all_islands_circular_n(1),
@@ -109,6 +110,12 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
                     self.config.migration_algorithm = MigrationAlgorithm::Incremental(next_n);
                 }
                 MigrationAlgorithm::RandomCircular => {
+                    // Define a new order of islands and calculate the distance to the next island in this new order.
+                    // For example, if there are 7 islands and the order starts with 2, 3: the first distance is 1.
+                    // However if the order starts with 3, 2: the first distance is 6
+                    //
+                    // This algorithm achieves the desired goal of having individuals from each island migrate together
+                    // to another random island, and each island is the source and destination exactly once.
                     let island_order = self.random_island_order();
                     let distances = World::<RunResult, Vm>::distances_to_next_island(&island_order[..]);
                     for (source_id, n) in std::iter::zip(island_order, distances) {
@@ -117,12 +124,17 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
                 }
                 MigrationAlgorithm::CompletelyRandom => {
                     let len = self.islands.len();
+
+                    // For each migrating individual on each island, pick a random destination that is not the same
+                    // island and migrate there.
                     for source_island_id in 0..len {
-                        let mut destination_island_id = source_island_id;
-                        while source_island_id != destination_island_id {
-                            destination_island_id = self.vm.get_rng().gen_range(0..len);
+                        for _ in 0..self.config.number_of_individuals_migrating {
+                            let mut destination_island_id = source_island_id;
+                            while source_island_id != destination_island_id {
+                                destination_island_id = self.vm.get_rng().gen_range(0..len);
+                            }
+                            self.migrate_one_individual_from_island_to_island(source_island_id, destination_island_id);
                         }
-                        self.migrate_one_individual_from_island_to_island(source_island_id, destination_island_id);
                     }
                 }
             }

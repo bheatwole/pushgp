@@ -1,4 +1,5 @@
 use crate::{Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
+use rand::{prelude::SliceRandom, Rng};
 use std::vec;
 
 pub type IslandId = usize;
@@ -90,7 +91,43 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         }
     }
 
-    pub fn migrate_individuals_between_islands(&mut self) {}
+    pub fn migrate_individuals_between_islands(&mut self) {
+        // It only makes sense to migrate if there are at least two islands
+        let island_len = self.islands.len();
+        if island_len > 1 {
+            match self.config.migration_algorithm {
+                MigrationAlgorithm::Circular => self.migrate_all_islands_circular_n(1),
+                MigrationAlgorithm::Cyclical(n) => self.migrate_all_islands_circular_n(n),
+                MigrationAlgorithm::Incremental(n) => {
+                    self.migrate_all_islands_circular_n(n);
+
+                    // Increment 'n'. An 'n' of zero makes no sense, so when it gets there use '1' instead.
+                    let mut next_n = self.island_at_distance(0, n + 1);
+                    if next_n == 0 {
+                        next_n = 1
+                    }
+                    self.config.migration_algorithm = MigrationAlgorithm::Incremental(next_n);
+                }
+                MigrationAlgorithm::RandomCircular => {
+                    let island_order = self.random_island_order();
+                    let distances = World::<RunResult, Vm>::distances_to_next_island(&island_order[..]);
+                    for (source_id, n) in std::iter::zip(island_order, distances) {
+                        self.migrate_one_island_circular_n(source_id, n);
+                    }
+                }
+                MigrationAlgorithm::CompletelyRandom => {
+                    let len = self.islands.len();
+                    for source_island_id in 0..len {
+                        let mut destination_island_id = source_island_id;
+                        while source_island_id != destination_island_id {
+                            destination_island_id = self.vm.get_rng().gen_range(0..len);
+                        }
+                        self.migrate_one_individual_from_island_to_island(source_island_id, destination_island_id);
+                    }
+                }
+            }
+        }
+    }
 
     fn migrate_one_individual_from_island_to_island(
         &mut self,
@@ -110,5 +147,47 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         // Add it to the destination island
         let destination_island = self.islands.get_mut(destination_island_id).unwrap();
         destination_island.add_individual_to_future_generation(migrating);
+    }
+
+    // Calculates the ID of the island at a specific distance from the source. Wraps around when we get to the end of
+    // the list.
+    fn island_at_distance(&self, source_id: IslandId, distance: usize) -> IslandId {
+        (source_id + distance) % self.islands.len()
+    }
+
+    fn migrate_all_islands_circular_n(&mut self, n: usize) {
+        for source_island_id in 0..self.islands.len() {
+            self.migrate_one_island_circular_n(source_island_id, n);
+        }
+    }
+
+    fn migrate_one_island_circular_n(&mut self, source_island_id: IslandId, n: usize) {
+        let destination_island_id = self.island_at_distance(source_island_id, n);
+        for _ in 0..self.config.number_of_individuals_migrating {
+            self.migrate_one_individual_from_island_to_island(source_island_id, destination_island_id);
+        }
+    }
+
+    // Creates a Vec containing the source_id of each island exactly one time
+    fn random_island_order(&mut self) -> Vec<IslandId> {
+        let mut island_ids: Vec<IslandId> = (0..self.islands.len()).collect();
+        island_ids.shuffle(self.vm.get_rng());
+
+        island_ids
+    }
+
+    // Creates a Vec containing the distance to the previous island in the list for every entry in the parameter. The
+    // distance for the first entry wraps around to the last item.
+    fn distances_to_next_island(island_id: &[IslandId]) -> Vec<IslandId> {
+        let len = island_id.len();
+        let mut distances = Vec::with_capacity(len);
+        let mut previous_source_id = island_id.last().unwrap();
+        for source_id in island_id.iter() {
+            let distance = ((previous_source_id + len) - source_id) % len;
+            distances.push(distance);
+            previous_source_id = source_id;
+        }
+
+        distances
     }
 }

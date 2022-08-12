@@ -91,6 +91,35 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         }
     }
 
+    /// Fills all islands with the children of the genetic algorithm, or with random individuals if there was no
+    /// previous generation from which to draw upon.
+    pub fn fill_all_islands(&mut self) {
+        for island in self.islands.iter_mut() {
+            while island.len_future_generation() < self.config.individuals_per_island {
+                if island.len() == 0 {
+                    // TODO: Run VM with either CODE.RAND or CODE.RANDNONAME. Pop Code and create individual
+                } else {
+                    // TODO: select two individuals and push onto CODE stack. Also push all defined names. Run VM with
+                    // either CODE.RANDCHILD or CODE.RANDCHILDNONAME. Pop Code and create individual
+                }
+            }
+        }
+    }
+
+    /// Runs generations until the specified function returns false
+    pub fn run_generations_until<Until>(&mut self, mut until: Until)
+    where
+        Until: FnMut(&World<RunResult, Vm>) -> bool,
+    {
+        // Always run at least one generation
+        let mut running = true;
+        while running {
+            self.fill_all_islands();
+            self.run_one_generation();
+            running = until(self);
+        }
+    }
+
     pub fn migrate_individuals_between_islands(&mut self) {
         let island_len = self.islands.len();
 

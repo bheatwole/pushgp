@@ -5,10 +5,37 @@ use pushgp_macros::*;
 
 pub type Name = String;
 
+/// Instructions that need to affect the Name stack require that the VirtualMachine implement this trait
 pub trait VirtualMachineMustHaveName<Vm> {
     fn name(&mut self) -> &mut NameStack<Vm>;
 }
 
+/// All VirtualMachines must implement this trait to indicate whether or not they have a Name stack. (VirtualMachines
+/// with a Name stack require extra handling during the genetic operations). VirtualMachines without a Name stack can
+/// use the default implementation. VirtualMachines with a Name stack should override the const to 'true'.
+/// 
+/// If your VirtualMachine does not have a name stack:
+/// ```ignore
+/// impl DoesVirtualMachineHaveName for MyNamelessVm {}
+/// ```
+/// 
+/// If your VirtualMachine has a name stack:
+/// ```ignore
+/// impl VirtualMachineMustHaveName<MyNamedVm> for MyNamedVm {
+///     fn name(&mut self) -> &mut NameStack<MyNamedVm> {
+///         &mut self.name_stack
+///     }
+/// }
+/// 
+/// impl DoesVirtualMachineHaveName for MyNamedVm {
+///     const HAS_NAME: bool = true;
+/// }
+/// ```
+pub trait DoesVirtualMachineHaveName {
+    const HAS_NAME: bool = false;
+}
+
+/// A Name is any string that does not exactly match one of the Instructions registered with the VirtualMachine.
 pub struct NameLiteralValue {
     value: Name,
 }

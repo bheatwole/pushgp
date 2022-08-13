@@ -181,6 +181,10 @@ impl VirtualMachineMustHaveName<SolitareVm> for SolitareVm {
     }
 }
 
+impl DoesVirtualMachineHaveName for SolitareVm {
+    const HAS_NAME: bool = true;
+}
+
 pub trait VirtualMachineMustHaveGame<Vm> {
     fn game(&mut self) -> &mut GameState;
 }

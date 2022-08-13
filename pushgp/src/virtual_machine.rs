@@ -2,7 +2,7 @@ use crate::*;
 use rand::prelude::SeedableRng;
 use rand::rngs::SmallRng;
 
-pub trait VirtualMachine: Sized + 'static {
+pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + 'static {
     /// All virtual machines must expose a random number generator.
     fn get_rng(&mut self) -> &mut SmallRng;
 
@@ -196,4 +196,8 @@ impl VirtualMachineMustHaveName<BaseVm> for BaseVm {
     fn name(&mut self) -> &mut NameStack<BaseVm> {
         &mut self.name_stack
     }
+}
+
+impl DoesVirtualMachineHaveName for BaseVm {
+    const HAS_NAME: bool = true;
 }

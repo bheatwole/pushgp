@@ -243,20 +243,12 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                 if receiver == "vm" {
                     // Skip the methods from the VirtualMachine trait
                     let method: String = expr.method.to_string();
-                    if !(method == "get_rng"
-                        || method == "set_rng_seed"
-                        || method == "clear"
+                    if !(method == "engine"
+                        || method == "engine_mut"
                         || method == "run"
                         || method == "next"
-                        || method == "add_instruction"
-                        || method == "get_configuration"
-                        || method == "reset_configuration"
-                        || method == "get_instruction_weights"
                         || method == "generate_random_instruction"
-                        || method == "parse"
-                        || method == "must_parse"
-                        || method == "parse_and_set_code"
-                        || method == "set_code")
+                        || method == "get_rng")
                     {
                         parse_results.stacks.insert(method.to_case(Case::Pascal));
                     }

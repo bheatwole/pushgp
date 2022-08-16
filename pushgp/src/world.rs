@@ -97,6 +97,19 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         for island in self.islands.iter_mut() {
             while island.len_future_generation() < self.config.individuals_per_island {
                 if island.len() == 0 {
+                    self.vm.engine_mut().clear();
+                    // TODO: Refactor VirtualMachineEngine with genetic operation code
+
+                    // TODO: Move genetic operations from Code stack to Exec stack (so they can exist in any Vm)
+                    // TODO: Refactor genetic operations to avoid using other stacks (bool, int)
+                    // TODO: Check to see if Vm could have Clone (makes next step safer)
+                    // TODO: Make sure world Vm (or a Clone) has instructions for all genetic operations needed.
+                    
+                    if Vm::HAS_NAME {
+
+                    } else {
+
+                    }
                     // TODO: Run VM with either CODE.RAND or CODE.RANDNONAME. Pop Code and create individual
                 } else {
                     // TODO: select two individuals and push onto CODE stack. Also push all defined names. Run VM with

@@ -191,11 +191,11 @@ mod tests {
         let mut vm = BaseVm::new(Some(1), Configuration::new_simple());
         add_base_instructions(&mut vm);
         add_base_literals(&mut vm);
-        vm.parse_and_set_code(src).unwrap();
+        vm.engine_mut().parse_and_set_code(src).unwrap();
         vm.run(1000);
 
         // Reset the random seed after every run
-        vm.set_rng_seed(Some(1));
+        vm.engine_mut().set_rng_seed(Some(1));
 
         vm
     }
@@ -211,7 +211,7 @@ mod tests {
 
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
-                    let (_, code) = expected_run.parse(src).unwrap();
+                    let (_, code) = expected_run.engine().parse(src).unwrap();
                     expected_run.name().define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn code_quote() {
         let mut to_run = load_and_run("( CODE.QUOTE TRUE )");
-        let (_, expected) = to_run.parse("TRUE").unwrap();
+        let (_, expected) = to_run.engine().parse("TRUE").unwrap();
         assert_eq!(0, to_run.exec().len());
         assert_eq!(0, to_run.bool().len());
         assert_eq!(Some(expected), to_run.code().pop());

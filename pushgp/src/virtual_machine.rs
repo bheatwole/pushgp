@@ -1,88 +1,14 @@
 use crate::*;
-use rand::prelude::SeedableRng;
-use rand::rngs::SmallRng;
 
-pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + 'static {
-    /// All virtual machines must expose a random number generator.
-    fn get_rng(&mut self) -> &mut SmallRng;
+pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static {
+    /// The engine implements functions that are common to all virtual machines. Each VirtualMachine must have an engine
+    fn engine(&self) -> &VirtualMachineEngine<Self>;
 
-    /// Various algorithms need to reliably repeat random number generation.
-    fn set_rng_seed(&mut self, seed: Option<u64>);
+    /// Most of the engine functions are mut and so we also need a mutating accessor.
+    fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self>;
 
-    /// Clears all the stacks and defined names
-    fn clear(&mut self);
-
-    fn run(&mut self, max: usize) -> usize;
-    fn next(&mut self) -> Option<usize>;
-
-    fn add_instruction<C: StaticInstruction<Self>>(&mut self);
-    fn get_configuration(&self) -> &Configuration;
-    fn reset_configuration(&mut self, config: Configuration);
-    fn get_instruction_weights(&self) -> &InstructionWeights<Self>;
-    fn generate_random_instruction(&mut self) -> Code<Self>;
-
-    fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Self>>;
-    fn must_parse(&self, input: &str) -> Code<Self> {
-        let (rest, code) = self.parse(input).unwrap();
-        assert_eq!(rest.len(), 0);
-        code
-    }
-
-    fn parse_and_set_code(&mut self, input: &str) -> Result<(), ParseError>;
-    fn set_code(&mut self, code: Code<Self>);
-}
-
-#[derive(Debug, PartialEq)]
-pub struct BaseVm {
-    rng: SmallRng,
-    exec_stack: Stack<Exec<BaseVm>>,
-    bool_stack: Stack<Bool>,
-    code_stack: Stack<Code<BaseVm>>,
-    float_stack: Stack<Float>,
-    integer_stack: Stack<Integer>,
-    name_stack: NameStack<BaseVm>,
-    parser: Parser<BaseVm>,
-    config: Configuration,
-    weights: InstructionWeights<BaseVm>,
-}
-
-impl BaseVm {
-    pub fn new(seed: Option<u64>, config: Configuration) -> BaseVm {
-        let vm = BaseVm {
-            rng: small_rng_from_optional_seed(seed),
-            exec_stack: Stack::new(),
-            bool_stack: Stack::new(),
-            code_stack: Stack::new(),
-            float_stack: Stack::new(),
-            integer_stack: Stack::new(),
-            name_stack: NameStack::new(),
-            parser: Parser::new(),
-            config,
-            weights: InstructionWeights::new(),
-        };
-
-        vm
-    }
-}
-
-impl VirtualMachine for BaseVm {
-    fn get_rng(&mut self) -> &mut rand::rngs::SmallRng {
-        &mut self.rng
-    }
-
-    fn set_rng_seed(&mut self, seed: Option<u64>) {
-        self.rng = small_rng_from_optional_seed(seed);
-    }
-
-    fn clear(&mut self) {
-        self.exec_stack.clear();
-        self.bool_stack.clear();
-        self.code_stack.clear();
-        self.float_stack.clear();
-        self.integer_stack.clear();
-        self.name_stack.clear();
-    }
-
+    /// Runs the VirtualMachine until the Exec stack is empty or the specified number of instructions have been
+    /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> usize {
         // trace!("{:?}", self);
         let mut total_count = 0;
@@ -95,9 +21,11 @@ impl VirtualMachine for BaseVm {
         total_count
     }
 
+    /// Processes the next instruction from the Exec stack. The return type allows for some VirtualMachines to indicate
+    /// how expensive an instruction was. Typically returns Some(1)
     fn next(&mut self) -> Option<usize> {
         // Pop the top piece of code from the exec stack and execute it.
-        if let Some(mut exec) = self.exec_stack.pop() {
+        if let Some(mut exec) = self.engine_mut().exec().pop() {
             exec.execute(self);
 
             // Return the number of points required to perform that action
@@ -108,57 +36,51 @@ impl VirtualMachine for BaseVm {
         None
     }
 
-    fn add_instruction<C: StaticInstruction<Self>>(&mut self) {
-        self.parser.add_instruction::<C>();
-        self.weights.add_instruction::<C>(self.config.get_instruction_weight(C::static_name()));
-    }
-
-    fn get_configuration(&self) -> &Configuration {
-        &self.config
-    }
-
-    fn reset_configuration(&mut self, config: Configuration) {
-        self.config = config;
-
-        // Iterate through all instruction names and re-assign the weights for the instructions
-        self.weights.reset_weights_from_configuration(&self.config);
-    }
-
-    fn get_instruction_weights(&self) -> &InstructionWeights<Self> {
-        &self.weights
-    }
-
+    /// Creates a new random instruction
     fn generate_random_instruction(&mut self) -> Code<Self> {
-        let generator = self.weights.pick_random_instruction_generator(&mut self.rng);
+        let generator = self.engine_mut().pick_random_instruction_generator();
         generator(self)
     }
 
-    fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<BaseVm>> {
-        self.parser.parse(input)
-    }
-
-    fn parse_and_set_code(&mut self, input: &str) -> Result<(), ParseError> {
-        self.clear();
-        let (rest, code) = self.parse(input).map_err(|e| ParseError::new(e))?;
-        if rest.len() == 0 {
-            self.exec_stack.push(code);
-            Ok(())
-        } else {
-            return Err(ParseError::new_with_message("the code did not finish parsing"));
-        }
-    }
-
-    fn set_code(&mut self, code: Code<Self>) {
-        self.clear();
-        self.exec_stack.push(code);
+    /// Returns the random number generator used by the VirtualMachine.
+    fn get_rng(&mut self) -> &mut rand::rngs::SmallRng {
+        self.engine_mut().get_rng()
     }
 }
 
-fn small_rng_from_optional_seed(rng_seed: Option<u64>) -> SmallRng {
-    if let Some(seed) = rng_seed {
-        SmallRng::seed_from_u64(seed)
-    } else {
-        SmallRng::from_entropy()
+#[derive(Debug, PartialEq)]
+pub struct BaseVm {
+    engine: VirtualMachineEngine<BaseVm>,
+    bool_stack: Stack<Bool>,
+    code_stack: Stack<Code<BaseVm>>,
+    float_stack: Stack<Float>,
+    integer_stack: Stack<Integer>,
+    name_stack: NameStack<BaseVm>,
+}
+
+impl BaseVm {
+    pub fn new(seed: Option<u64>, config: Configuration) -> BaseVm {
+        let vm = BaseVm {
+            engine: VirtualMachineEngine::new(seed, config),
+            bool_stack: Stack::new(),
+            code_stack: Stack::new(),
+            float_stack: Stack::new(),
+            integer_stack: Stack::new(),
+            name_stack: NameStack::new(),
+        };
+
+        vm
+    }
+}
+
+impl VirtualMachine for BaseVm {
+    fn engine(&self) -> &VirtualMachineEngine<Self> {
+        &self.engine
+    }
+
+    /// Must of the engine functions are mut
+    fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self> {
+        &mut self.engine
     }
 }
 
@@ -176,7 +98,7 @@ impl VirtualMachineMustHaveCode<BaseVm> for BaseVm {
 
 impl VirtualMachineMustHaveExec<BaseVm> for BaseVm {
     fn exec(&mut self) -> &mut Stack<Code<BaseVm>> {
-        &mut self.exec_stack
+        self.engine.exec()
     }
 }
 

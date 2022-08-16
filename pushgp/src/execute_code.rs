@@ -500,7 +500,7 @@ fn yank(vm: &mut Vm, position: Integer) {
 /// of the BOOL stack.
 #[stack_instruction(Code)]
 fn select_genetic_operation(vm: &mut Vm) {
-    let config = vm.get_configuration();
+    let config = vm.engine().get_configuration();
     let mutation_rate = config.get_mutation_rate() as usize;
     let total = config.get_crossover_rate() as usize + mutation_rate;
     let pick = vm.get_rng().gen_range(0..total);
@@ -634,8 +634,8 @@ fn fill_code_shape<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + Virtual
         CodeShape::Atom => {
             // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
             let defined_names_total =
-                vm.name().defined_names_len() * vm.get_configuration().get_defined_name_weight() as usize;
-            let random_total = defined_names_total + vm.get_instruction_weights().get_sum_of_weights();
+                vm.name().defined_names_len() * vm.engine().get_configuration().get_defined_name_weight() as usize;
+            let random_total = defined_names_total + vm.engine().get_instruction_weights().get_sum_of_weights();
 
             // Pick one
             let pick = vm.get_rng().gen_range(0..random_total);
@@ -689,14 +689,14 @@ pub fn random_defined_name<Vm: VirtualMachine + VirtualMachineMustHaveName<Vm>>(
 /// atoms as the leaves. The shape is neither balanced nor linear, but somewhat in between.
 fn generate_random_code_shape<Vm: VirtualMachine>(vm: &mut Vm, points: Option<usize>) -> CodeShape {
     let max_points = if let Some(maybe_huge_max) = points {
-        let max = maybe_huge_max % vm.get_configuration().get_max_points_in_random_expressions();
+        let max = maybe_huge_max % vm.engine().get_configuration().get_max_points_in_random_expressions();
         if max > 0 {
             max
         } else {
             1
         }
     } else {
-        vm.get_configuration().get_max_points_in_random_expressions()
+        vm.engine().get_configuration().get_max_points_in_random_expressions()
     };
     let actual_points = vm.get_rng().gen_range(1..=max_points);
     random_code_shape_with_size(vm, actual_points)

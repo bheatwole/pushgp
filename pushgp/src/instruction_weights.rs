@@ -1,6 +1,6 @@
-use crate::{Code, Configuration, StaticInstruction, VirtualMachine};
+use crate::{Code, Configuration, StaticInstruction, VirtualMachine, VirtualMachineEngine};
 
-pub type GenerateFn<Vm> = fn(vm: &mut Vm) -> Code<Vm>;
+pub type GenerateFn<Vm> = fn(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm>;
 
 /// This struct tracks the weights associated with each instruction, and allows quickly picking a random instruction.
 #[derive(PartialEq)]
@@ -39,7 +39,7 @@ impl<Vm: VirtualMachine> InstructionWeights<Vm> {
     /// One of the possible genetic algorithms is to adjust the weights of instructions of new random indiviudals such
     /// that we get the best possible outcome from random code by limiting instructions that don't help and increasing
     /// the liklihood of instructions that do.
-    /// 
+    ///
     /// This function resets the weights of all instructions based on a new configuration.
     pub fn reset_weights_from_configuration(&mut self, config: &Configuration) {
         let mut next_sum_of_weights = 0;
@@ -73,7 +73,7 @@ impl<Vm: VirtualMachine> std::fmt::Debug for InstructionWeights<Vm> {
     }
 }
 
-struct InstructionEntry<Vm> {
+struct InstructionEntry<Vm: VirtualMachine> {
     pub name: &'static str,
 
     // The weight assigned to this instruction
@@ -86,13 +86,13 @@ struct InstructionEntry<Vm> {
     pub generate: GenerateFn<Vm>,
 }
 
-impl<Vm> std::fmt::Debug for InstructionEntry<Vm> {
+impl<Vm: VirtualMachine> std::fmt::Debug for InstructionEntry<Vm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "InstructionEntry for {}", self.name)
     }
 }
 
-impl<Vm> std::cmp::PartialEq for InstructionEntry<Vm> {
+impl<Vm: VirtualMachine> std::cmp::PartialEq for InstructionEntry<Vm> {
     fn eq(&self, other: &InstructionEntry<Vm>) -> bool {
         if self.name == other.name && self.combined_weight == other.combined_weight {
             let lhs = self.generate as usize;
@@ -103,7 +103,6 @@ impl<Vm> std::cmp::PartialEq for InstructionEntry<Vm> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

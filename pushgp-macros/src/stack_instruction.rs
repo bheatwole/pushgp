@@ -88,7 +88,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
                 Ok((rest, Box::new(#struct_name {})))
             }
 
-            fn random_value(_vm: &mut Vm) -> #pushgp::Code<Vm> {
+            fn random_value(_engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code<Vm> {
                 Box::new(#struct_name {})
             }
         }

@@ -1,4 +1,4 @@
-use crate::{Code, Extraction, StaticName, VirtualMachine};
+use crate::{Code, Extraction, StaticName, VirtualMachine, VirtualMachineEngine};
 
 /// This trait includes the functions of an instruction that must remain static. If they were included on the Instruction
 /// trait, it could no longer be a trait object
@@ -8,8 +8,9 @@ pub trait StaticInstruction<Vm: VirtualMachine>: StaticName {
 
     /// All Code must be able to create a new 'random' value. For pure instructions that have no data, the 'random'
     /// value is always the same: the instruction. For instructions that do have data (BOOL.LITERALVALUE,
-    /// INTEGER.LITERALVALUE, CODE.CODE, etc.), the instruction created will be random
-    fn random_value(vm: &mut Vm) -> Code<Vm>;
+    /// INTEGER.LITERALVALUE, CODE.CODE, etc.), the instruction created will use the random number generator from the
+    /// VirtualMachineEngine to create random data
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm>;
 }
 
 /// The Instruction is a trait that allows use as a trait object. This significantly restricts what kinds of methods

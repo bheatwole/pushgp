@@ -60,7 +60,6 @@ pub fn add_base_instructions<
     vm.engine_mut().add_instruction::<crate::execute_code::CodeCons>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeContainer>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeContains>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeCrossover>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeDefine>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeDefinition>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeDiscrepancy>();
@@ -82,8 +81,6 @@ pub fn add_base_instructions<
     vm.engine_mut().add_instruction::<crate::execute_code::CodeLength>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeList>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeMember>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeMutate>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeMutateNoName>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeNoop>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeNthCdr>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeNth>();
@@ -92,11 +89,7 @@ pub fn add_base_instructions<
     vm.engine_mut().add_instruction::<crate::execute_code::CodePosition>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeQuote>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeRand>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeRandChild>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeRandChildNoName>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeRandNoName>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeRot>();
-    vm.engine_mut().add_instruction::<crate::execute_code::CodeSelectGeneticOperation>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeShove>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeSize>();
     vm.engine_mut().add_instruction::<crate::execute_code::CodeStackDepth>();

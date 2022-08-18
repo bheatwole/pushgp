@@ -27,7 +27,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> StaticInstruction<Vm> 
 
     // A PushList should typically have its weight set to zero and never called for a random value. The tree of
     // Code values is created in the random code generation.
-    fn random_value(_vm: &mut Vm) -> Code<Vm> {
+    fn random_value(_engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
         Box::new(PushList::new(vec![]))
     }
 }

@@ -60,9 +60,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
         Ok((rest, Box::new(NameLiteralValue::new(value))))
     }
 
-    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>> {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Box<dyn Instruction<Vm>> {
         use rand::Rng;
-        let random_value = vm.get_rng().gen_range(0..=u64::MAX);
+        let random_value = engine.get_rng().gen_range(0..=u64::MAX);
 
         let slice: [u64; 1] = [random_value];
         let b64 = encode(slice.as_byte_slice());
@@ -174,7 +174,9 @@ fn rand_bound_name(vm: &mut Vm) {
 /// Pushes a newly generated random NAME.
 #[stack_instruction(Name)]
 fn rand(vm: &mut Vm) {
-    let mut random_value = NameLiteralValue::random_value(vm);
+    let mut random_value = NameLiteralValue::random_value(vm.engine_mut());
+
+    // Executing this random value literal would alter the 'should_quote_next_name' value, so save and restore it
     let should_quote = vm.name().should_quote_next_name();
     vm.name().set_should_quote_next_name(false);
     random_value.execute(vm);

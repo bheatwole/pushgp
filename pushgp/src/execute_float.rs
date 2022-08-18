@@ -33,9 +33,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm>
         Ok((rest, Box::new(FloatLiteralValue::new(value))))
     }
 
-    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>> {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Box<dyn Instruction<Vm>> {
         use rand::Rng;
-        let float: f64 = vm.get_rng().gen_range(-1f64..1f64);
+        let float: f64 = engine.get_rng().gen_range(-1f64..1f64);
         Box::new(FloatLiteralValue::new(Decimal::from_f64(float).unwrap()))
     }
 }
@@ -196,7 +196,7 @@ fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
 /// to MAX-RANDOM-FLOAT.
 #[stack_instruction(Float)]
 fn rand(vm: &mut Vm) {
-    let mut random_value = FloatLiteralValue::random_value(vm);
+    let mut random_value = FloatLiteralValue::random_value(vm.engine_mut());
     random_value.execute(vm);
 }
 

@@ -30,9 +30,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> StaticInstruction<V
         Ok((rest, Box::new(IntegerLiteralValue::new(value))))
     }
 
-    fn random_value(vm: &mut Vm) -> Box<dyn Instruction<Vm>> {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Box<dyn Instruction<Vm>> {
         use rand::Rng;
-        let value: i64 = vm.get_rng().gen_range(i64::MIN..=i64::MAX);
+        let value: i64 = engine.get_rng().gen_range(i64::MIN..=i64::MAX);
         Box::new(IntegerLiteralValue::new(value))
     }
 }
@@ -182,7 +182,7 @@ fn quotient(vm: &mut Vm, bottom: Integer, top: Integer) {
 /// equal to MAX-RANDOM-INTEGER.
 #[stack_instruction(Integer)]
 fn rand(vm: &mut Vm) {
-    let mut random_value = IntegerLiteralValue::random_value(vm);
+    let mut random_value = IntegerLiteralValue::random_value(vm.engine_mut());
     random_value.execute(vm);
 }
 

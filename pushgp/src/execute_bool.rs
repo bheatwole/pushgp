@@ -29,9 +29,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> 
         Ok((rest, Box::new(BoolLiteralValue::new(value))))
     }
 
-    fn random_value(vm: &mut Vm) -> Code<Vm> {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
         use rand::Rng;
-        Box::new(BoolLiteralValue::new(if 0 == vm.get_rng().gen_range(0..=1) { false } else { true }))
+        Box::new(BoolLiteralValue::new(if 0 == engine.get_rng().gen_range(0..=1) { false } else { true }))
     }
 }
 
@@ -139,7 +139,7 @@ fn pop(vm: &mut Vm, _a: Bool) {}
 /// Pushes a random BOOLEAN
 #[stack_instruction(Bool)]
 fn rand(vm: &mut Vm) {
-    let mut random_bool = BoolLiteralValue::random_value(vm);
+    let mut random_bool = BoolLiteralValue::random_value(vm.engine_mut());
     random_bool.execute(vm);
 }
 

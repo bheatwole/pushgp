@@ -36,12 +36,6 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
         None
     }
 
-    /// Creates a new random instruction
-    fn generate_random_instruction(&mut self) -> Code<Self> {
-        let generator = self.engine_mut().pick_random_instruction_generator();
-        generator(self)
-    }
-
     /// Returns the random number generator used by the VirtualMachine.
     fn get_rng(&mut self) -> &mut rand::rngs::SmallRng {
         self.engine_mut().get_rng()

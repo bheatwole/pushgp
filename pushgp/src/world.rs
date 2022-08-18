@@ -1,4 +1,5 @@
 use crate::{Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
+use fnv::FnvHashMap;
 use rand::{prelude::SliceRandom, Rng};
 use std::vec;
 
@@ -28,6 +29,10 @@ pub struct WorldConfiguration {
     /// The SelectionCurve that will be used when choosing which individual will participate in migration. The default
     /// is PreferenceForFit.
     select_for_migration: SelectionCurve,
+
+    /// The SelectionCurve that will be used when choosing a fit parent for genetic operations. The default is
+    /// PreferenceForFit.
+    select_as_parent: SelectionCurve,
 }
 
 impl Default for WorldConfiguration {
@@ -39,6 +44,7 @@ impl Default for WorldConfiguration {
             migration_algorithm: MigrationAlgorithm::Circular,
             clone_migrated_individuals: true,
             select_for_migration: SelectionCurve::PreferenceForFit,
+            select_as_parent: SelectionCurve::PreferenceForFit,
         }
     }
 }
@@ -96,24 +102,16 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     pub fn fill_all_islands(&mut self) {
         for island in self.islands.iter_mut() {
             while island.len_future_generation() < self.config.individuals_per_island {
+                self.vm.engine_mut().clear();
+
                 if island.len() == 0 {
-                    self.vm.engine_mut().clear();
-                    // TODO: Refactor VirtualMachineEngine with genetic operation code
-
-                    // TODO: Move genetic operations from Code stack to Exec stack (so they can exist in any Vm)
-                    // TODO: Refactor genetic operations to avoid using other stacks (bool, int)
-                    // TODO: Check to see if Vm could have Clone (makes next step safer)
-                    // TODO: Make sure world Vm (or a Clone) has instructions for all genetic operations needed.
-                    
-                    if Vm::HAS_NAME {
-
-                    } else {
-
-                    }
-                    // TODO: Run VM with either CODE.RAND or CODE.RANDNONAME. Pop Code and create individual
+                    let code = self.vm.engine_mut().rand_code(None);
+                    island.add_individual_to_future_generation(Individual::new(code, FnvHashMap::default(), None));
                 } else {
-                    // TODO: select two individuals and push onto CODE stack. Also push all defined names. Run VM with
-                    // either CODE.RANDCHILD or CODE.RANDCHILDNONAME. Pop Code and create individual
+                    let left = island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                    let right = island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                    let child = self.vm.engine_mut().rand_child(left, right);
+                    island.add_individual_to_future_generation(child);
                 }
             }
         }

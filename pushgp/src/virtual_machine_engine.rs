@@ -170,10 +170,13 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         let (selected_point, replace_shape) = self.select_operation_point_and_shape(parent.get_code());
         let replacement_code = self.fill_code_shape(replace_shape);
         let (child_code, _) = parent.get_code().replace_point(selected_point, replacement_code.as_ref());
+        let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
-        // TODO: Ensure the individuals defined_names are correct
+        // Ensure the individuals defined_names are correct
+        let names = parent.get_code().extract_names();
+        child.set_specific_defined_names(&names[..], parent.get_defined_names());
 
-        Individual::new(child_code, FnvHashMap::default(), None)
+        child
     }
 
     /// Produces a random child that is a crossover of both parents. A random point from the left tree will be selected
@@ -192,10 +195,16 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         let right_selected_point = self.select_random_point(right.get_code());
 
         let (child_code, _) = right.get_code().replace_point(right_selected_point, left_code.as_ref());
+        let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
-        // TODO: Ensure the individuals defined_names are correct
+        // Ensure the individuals defined_names are correct. Do the left parent last so that those defined names will
+        // take priority.
+        let names = right.get_code().extract_names();
+        child.set_specific_defined_names(&names[..], right.get_defined_names());
+        let names = left.get_code().extract_names();
+        child.set_specific_defined_names(&names[..], left.get_defined_names());
 
-        Individual::new(child_code, FnvHashMap::default(), None)
+        child
     }
 
     fn select_random_point(&mut self, code: &Code<Vm>) -> i64 {

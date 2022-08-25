@@ -128,6 +128,11 @@ pub trait Instruction<Vm: 'static>: std::any::Any + std::fmt::Display {
         }
     }
 
+    /// Returns a list of all names found in the instruction. The default implementation returns an empty list
+    fn extract_names(&self) -> Vec<String> {
+        vec![]
+    }
+
     /// Returns the number of items in this list. Unlike 'points' it does not recurse into sub-lists
     fn len(&self) -> usize {
         1

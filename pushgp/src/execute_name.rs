@@ -124,6 +124,12 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
         to_hash.extend_from_slice(self.value.as_bytes());
         seahash::hash(&to_hash[..])
     }
+
+    /// Returns a list of all names found in the instruction. Since this instruction holds a name, we return a list with
+    /// a single item
+    fn extract_names(&self) -> Vec<String> {
+        vec![self.value.clone()]
+    }
 }
 
 /// Duplicates the top item on the NAME stack. Does not pop its argument (which, if it did, would negate the effect

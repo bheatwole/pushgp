@@ -226,6 +226,16 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
         }
     }
 
+    /// Returns a list of all names found in the instruction.
+    fn extract_names(&self) -> Vec<String> {
+        let mut names = vec![];
+        for item in self.value.iter() {
+            names.append(&mut item.extract_names());
+        }
+
+        names
+    }
+
     /// Returns the number of items in this list. Unlike 'points' it does not recurse into sub-lists
     fn len(&self) -> usize {
         self.value.len()
@@ -306,6 +316,19 @@ mod tests {
     }
 
     #[test]
+    fn extract_names() {
+        let vm = new_base_vm();
+        let code = vm.engine().must_parse("( ANAME ( 1 TRUE ANAME ) BNAME ( ( CNAME ANAME ) ) )");
+        let names = code.extract_names();
+        assert_eq!(5, names.len());
+        assert_eq!("ANAME", names[0]);
+        assert_eq!("ANAME", names[1]);
+        assert_eq!("BNAME", names[2]);
+        assert_eq!("CNAME", names[3]);
+        assert_eq!("ANAME", names[4]);
+    }
+
+    #[test]
     fn code_discrepancy_items() {
         let vm = new_base_vm();
         // The discrepancy output is a hashset of every unique sub-list and atom from the specified code
@@ -337,27 +360,38 @@ mod tests {
         let vm = new_base_vm();
         assert_eq!(
             &vm.engine().must_parse("B"),
-            &vm.engine().must_parse("A").replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
+            &vm.engine()
+                .must_parse("A")
+                .replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
         );
         assert_eq!(
             &vm.engine().must_parse("( B )"),
-            &vm.engine().must_parse("( A )").replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
+            &vm.engine()
+                .must_parse("( A )")
+                .replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
         );
         assert_eq!(
             &vm.engine().must_parse("( B B )"),
-            &vm.engine().must_parse("( A A )").replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
+            &vm.engine()
+                .must_parse("( A A )")
+                .replace(vm.engine().must_parse("A").as_ref(), vm.engine().must_parse("B").as_ref())
         );
         assert_eq!(
             &vm.engine().must_parse("B"),
-            &vm.engine().must_parse("( A )").replace(vm.engine().must_parse("( A )").as_ref(), vm.engine().must_parse("B").as_ref())
+            &vm.engine()
+                .must_parse("( A )")
+                .replace(vm.engine().must_parse("( A )").as_ref(), vm.engine().must_parse("B").as_ref())
         );
         assert_eq!(
             &vm.engine().must_parse("( B )"),
-            &vm.engine().must_parse("( ( A ) )").replace(vm.engine().must_parse("( A )").as_ref(), vm.engine().must_parse("B").as_ref())
+            &vm.engine()
+                .must_parse("( ( A ) )")
+                .replace(vm.engine().must_parse("( A )").as_ref(), vm.engine().must_parse("B").as_ref())
         );
         assert_eq!(
             &vm.engine().must_parse("( A A ( A A ) )"),
-            &vm.engine().must_parse("( A ( B ) ( A ( B ) ) )")
+            &vm.engine()
+                .must_parse("( A ( B ) ( A ( B ) ) )")
                 .replace(vm.engine().must_parse("( B )").as_ref(), vm.engine().must_parse("A").as_ref())
         );
     }

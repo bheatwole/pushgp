@@ -1,6 +1,5 @@
 use crate::{Card, GameState, VirtualMachineMustHaveCard};
 use pushgp::*;
-use rand::rngs::SmallRng;
 
 #[derive(Debug, PartialEq)]
 pub struct SolitareVm {
@@ -41,16 +40,6 @@ impl VirtualMachine for SolitareVm {
     /// Must of the engine functions are mut
     fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self> {
         &mut self.engine
-    }
-}
-
-fn small_rng_from_optional_seed(rng_seed: Option<u64>) -> SmallRng {
-    use rand::SeedableRng;
-
-    if let Some(seed) = rng_seed {
-        SmallRng::seed_from_u64(seed)
-    } else {
-        SmallRng::from_entropy()
     }
 }
 

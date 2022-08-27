@@ -230,8 +230,8 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
         ))
     }
 
-    fn random_value(vm: &mut Vm) -> Code<Vm> {
-        let value = vm
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
+        let value = engine
             .get_rng()
             .gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
         Box::new(CardLiteralValue::new(Card::from_repr(value).unwrap()))
@@ -407,7 +407,7 @@ fn pop(vm: &mut Vm, _a: Card) {}
 /// Pushes a random Card onto the CARD stack
 #[stack_instruction(Card)]
 fn rand(vm: &mut Vm) {
-    let mut random_card = CardLiteralValue::random_value(vm);
+    let mut random_card = CardLiteralValue::random_value(vm.engine_mut());
     random_card.execute(vm);
 }
 

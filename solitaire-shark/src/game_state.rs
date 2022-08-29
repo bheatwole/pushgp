@@ -228,48 +228,31 @@ impl GameState {
         self.play_pile.last().copied()
     }
 
-    pub fn number_of_finished_spades(&self) -> usize {
+    pub fn number_of_finished_suit(&self, suit: Suit) -> usize {
         match self
             .top_card_in_finished_suits
-            .get(Suit::Spades as usize)
+            .get(suit as usize)
             .unwrap()
         {
             None => 0,
             Some(card) => card.index_in_suit() + 1,
         }
+    }
+
+    pub fn number_of_finished_spades(&self) -> usize {
+        self.number_of_finished_suit(Suit::Spades)
     }
 
     pub fn number_of_finished_diamonds(&self) -> usize {
-        match self
-            .top_card_in_finished_suits
-            .get(Suit::Diamonds as usize)
-            .unwrap()
-        {
-            None => 0,
-            Some(card) => card.index_in_suit() + 1,
-        }
+        self.number_of_finished_suit(Suit::Diamonds)
     }
 
     pub fn number_of_finished_clubs(&self) -> usize {
-        match self
-            .top_card_in_finished_suits
-            .get(Suit::Clubs as usize)
-            .unwrap()
-        {
-            None => 0,
-            Some(card) => card.index_in_suit() + 1,
-        }
+        self.number_of_finished_suit(Suit::Clubs)
     }
 
     pub fn number_of_finished_hearts(&self) -> usize {
-        match self
-            .top_card_in_finished_suits
-            .get(Suit::Hearts as usize)
-            .unwrap()
-        {
-            None => 0,
-            Some(card) => card.index_in_suit() + 1,
-        }
+        self.number_of_finished_suit(Suit::Hearts)
     }
 
     pub fn number_of_finished_cards(&self) -> usize {

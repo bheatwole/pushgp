@@ -1,15 +1,17 @@
 mod card;
 mod game_state;
 mod pile;
+mod run_result;
 mod suit;
 mod vm;
 
 pub use card::{Card, VirtualMachineMustHaveCard};
 pub use game_state::GameState;
+use pushgp::{World, WorldConfiguration};
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 
-use crate::vm::add_instructions;
+use crate::{run_result::RunResult, vm::add_instructions};
 
 fn main() {
     // Parameters:
@@ -38,10 +40,17 @@ fn main() {
     add_instructions(&mut vm);
 
     // Create the world with its parameters
+    let world_config = WorldConfiguration::default();
+    let mut world = World::<RunResult, SolitareVm>::new(vm, world_config);
 
     // Add each island to the world
+    // TODO
 
     // Run the world for 10_000 generations
-
-    println!("Hello, world!");
+    let mut generations_complete = 0;
+    world.run_generations_until(|_world| {
+        generations_complete += 1;
+        println!("Generation {} is complete", generations_complete);
+        generations_complete < 10_000
+    });
 }

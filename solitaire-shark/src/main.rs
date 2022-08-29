@@ -1,5 +1,6 @@
 mod card;
 mod game_state;
+mod island_one;
 mod pile;
 mod run_result;
 mod suit;
@@ -7,6 +8,7 @@ mod vm;
 
 pub use card::{Card, VirtualMachineMustHaveCard};
 pub use game_state::GameState;
+use island_one::IslandOne;
 use pushgp::{World, WorldConfiguration};
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
@@ -44,7 +46,7 @@ fn main() {
     let mut world = World::<RunResult, SolitareVm>::new(vm, world_config);
 
     // Add each island to the world
-    // TODO
+    world.create_island(Box::new(IslandOne::new()));
 
     // Run the world for 10_000 generations
     let mut generations_complete = 0;

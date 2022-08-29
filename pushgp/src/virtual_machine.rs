@@ -7,6 +7,9 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
     /// Most of the engine functions are mut and so we also need a mutating accessor.
     fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self>;
 
+    /// Clears the data out of the VirtualMachine, making it ready for new code
+    fn clear(&mut self);
+
     /// Runs the VirtualMachine until the Exec stack is empty or the specified number of instructions have been
     /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> usize {
@@ -72,9 +75,17 @@ impl VirtualMachine for BaseVm {
         &self.engine
     }
 
-    /// Must of the engine functions are mut
     fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self> {
         &mut self.engine
+    }
+
+    fn clear(&mut self) {
+        self.engine.clear();
+        self.bool_stack.clear();
+        self.code_stack.clear();
+        self.float_stack.clear();
+        self.integer_stack.clear();
+        self.name_stack.clear();
     }
 }
 

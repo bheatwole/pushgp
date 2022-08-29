@@ -27,8 +27,9 @@ impl SolitareVm {
         vm
     }
 
-    pub fn set_game_state(&mut self, mut new_state: GameState) {
-        std::mem::swap(&mut self.game, &mut new_state)
+    pub fn swap_game_state(&mut self, mut to_swap: GameState) -> GameState {
+        std::mem::swap(&mut self.game, &mut to_swap);
+        to_swap
     }
 }
 
@@ -37,9 +38,17 @@ impl VirtualMachine for SolitareVm {
         &self.engine
     }
 
-    /// Must of the engine functions are mut
     fn engine_mut(&mut self) -> &mut VirtualMachineEngine<Self> {
         &mut self.engine
+    }
+
+    fn clear(&mut self) {
+        self.engine.clear();
+        self.bool_stack.clear();
+        self.card_stack.clear();
+        self.code_stack.clear();
+        self.integer_stack.clear();
+        self.name_stack.clear();
     }
 }
 

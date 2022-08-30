@@ -114,6 +114,9 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
                     island.add_individual_to_future_generation(child);
                 }
             }
+
+            // Now that the future generation is full, make it the current generation
+            island.advance_generation();
         }
     }
 

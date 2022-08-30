@@ -50,9 +50,15 @@ fn main() {
 
     // Run the world for 10_000 generations
     let mut generations_complete = 0;
-    world.run_generations_until(|_world| {
+    world.run_generations_until(|world| {
         generations_complete += 1;
-        println!("Generation {} is complete", generations_complete);
+        let most_fit_island_one = world.get_island(0).unwrap().most_fit_individual().unwrap();
+        println!(
+            "Generation {} is complete with {} wins out of 100",
+            generations_complete,
+            most_fit_island_one.get_run_result().unwrap().games_won()
+        );
+
         generations_complete < 10_000
     });
 }

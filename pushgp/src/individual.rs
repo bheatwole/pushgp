@@ -52,13 +52,13 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Individual<RunResul
     }
 
     /// Borrows the current RunResult for the Individual
-    pub fn get_run_result(&self) -> &Option<RunResult> {
-        &self.run_result
+    pub fn get_run_result(&self) -> Option<&RunResult> {
+        self.run_result.as_ref()
     }
 
     /// Mutably borrows the current RunResult for the Individual, allowing for changes to results
-    pub fn get_run_result_mut(&mut self) -> &mut Option<RunResult> {
-        &mut self.run_result
+    pub fn get_run_result_mut(&mut self) -> Option<&mut RunResult> {
+        self.run_result.as_mut()
     }
 
     /// Replaces the RunResult for this Individual

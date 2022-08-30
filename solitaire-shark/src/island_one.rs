@@ -73,8 +73,8 @@ impl IslandCallbacks<RunResult, SolitareVm> for IslandOne {
         b: &pushgp::Individual<RunResult, SolitareVm>,
     ) -> std::cmp::Ordering {
         // island_one_fitness_score_fn: run 100 games and score on most games won, then smallest code size
-        let a_result = a.get_run_result().as_ref().unwrap();
-        let b_result = b.get_run_result().as_ref().unwrap();
+        let a_result = a.get_run_result().unwrap();
+        let b_result = b.get_run_result().unwrap();
         let mut cmp = a_result.games_won().cmp(&b_result.games_won());
 
         if Ordering::Equal == cmp {

@@ -3,6 +3,7 @@ use crate::{Individual, IslandCallbacks, SelectionCurve, VirtualMachine};
 pub struct Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     functions: Box<dyn IslandCallbacks<RunResult, Vm>>,
     individuals: Vec<Individual<RunResult, Vm>>,
+    individuals_are_sorted: bool,
     future: Vec<Individual<RunResult, Vm>>,
 }
 
@@ -11,8 +12,18 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
         Island {
             functions: callbacks,
             individuals: vec![],
+            individuals_are_sorted: false,
             future: vec![],
         }
+    }
+
+    /// Returns the most fit of all the individuals (the one sorted to the tail by the sorting algorithm). Returns None
+    /// if there are no Individuals or if the individuals have not been sorted
+    pub fn most_fit_individual(&self) -> Option<&Individual<RunResult, Vm>> {
+        if !self.individuals_are_sorted {
+            return None;
+        }
+        self.individuals.last()
     }
 
     /// Uses the specified VM to run one generation of individuals. Calls all of the user-supplied functions from the
@@ -34,12 +45,13 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
     }
 
     /// Sorts the individuals by calling the sorter function.
-    fn sort_individuals(&mut self) {
+    pub fn sort_individuals(&mut self) {
         // It is useful to swap the Vec into a local variable to avoid borrow-checking issues during the sort
         let mut local_individuals = vec![];
         std::mem::swap(&mut self.individuals, &mut local_individuals);
         local_individuals.sort_by(|a, b| self.functions.sort_individuals(a, b));
         std::mem::swap(&mut self.individuals, &mut local_individuals);
+        self.individuals_are_sorted = true;
     }
 
     /// Returns the current number of individuals on the island.
@@ -55,16 +67,21 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
     /// Permanently removes all of the current generation and sets the future generation as the current generation.
     pub fn advance_generation(&mut self) {
         self.individuals.clear();
+        self.individuals_are_sorted = false;
         std::mem::swap(&mut self.individuals, &mut self.future);
     }
 
     /// Select one individual from the island according to the specified SelectionCurve and borrow it.
-    /// Returns the individual borrowed or None if the population is zero
+    /// Returns the individual borrowed or None if the population is zero or not sorted
     pub fn select_one_individual<R: rand::Rng>(
         &self,
         curve: SelectionCurve,
         rng: &mut R,
     ) -> Option<&Individual<RunResult, Vm>> {
+        if !self.individuals_are_sorted {
+            return None;
+        }
+
         let max = self.individuals.len();
         if max == 0 {
             None
@@ -74,12 +91,16 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
     }
 
     /// Select one individual from the island according to the specified SelectionCurve and remove it permanently.
-    /// Returns the individual removed or None if the population is zero
+    /// Returns the individual removed or None if the population is zero or not sorted
     pub fn select_and_remove_one_individual<R: rand::Rng>(
         &mut self,
         curve: SelectionCurve,
         rng: &mut R,
     ) -> Option<Individual<RunResult, Vm>> {
+        if !self.individuals_are_sorted {
+            return None;
+        }
+
         let max = self.individuals.len();
         if max == 0 {
             None

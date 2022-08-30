@@ -21,8 +21,9 @@ fn append(vm: &mut Vm, src: Code, dst: Code) {
 /// otherwise (that is, if it is something surrounded by parentheses). Does not pop the CODE stack
 #[stack_instruction(Code)]
 fn atom(vm: &mut Vm) {
-    let c = vm.code().peek().unwrap();
-    vm.bool().push(c.is_atom());
+    if let Some(code) = vm.code().peek() {
+        vm.bool().push(code.is_atom());
+    }
 }
 
 /// Pushes the first item of the list on top of the CODE stack. For example, if the top piece of code is "( A B )"

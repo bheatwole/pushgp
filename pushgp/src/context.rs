@@ -246,6 +246,7 @@ mod tests {
         test_code_append: ("( CODE.QUOTE 1 CODE.QUOTE 2 CODE.APPEND )", "( CODE.QUOTE ( 1 2 ) )", vec![]),
         test_code_atom_true: ("( CODE.QUOTE -12 CODE.ATOM )", "( CODE.QUOTE -12 TRUE )", vec![]),
         test_code_atom_false: ("( CODE.QUOTE ( ) CODE.ATOM )", "( CODE.QUOTE ( ) FALSE )", vec![]),
+        test_code_atom_null: ("( CODE.ATOM )", "( )", vec![]),
         test_code_car: ("( CODE.QUOTE ( -12 2 ) CODE.CAR )", "( CODE.QUOTE -12 )", vec![]),
         test_code_cdr: ("( CODE.QUOTE ( -12 2 ) CODE.CDR )", "( CODE.QUOTE ( 2 ) )", vec![]),
         test_code_cdr_atom: ("( CODE.QUOTE A CODE.CDR )", "( CODE.QUOTE ( ) )", vec![]),

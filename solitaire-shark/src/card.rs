@@ -313,7 +313,7 @@ fn move_top_play_pile_card_to_finish(vm: &mut Vm) {
 /// to the finish pile if possible. Pushes whether or not the action could be completed onto the Bool stack
 #[stack_instruction(Card)]
 fn move_top_work_pile_card_to_finish(vm: &mut Vm, work_pile: Integer) {
-    let work_pile = work_pile % 7;
+    let work_pile = mod_for_vec_index(work_pile, 7);
     let success = vm
         .game()
         .move_top_work_pile_card_to_finish(work_pile as usize);
@@ -330,16 +330,20 @@ fn move_work_pile_cards_to_another_work_pile(
     source_pile: Integer,
     destination_pile: Integer,
 ) {
-    let source_pile = (source_pile % 7) as usize;
-    let destination_pile = (destination_pile % 7) as usize;
+    let source_pile = mod_for_vec_index(source_pile, 7) as usize;
+    let destination_pile = mod_for_vec_index(destination_pile, 7) as usize;
     let face_up_count = vm.game().number_of_face_up_cards_in_work_pile(source_pile);
     let success = if face_up_count > 0 {
-        let card_count = (card_count as usize % face_up_count) as usize;
-        vm.game().move_work_pile_cards_to_another_work_pile(
-            source_pile,
-            card_count,
-            destination_pile,
-        )
+        let card_count = mod_for_vec_index(card_count, face_up_count as i64) as usize;
+        if card_count > 0 {
+            vm.game().move_work_pile_cards_to_another_work_pile(
+                source_pile,
+                card_count,
+                destination_pile,
+            )
+        } else {
+            false
+        }
     } else {
         false
     };
@@ -396,7 +400,7 @@ fn flush(vm: &mut Vm) {
 /// is taken modulus 52 so that it is always a valid Card
 #[stack_instruction(Card)]
 fn from_int(vm: &mut Vm, value: Integer) {
-    let value = (value % 52) as u8;
+    let value = mod_for_vec_index(value, 52) as u8;
     vm.card().push(Card::from_repr(value).unwrap());
 }
 
@@ -422,3 +426,8 @@ fn rand(vm: &mut Vm) {
 // "CARD.YANKDUP"
 
 // "CARD.YANK"
+
+// We cannot always verify that the result of % will be a positive number. This takes care of that
+fn mod_for_vec_index(dividend: i64, divisor: i64) -> i64 {
+    (dividend % divisor).saturating_abs()
+}

@@ -87,10 +87,11 @@ fn define(vm: &mut Vm, value: Integer, name: Name) {
     vm.name().define_name(name, Box::new(IntegerLiteralValue::new(value)));
 }
 
-/// Pushes the difference of the top two items; that is, the second item minus the top item.
+/// Pushes the difference of the top two items; that is, the second item minus the top item. If an overflow occurs the
+/// result is the closest value to i64::MAX or i64::MIN
 #[stack_instruction(Integer)]
 fn difference(vm: &mut Vm, right: Integer, left: Integer) {
-    vm.integer().push(left - right);
+    vm.integer().push(left.saturating_sub(right));
 }
 
 /// Duplicates the top item on the INTEGER stack. Does not pop its argument (which, if it did, would negate the
@@ -150,12 +151,21 @@ fn min(vm: &mut Vm, a: Integer, b: Integer) {
 
 /// Pushes the second stack item modulo the top stack item. If the top item is zero this acts as a NOOP. The modulus
 /// is computed as the remainder of the quotient, where the quotient has first been truncated toward negative
-/// infinity. (This is taken from the definition for the generic MOD function in Common Lisp, which is described for
-/// example at http://www.lispworks.com/reference/HyperSpec/Body/f_mod_r.htm.)
+/// infinity. If the result would overflow, i64::MAX is returned (the only possible case is i64::MIN % -1 which equals
+/// i64::MAX + 1)
 #[stack_instruction(Integer)]
-fn modulo(vm: &mut Vm, bottom: Integer, top: Integer) {
-    if bottom != 0 {
-        vm.integer().push(top % bottom);
+fn modulo(vm: &mut Vm, divisor: Integer, dividend: Integer) {
+    if divisor != 0 {
+        let (remainder, did_overflow) = dividend.overflowing_rem(divisor);
+        if did_overflow {
+            vm.integer().push(i64::MAX);
+        } else {
+            vm.integer().push(remainder);
+        }
+    } else {
+        // Put the items back on the stack
+        vm.integer().push(dividend);
+        vm.integer().push(divisor);
     }
 }
 
@@ -166,15 +176,19 @@ fn pop(vm: &mut Vm, _popped: Integer) {}
 /// Pushes the product of the top two items.
 #[stack_instruction(Integer)]
 fn product(vm: &mut Vm, right: Integer, left: Integer) {
-    vm.integer().push(left * right);
+    vm.integer().push(left.saturating_mul(right));
 }
 
 /// Pushes the quotient of the top two items; that is, the second item divided by the top item. If the top item is
 /// zero this acts as a NOOP.
 #[stack_instruction(Integer)]
-fn quotient(vm: &mut Vm, bottom: Integer, top: Integer) {
-    if bottom != 0 {
-        vm.integer().push(top / bottom);
+fn quotient(vm: &mut Vm, divisor: Integer, dividend: Integer) {
+    if divisor != 0 {
+        vm.integer().push(dividend.saturating_div(divisor));
+    } else {
+        // Put the items back on the stack
+        vm.integer().push(dividend);
+        vm.integer().push(divisor);
     }
 }
 
@@ -212,7 +226,7 @@ fn stack_depth(vm: &mut Vm) {
 /// Pushes the sum of the top two items.
 #[stack_instruction(Integer)]
 fn sum(vm: &mut Vm, a: Integer, b: Integer) {
-    vm.integer().push(a + b);
+    vm.integer().push(a.saturating_add(b));
 }
 
 /// Swaps the top two INTEGERs.

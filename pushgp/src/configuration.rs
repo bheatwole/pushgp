@@ -8,6 +8,10 @@ use fnv::FnvHashMap;
 
 #[derive(Debug, PartialEq)]
 pub struct Configuration {
+    // TODO: a random program running long enough can use more memory than the real hardware has. Implement a way to
+    // determine usage per stack element and track total usage compared to this number.
+    max_memory_size: usize,
+
     max_points_in_random_expressions: usize,
 
     crossover_rate: u8,
@@ -20,6 +24,7 @@ pub struct Configuration {
 
 impl Configuration {
     pub fn new(
+        max_memory_size: usize,
         max_points_in_random_expressions: usize,
         crossover_rate: u8,
         mutation_rate: u8,
@@ -27,6 +32,7 @@ impl Configuration {
         instruction_weights: FnvHashMap<&'static str, u8>,
     ) -> Configuration {
         Configuration {
+            max_memory_size,
             max_points_in_random_expressions,
             crossover_rate,
             mutation_rate,
@@ -37,6 +43,7 @@ impl Configuration {
 
     pub fn new_simple() -> Configuration {
         Configuration {
+            max_memory_size: 65536,
             max_points_in_random_expressions: 100,
             crossover_rate: 99,
             mutation_rate: 1,

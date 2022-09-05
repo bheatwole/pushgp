@@ -96,7 +96,7 @@ fn contains(vm: &mut Vm, look_for: Code, look_in: Code) {
 /// the EXEC stack.
 #[stack_instruction(Code)]
 fn define(vm: &mut Vm, code: Code, name: Name) {
-    vm.name().define_name(name, code);
+    vm.engine_mut().define_name(name, code);
 }
 
 /// Pushes the definition associated with the top NAME on the NAME stack (if any) onto the CODE stack. This extracts
@@ -104,7 +104,7 @@ fn define(vm: &mut Vm, code: Code, name: Name) {
 /// executed with a call to CODE.DO or a similar instruction).
 #[stack_instruction(Code)]
 fn definition(vm: &mut Vm, name: Name) {
-    if let Some(code) = vm.name().definition_for_name(&name) {
+    if let Some(code) = vm.engine().definition_for_name(&name) {
         vm.code().push(code);
     }
 }

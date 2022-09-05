@@ -1,26 +1,19 @@
-use crate::{Code, Name, Stack};
-use fnv::FnvHashMap;
+use crate::{Name, Stack};
 
 #[derive(Debug, PartialEq)]
-pub struct NameStack<Vm: 'static> {
+pub struct NameStack {
     stack: Stack<Name>,
     quote_next_name: bool,
-    defined_names: FnvHashMap<Name, Code<Vm>>,
 }
 
-impl<Vm: 'static> NameStack<Vm> {
-    pub fn new() -> NameStack<Vm> {
-        NameStack {
-            stack: Stack::new(),
-            quote_next_name: false,
-            defined_names: FnvHashMap::default(),
-        }
+impl NameStack {
+    pub fn new() -> NameStack {
+        NameStack { stack: Stack::new(), quote_next_name: false }
     }
 
     pub fn clear(&mut self) {
         self.stack.clear();
         self.quote_next_name = false;
-        self.defined_names.clear();
     }
 
     pub fn should_quote_next_name(&self) -> bool {
@@ -31,22 +24,6 @@ impl<Vm: 'static> NameStack<Vm> {
         self.quote_next_name = quote_next_name;
     }
 
-    pub fn definition_for_name(&self, name: &String) -> Option<Code<Vm>> {
-        self.defined_names.get(name).map(|c| c.clone())
-    }
-
-    pub fn define_name(&mut self, name: String, code: Code<Vm>) {
-        self.defined_names.insert(name, code);
-    }
-
-    pub fn all_defined_names(&self) -> Vec<String> {
-        self.defined_names.keys().map(|k| k.clone()).collect()
-    }
-
-    pub fn defined_names_len(&self) -> usize {
-        self.defined_names.len()
-    }
-    
     /// Returns the top item from the Stack or None if the stack is empty
     pub fn pop(&mut self) -> Option<Name> {
         self.stack.pop()
@@ -65,6 +42,11 @@ impl<Vm: 'static> NameStack<Vm> {
     /// Returns the length of the Stack
     pub fn len(&self) -> usize {
         self.stack.len()
+    }
+
+    /// Returns the total amount of memory used by the Name stack
+    pub fn size_of(&self) -> usize {
+        self.stack.size_of()
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty

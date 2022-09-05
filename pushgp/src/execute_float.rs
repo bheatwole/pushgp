@@ -1,11 +1,70 @@
 use crate::*;
+use get_size::GetSize;
 use pushgp_macros::*;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
     Decimal,
 };
 
-pub type Float = Decimal;
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Float {
+    inner: Decimal,
+}
+
+impl get_size::GetSize for Float {}
+impl std::ops::Deref for Float {
+    type Target = Decimal;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl From<Decimal> for Float {
+    fn from(inner: Decimal) -> Self {
+        Float { inner }
+    }
+}
+
+impl std::fmt::Display for Float {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.inner)
+    }
+}
+
+impl std::ops::Add for Float {
+    type Output = Float;
+    fn add(self, rhs: Self) -> Self::Output {
+        Float { inner: self.inner + rhs.inner }
+    }
+}
+
+impl std::ops::Div for Float {
+    type Output = Float;
+    fn div(self, rhs: Self) -> Self::Output {
+        Float { inner: self.inner / rhs.inner }
+    }
+}
+
+impl std::ops::Mul for Float {
+    type Output = Float;
+    fn mul(self, rhs: Self) -> Self::Output {
+        Float { inner: self.inner * rhs.inner }
+    }
+}
+
+impl std::ops::Rem for Float {
+    type Output = Float;
+    fn rem(self, rhs: Self) -> Self::Output {
+        Float { inner: self.inner % rhs.inner }
+    }
+}
+
+impl std::ops::Sub for Float {
+    type Output = Float;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Float { inner: self.inner - rhs.inner }
+    }
+}
 
 pub trait VirtualMachineMustHaveFloat<Vm> {
     fn float(&mut self) -> &mut Stack<Float>;
@@ -30,13 +89,13 @@ impl StaticName for FloatLiteralValue {
 impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm> for FloatLiteralValue {
     fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
         let (rest, value) = crate::parse::parse_code_float(input)?;
-        Ok((rest, Box::new(FloatLiteralValue::new(value))))
+        Ok((rest, Box::new(FloatLiteralValue::new(Float { inner: value }))))
     }
 
     fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Box<dyn Instruction<Vm>> {
         use rand::Rng;
         let float: f64 = engine.get_rng().gen_range(-1f64..1f64);
-        Box::new(FloatLiteralValue::new(Decimal::from_f64(float).unwrap()))
+        Box::new(FloatLiteralValue::new(Float { inner: Decimal::from_f64(float).unwrap() }))
     }
 }
 
@@ -58,6 +117,10 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
 
     fn name(&self) -> &'static str {
         FloatLiteralValue::static_name()
+    }
+
+    fn size_of(&self) -> usize {
+        self.value.get_size()
     }
 
     fn clone(&self) -> Box<dyn Instruction<Vm>> {
@@ -91,14 +154,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
 /// Pushes the cosine of the top item.F
 #[stack_instruction(Float)]
 fn cos(vm: &mut Vm, value: Float) {
-    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap());
+    vm.float().push(Float { inner: Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap() });
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the FLOAT stack onto
 /// the EXEC stack.
 #[stack_instruction(Float)]
 fn define(vm: &mut Vm, value: Float, name: Name) {
-    vm.name().define_name(name, Box::new(FloatLiteralValue::new(value)));
+    vm.engine_mut().define_name(name, Box::new(FloatLiteralValue::new(value)));
 }
 
 /// Pushes the difference of the top two items; that is, the second item minus the top item.
@@ -129,13 +192,13 @@ fn flush(vm: &mut Vm) {
 /// Pushes 1.0 if the top BOOLEAN is TRUE, or 0.0 if the top BOOLEAN is FALSE.
 #[stack_instruction(Float)]
 fn from_boolean(vm: &mut Vm, value: Bool) {
-    vm.float().push(if value { Decimal::new(1, 0) } else { Decimal::new(0, 0) });
+    vm.float().push(if value { Decimal::new(1, 0).into() } else { Decimal::new(0, 0).into() });
 }
 
 /// Pushes a floating point version of the top INTEGER.
 #[stack_instruction(Float)]
 fn from_integer(vm: &mut Vm, value: Integer) {
-    vm.float().push(Decimal::new(value, 0));
+    vm.float().push(Decimal::new(value, 0).into());
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is greater than the top item, or FALSE otherwise.
@@ -168,7 +231,7 @@ fn min(vm: &mut Vm, a: Float, b: Float) {
 /// example at http://www.lispworks.com/reference/HyperSpec/Body/f_mod_r.htm.)
 #[stack_instruction(Float)]
 fn modulo(vm: &mut Vm, bottom: Float, top: Float) {
-    if bottom != Decimal::ZERO {
+    if bottom != Decimal::ZERO.into() {
         vm.float().push(top % bottom);
     }
 }
@@ -187,7 +250,7 @@ fn product(vm: &mut Vm, right: Float, left: Float) {
 /// zero this acts as a NOOP.
 #[stack_instruction(Float)]
 fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
-    if bottom != Decimal::ZERO {
+    if bottom != Decimal::ZERO.into() {
         vm.float().push(top / bottom);
     }
 }
@@ -218,7 +281,7 @@ fn shove(vm: &mut Vm, position: Integer) {
 /// Pushes the sine of the top item.
 #[stack_instruction(Float)]
 fn sin(vm: &mut Vm, value: Float) {
-    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap());
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap().into());
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
@@ -243,7 +306,7 @@ fn swap(vm: &mut Vm) {
 /// Pushes the tangent of the top item.
 #[stack_instruction(Float)]
 fn tan(vm: &mut Vm, value: Float) {
-    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap());
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap().into());
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.

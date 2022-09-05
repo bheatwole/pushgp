@@ -35,7 +35,8 @@ fn main() {
     // island_seven_fitness_score_fn: run 100 games and score on fewest instructions executed, then win rate
 
     // Create the initial configuration
-    let config = pushgp::Configuration::new(1 * 1024 * 1024, 1000, 99, 1, 1, fnv::FnvHashMap::default());
+    let config =
+        pushgp::Configuration::new(10 * 1024 * 1024, 1000, 99, 1, 1, fnv::FnvHashMap::default());
 
     // Create the base Virtual Machine and add all instructions
     let mut vm = SolitareVm::new(1, config);

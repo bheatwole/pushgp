@@ -1,24 +1,25 @@
 use crate::*;
 use base64::*;
 use byte_slice_cast::*;
+use get_size::GetSize;
 use pushgp_macros::*;
 
 pub type Name = String;
 
 /// Instructions that need to affect the Name stack require that the VirtualMachine implement this trait
 pub trait VirtualMachineMustHaveName<Vm> {
-    fn name(&mut self) -> &mut NameStack<Vm>;
+    fn name(&mut self) -> &mut NameStack;
 }
 
 /// All VirtualMachines must implement this trait to indicate whether or not they have a Name stack. (VirtualMachines
 /// with a Name stack require extra handling during the genetic operations). VirtualMachines without a Name stack can
 /// use the default implementation. VirtualMachines with a Name stack should override the const to 'true'.
-/// 
+///
 /// If your VirtualMachine does not have a name stack:
 /// ```ignore
 /// impl DoesVirtualMachineHaveName for MyNamelessVm {}
 /// ```
-/// 
+///
 /// If your VirtualMachine has a name stack:
 /// ```ignore
 /// impl VirtualMachineMustHaveName<MyNamedVm> for MyNamedVm {
@@ -26,7 +27,7 @@ pub trait VirtualMachineMustHaveName<Vm> {
 ///         &mut self.name_stack
 ///     }
 /// }
-/// 
+///
 /// impl DoesVirtualMachineHaveName for MyNamedVm {
 ///     const HAS_NAME: bool = true;
 /// }
@@ -88,6 +89,10 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
         NameLiteralValue::static_name()
     }
 
+    fn size_of(&self) -> usize {
+        self.value.get_size()
+    }
+
     fn clone(&self) -> Box<dyn Instruction<Vm>> {
         Box::new(NameLiteralValue::new(self.value.clone()))
     }
@@ -101,7 +106,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
             vm.name().push(self.value.clone());
             vm.name().set_should_quote_next_name(false);
         } else {
-            match vm.name().definition_for_name(&self.value) {
+            match vm.engine().definition_for_name(&self.value) {
                 None => vm.name().push(self.value.clone()),
                 Some(code) => vm.exec().push(code.clone()),
             }
@@ -169,7 +174,7 @@ fn quote(vm: &mut Vm) {
 fn rand_bound_name(vm: &mut Vm) {
     use rand::Rng;
 
-    let defined_names = vm.name().all_defined_names();
+    let defined_names = vm.engine().all_defined_names();
     if defined_names.len() > 0 {
         let pick: usize = vm.get_rng().gen_range(0..defined_names.len());
         let random_value = defined_names[pick].clone();

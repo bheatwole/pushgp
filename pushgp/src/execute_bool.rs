@@ -1,4 +1,5 @@
 use crate::*;
+use get_size::GetSize;
 use pushgp_macros::*;
 
 pub type Bool = bool;
@@ -50,6 +51,10 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for Bo
         BoolLiteralValue::static_name()
     }
 
+    fn size_of(&self) -> usize {
+        self.value.get_size()
+    }
+
     fn clone(&self) -> Code<Vm> {
         Box::new(BoolLiteralValue::new(self.value))
     }
@@ -86,7 +91,7 @@ fn and(vm: &mut Vm, a: Bool, b: Bool) {
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
 #[stack_instruction(Bool)]
 fn define(vm: &mut Vm, value: Bool, name: Name) {
-    vm.name().define_name(name, Box::new(BoolLiteralValue::new(value)));
+    vm.engine_mut().define_name(name, Box::new(BoolLiteralValue::new(value)));
 }
 
 /// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the

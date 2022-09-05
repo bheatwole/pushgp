@@ -109,9 +109,23 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.defined_names.get(name).map(|c| c.clone())
     }
 
+    pub fn define_name(&mut self, name: String, code: Code<Vm>) {
+        self.defined_names.insert(name, code);
+    }
+
     /// Returns a list of all the names that are defined
     pub fn all_defined_names(&self) -> Vec<String> {
         self.defined_names.keys().map(|k| k.clone()).collect()
+    }
+
+    /// Returns the total amount of memory used by the Exec stack and all defined names
+    pub fn size_of(&self) -> usize {
+        let mut size = self.exec_stack.size_of();
+        for (_, code) in self.defined_names.iter() {
+            size += code.size_of();
+        }
+
+        size
     }
 
     /// Returns one random defined name, or None if there are no defined names

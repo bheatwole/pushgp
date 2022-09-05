@@ -8,7 +8,7 @@ pub struct SolitareVm {
     card_stack: Stack<Card>,
     code_stack: Stack<Code<SolitareVm>>,
     integer_stack: Stack<Integer>,
-    name_stack: NameStack<SolitareVm>,
+    name_stack: NameStack,
     game: GameState,
 }
 
@@ -50,6 +50,15 @@ impl VirtualMachine for SolitareVm {
         self.integer_stack.clear();
         self.name_stack.clear();
     }
+
+    fn size_of(&self) -> usize {
+        self.engine.size_of()
+            + self.bool_stack.size_of()
+            + self.card_stack.size_of()
+            + self.code_stack.size_of()
+            + self.integer_stack.size_of()
+            + self.name_stack.size_of()
+    }
 }
 
 impl VirtualMachineMustHaveBool<SolitareVm> for SolitareVm {
@@ -83,7 +92,7 @@ impl VirtualMachineMustHaveInteger<SolitareVm> for SolitareVm {
 }
 
 impl VirtualMachineMustHaveName<SolitareVm> for SolitareVm {
-    fn name(&mut self) -> &mut NameStack<SolitareVm> {
+    fn name(&mut self) -> &mut NameStack {
         &mut self.name_stack
     }
 }
@@ -102,10 +111,7 @@ impl VirtualMachineMustHaveGame<SolitareVm> for SolitareVm {
     }
 }
 
-
-pub fn add_instructions(
-    vm: &mut SolitareVm,
-) {
+pub fn add_instructions(vm: &mut SolitareVm) {
     vm.engine_mut().add_instruction::<pushgp::BoolAnd>();
     vm.engine_mut().add_instruction::<pushgp::BoolDefine>();
     vm.engine_mut().add_instruction::<pushgp::BoolDup>();
@@ -184,11 +190,13 @@ pub fn add_instructions(
     vm.engine_mut().add_instruction::<pushgp::ExecYank>();
     vm.engine_mut().add_instruction::<pushgp::ExecY>();
     vm.engine_mut().add_instruction::<pushgp::IntegerDefine>();
-    vm.engine_mut().add_instruction::<pushgp::IntegerDifference>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::IntegerDifference>();
     vm.engine_mut().add_instruction::<pushgp::IntegerDup>();
     vm.engine_mut().add_instruction::<pushgp::IntegerEqual>();
     vm.engine_mut().add_instruction::<pushgp::IntegerFlush>();
-    vm.engine_mut().add_instruction::<pushgp::IntegerFromBoolean>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::IntegerFromBoolean>();
     vm.engine_mut().add_instruction::<pushgp::IntegerGreater>();
     vm.engine_mut().add_instruction::<pushgp::IntegerLess>();
     vm.engine_mut().add_instruction::<pushgp::IntegerMax>();
@@ -200,7 +208,8 @@ pub fn add_instructions(
     vm.engine_mut().add_instruction::<pushgp::IntegerRand>();
     vm.engine_mut().add_instruction::<pushgp::IntegerRot>();
     vm.engine_mut().add_instruction::<pushgp::IntegerShove>();
-    vm.engine_mut().add_instruction::<pushgp::IntegerStackDepth>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::IntegerStackDepth>();
     vm.engine_mut().add_instruction::<pushgp::IntegerSum>();
     vm.engine_mut().add_instruction::<pushgp::IntegerSwap>();
     vm.engine_mut().add_instruction::<pushgp::IntegerYankDup>();
@@ -210,7 +219,8 @@ pub fn add_instructions(
     vm.engine_mut().add_instruction::<pushgp::NameFlush>();
     vm.engine_mut().add_instruction::<pushgp::NamePop>();
     vm.engine_mut().add_instruction::<pushgp::NameQuote>();
-    vm.engine_mut().add_instruction::<pushgp::NameRandBoundName>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::NameRandBoundName>();
     vm.engine_mut().add_instruction::<pushgp::NameRand>();
     vm.engine_mut().add_instruction::<pushgp::NameRot>();
     vm.engine_mut().add_instruction::<pushgp::NameShove>();
@@ -218,23 +228,32 @@ pub fn add_instructions(
     vm.engine_mut().add_instruction::<pushgp::NameSwap>();
     vm.engine_mut().add_instruction::<pushgp::NameYankDup>();
     vm.engine_mut().add_instruction::<pushgp::NameYank>();
-    
+
     // Here are our instructions:
     vm.engine_mut().add_instruction::<crate::card::CardDefine>();
-    vm.engine_mut().add_instruction::<crate::card::CardDrawNextThree>();
-    vm.engine_mut().add_instruction::<crate::card::CardDrawPileLen>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardDrawNextThree>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardDrawPileLen>();
     vm.engine_mut().add_instruction::<crate::card::CardDup>();
     vm.engine_mut().add_instruction::<crate::card::CardEqual>();
     vm.engine_mut().add_instruction::<crate::card::CardFlush>();
-    vm.engine_mut().add_instruction::<crate::card::CardFromInt>();
-    vm.engine_mut().add_instruction::<crate::card::CardLiteralValue>();
-    vm.engine_mut().add_instruction::<crate::card::CardMoveTopPlayPileCardToFinish>();
-    vm.engine_mut().add_instruction::<crate::card::CardMoveTopWorkPileCardToFinish>();
-    vm.engine_mut().add_instruction::<crate::card::CardMoveWorkPileCardsToAnotherWorkPile>();
-    vm.engine_mut().add_instruction::<crate::card::CardPlayPileLen>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardFromInt>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardLiteralValue>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardMoveTopPlayPileCardToFinish>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardMoveTopWorkPileCardToFinish>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardMoveWorkPileCardsToAnotherWorkPile>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardPlayPileLen>();
     vm.engine_mut().add_instruction::<crate::card::CardPop>();
     vm.engine_mut().add_instruction::<crate::card::CardRand>();
-    vm.engine_mut().add_instruction::<crate::card::CardReadyToFinish>();
+    vm.engine_mut()
+        .add_instruction::<crate::card::CardReadyToFinish>();
     vm.engine_mut().add_instruction::<crate::card::CardDefine>();
     vm.engine_mut().add_instruction::<crate::card::CardDefine>();
     vm.engine_mut().add_instruction::<crate::card::CardDefine>();
@@ -244,8 +263,12 @@ pub fn add_instructions(
     // These must be last, with Name the very last of all. The reason is that parsing runs in order from top to bottom
     // and all the 'normal' instructions use an exact match. However the literal values use more involved parsing and
     // Name is the catch-all (anything that does not parse earlier will become a Name up to the next white-space).
-    vm.engine_mut().add_instruction::<pushgp::PushList<SolitareVm>>();
-    vm.engine_mut().add_instruction::<pushgp::BoolLiteralValue>();
-    vm.engine_mut().add_instruction::<pushgp::IntegerLiteralValue>();
-    vm.engine_mut().add_instruction::<pushgp::NameLiteralValue>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::PushList<SolitareVm>>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::BoolLiteralValue>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::IntegerLiteralValue>();
+    vm.engine_mut()
+        .add_instruction::<pushgp::NameLiteralValue>();
 }

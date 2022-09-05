@@ -1,5 +1,6 @@
 use crate::*;
 use fnv::FnvHashMap;
+use get_size::GetSize;
 
 #[derive(Debug)]
 pub struct PushList<Vm> {
@@ -49,6 +50,10 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
 
     fn name(&self) -> &'static str {
         PushList::<Vm>::static_name()
+    }
+
+    fn size_of(&self) -> usize {
+        self.value.get_size()
     }
 
     fn clone(&self) -> Code<Vm> {

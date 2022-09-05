@@ -212,7 +212,7 @@ mod tests {
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
                     let (_, code) = expected_run.engine().parse(src).unwrap();
-                    expected_run.name().define_name(name.to_owned(), code);
+                    expected_run.engine_mut().define_name(name.to_owned(), code);
                 }
                 assert_eq!(input_run, expected_run);
             }

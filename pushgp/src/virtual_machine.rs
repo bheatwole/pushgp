@@ -10,6 +10,9 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
     /// Clears the data out of the VirtualMachine, making it ready for new code
     fn clear(&mut self);
 
+    /// Returns the amount of memory used by the virtual machine
+    fn size_of(&self) -> usize;
+
     /// Runs the VirtualMachine until the Exec stack is empty or the specified number of instructions have been
     /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> usize {
@@ -18,6 +21,10 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
         while let Some(count) = self.next() {
             total_count += count;
             if total_count >= max {
+                break;
+            }
+            let size = self.size_of();
+            if size >= self.engine().get_configuration().get_max_memory_size() {
                 break;
             }
         }
@@ -52,7 +59,7 @@ pub struct BaseVm {
     code_stack: Stack<Code<BaseVm>>,
     float_stack: Stack<Float>,
     integer_stack: Stack<Integer>,
-    name_stack: NameStack<BaseVm>,
+    name_stack: NameStack,
 }
 
 impl BaseVm {
@@ -87,6 +94,15 @@ impl VirtualMachine for BaseVm {
         self.integer_stack.clear();
         self.name_stack.clear();
     }
+
+    fn size_of(&self) -> usize {
+        self.engine.size_of()
+            + self.bool_stack.size_of()
+            + self.code_stack.size_of()
+            + self.float_stack.size_of()
+            + self.integer_stack.size_of()
+            + self.name_stack.size_of()
+    }
 }
 
 impl VirtualMachineMustHaveBool<BaseVm> for BaseVm {
@@ -120,7 +136,7 @@ impl VirtualMachineMustHaveInteger<BaseVm> for BaseVm {
 }
 
 impl VirtualMachineMustHaveName<BaseVm> for BaseVm {
-    fn name(&mut self) -> &mut NameStack<BaseVm> {
+    fn name(&mut self) -> &mut NameStack {
         &mut self.name_stack
     }
 }

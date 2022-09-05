@@ -138,6 +138,8 @@ impl Card {
     }
 }
 
+impl get_size::GetSize for Card {}
+
 pub trait VirtualMachineMustHaveCard<Vm> {
     fn card(&mut self) -> &mut Stack<Card>;
 }
@@ -373,7 +375,7 @@ fn top_play_pile(vm: &mut Vm) {
 /// onto the EXEC stack.
 #[stack_instruction(Card)]
 fn define(vm: &mut Vm, value: Card, name: Name) {
-    vm.name()
+    vm.engine_mut()
         .define_name(name, Box::new(CardLiteralValue::new(value)));
 }
 

@@ -271,7 +271,7 @@ mod tests {
         let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![
             Box::new(PushList::<BaseVm>::new(vec![
                 Box::new(BoolLiteralValue::new(true)),
-                Box::new(FloatLiteralValue::new(Decimal::new(12345, 6))),
+                Box::new(FloatLiteralValue::new(Decimal::new(12345, 6).into())),
                 Box::new(IntegerLiteralValue::new(-12784)),
             ])),
             Box::new(BoolAnd {}),

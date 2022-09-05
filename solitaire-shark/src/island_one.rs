@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use pushgp::{IslandCallbacks, VirtualMachine, VirtualMachineMustHaveName};
+use pushgp::{IslandCallbacks, VirtualMachine};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 use crate::{run_result::RunResult, GameState, SolitareVm};
@@ -45,7 +45,7 @@ impl IslandCallbacks<RunResult, SolitareVm> for IslandOne {
             // Setup this individuals' code and functions
             vm.engine_mut().set_code(individual.get_code().clone());
             for (name, code) in individual.get_defined_names().iter() {
-                vm.name().define_name(name.clone(), code.clone());
+                vm.engine_mut().define_name(name.clone(), code.clone());
             }
 
             // Setup a new GameState. If this is not the first game, we also need to save the previous game's state.

@@ -9,6 +9,7 @@ edition = "2018"
 base64 = "0.13"
 byte-slice-cast = "1.0"
 fnv = "1.0"
+get-size = "0.1"
 log = "0.4"
 nom = "7.1"
 pushgp-macros = { path = "../pushgp-macros" }

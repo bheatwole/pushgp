@@ -1,4 +1,5 @@
 use crate::*;
+use get_size::GetSize;
 use pushgp_macros::*;
 use rust_decimal::prelude::ToPrimitive;
 
@@ -43,6 +44,7 @@ impl std::fmt::Display for IntegerLiteralValue {
     }
 }
 
+
 impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for IntegerLiteralValue {
     fn as_any(&self) -> &dyn std::any::Any {
         self
@@ -50,6 +52,10 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for
 
     fn name(&self) -> &'static str {
         IntegerLiteralValue::static_name()
+    }
+
+    fn size_of(&self) -> usize {
+        self.value.get_size()
     }
 
     fn clone(&self) -> Box<dyn Instruction<Vm>> {
@@ -84,7 +90,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for
 /// onto the EXEC stack.
 #[stack_instruction(Integer)]
 fn define(vm: &mut Vm, value: Integer, name: Name) {
-    vm.name().define_name(name, Box::new(IntegerLiteralValue::new(value)));
+    vm.engine_mut().define_name(name, Box::new(IntegerLiteralValue::new(value)));
 }
 
 /// Pushes the difference of the top two items; that is, the second item minus the top item. If an overflow occurs the

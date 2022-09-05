@@ -1,3 +1,5 @@
+use get_size::GetSize;
+
 use crate::{Code, Extraction, StaticName, VirtualMachine, VirtualMachineEngine};
 
 /// This trait includes the functions of an instruction that must remain static. If they were included on the Instruction
@@ -25,6 +27,11 @@ pub trait Instruction<Vm: 'static>: std::any::Any + std::fmt::Display {
 
     /// Every instruction must have a name that is known at compile-time
     fn name(&self) -> &'static str;
+
+    /// Every instruction must known how much memory it uses (stack + heap)
+    fn size_of(&self) -> usize {
+        0
+    }
 
     /// The instruction must be able to clone itself, though we cannot implement the normal 'Clone' trait or the
     /// Instruction could not become a trait object
@@ -177,5 +184,11 @@ impl<Vm: 'static> std::cmp::Eq for Box<dyn Instruction<Vm>> {}
 impl<Vm: 'static> std::hash::Hash for Box<dyn Instruction<Vm>> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         state.write_u64(self.as_ref().hash())
+    }
+}
+
+impl<Vm: 'static> GetSize for Box<dyn Instruction<Vm>> {
+    fn get_heap_size(&self) -> usize {
+        self.size_of()
     }
 }

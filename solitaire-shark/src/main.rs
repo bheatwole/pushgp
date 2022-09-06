@@ -37,7 +37,7 @@ fn main() {
 
     // Create the initial configuration
     let config =
-        pushgp::Configuration::new(10 * 1024 * 1024, 1000, 99, 1, 1, fnv::FnvHashMap::default());
+        pushgp::Configuration::new(100 * 1024 * 1024, 1000, 99, 1, 1, fnv::FnvHashMap::default());
 
     // Create the base Virtual Machine and add all instructions
     let mut vm = SolitareVm::new(1, config);

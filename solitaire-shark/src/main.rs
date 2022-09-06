@@ -1,5 +1,6 @@
 mod card;
 mod game_state;
+mod island_common;
 mod island_one;
 mod pile;
 mod run_result;

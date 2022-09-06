@@ -26,4 +26,14 @@ impl RunResult {
 
         number_won
     }
+
+    /// Counts the number of finished cards across all runs
+    pub fn number_of_finished_cards(&self) -> usize {
+        let mut number_finished = 0;
+        for game in self.games.iter() {
+            number_finished += game.number_of_finished_cards();
+        }
+
+        number_finished
+    }
 }

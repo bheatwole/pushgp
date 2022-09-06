@@ -262,7 +262,7 @@ pub fn add_instructions(vm: &mut SolitareVm) {
 
     // These must be last, with Name the very last of all. The reason is that parsing runs in order from top to bottom
     // and all the 'normal' instructions use an exact match. However the literal values use more involved parsing and
-    // Name is the catch-all (anything that does not parse earlier will become a Name up to the next white-space).
+    // Name is the catch-all (anything that does not parsed earlier will become a Name up to the next white-space).
     vm.engine_mut()
         .add_instruction::<pushgp::PushList<SolitareVm>>();
     vm.engine_mut()

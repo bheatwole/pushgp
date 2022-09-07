@@ -27,6 +27,15 @@ impl<Vm: VirtualMachine> InstructionWeights<Vm> {
         });
     }
 
+    /// Returns the name of every instruction added to the weight table
+    pub fn get_instruction_names(&self) -> Vec<&'static str> {
+        let mut names = vec![];
+        for entry in self.instructions.iter() {
+            names.push(entry.name);
+        }
+        names
+    }
+
     /// Returns the weight of the instruction with the specified name, or None
     pub fn weight_of_named_instruction(&self, name: &'static str) -> Option<u8> {
         if let Some(entry) = self.instructions.iter().find(|entry| entry.name == name) {

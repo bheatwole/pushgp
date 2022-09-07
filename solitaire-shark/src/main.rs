@@ -39,8 +39,14 @@ fn main() {
     // island_eight_fitness_score_fn: run 100 games and score on fewest noop instructions executed, then win rate
 
     // Create the initial configuration
-    let config =
-        pushgp::Configuration::new(100 * 1024 * 1024, 1000, 99, 1, 1, fnv::FnvHashMap::default());
+    let config = pushgp::Configuration::new(
+        100 * 1024 * 1024,
+        1000,
+        99,
+        1,
+        1,
+        fnv::FnvHashMap::default(),
+    );
 
     // Create the base Virtual Machine and add all instructions
     let mut vm = SolitareVm::new(1, config);
@@ -58,11 +64,16 @@ fn main() {
     let mut generations_complete = 0;
     world.run_generations_until(|world| {
         generations_complete += 1;
+        println!("Generation {} is complete", generations_complete);
         let most_fit_island_one = world.get_island(0).unwrap().most_fit_individual().unwrap();
         println!(
-            "Generation {} is complete with {} wins out of 100",
-            generations_complete,
-            most_fit_island_one.get_run_result().unwrap().games_won()
+            "  island one:   {:.04}% games won",
+            most_fit_island_one.get_run_result().unwrap().games_won() as f64 / 100.0f64
+        );
+        let most_fit_island_two = world.get_island(1).unwrap().most_fit_individual().unwrap();
+        println!(
+            "  island two:   {:.04} avg finished cards",
+            most_fit_island_two.get_run_result().unwrap().number_of_finished_cards() as f64 / 100.0f64
         );
 
         generations_complete < 10_000

@@ -11,6 +11,10 @@ pub struct WorldConfiguration {
     /// previous generation.
     pub individuals_per_island: usize,
 
+    /// The number of individuals whose code will be copied as-is to the next generation. This can help preserve highly
+    /// fit code. Set to zero to disable elitism. ref https://en.wikipedia.org/wiki/Genetic_algorithm#Elitism
+    pub elite_individuals_per_generation: usize,
+
     /// After this many generations across all islands, some of the individual will migrate to new islands. Set to zero
     /// to disable automatic migrations.
     pub generations_between_migrations: usize,
@@ -33,18 +37,24 @@ pub struct WorldConfiguration {
     /// The SelectionCurve that will be used when choosing a fit parent for genetic operations. The default is
     /// PreferenceForFit.
     pub select_as_parent: SelectionCurve,
+
+    /// The SelectionCurve used when choosing an elite individual to preserve for the next generation. The default is
+    /// StrongPreferenceForFit.
+    pub select_as_elite: SelectionCurve,
 }
 
 impl Default for WorldConfiguration {
     fn default() -> Self {
         WorldConfiguration {
             individuals_per_island: 100,
+            elite_individuals_per_generation: 2,
             generations_between_migrations: 10,
             number_of_individuals_migrating: 10,
             migration_algorithm: MigrationAlgorithm::Circular,
             clone_migrated_individuals: true,
             select_for_migration: SelectionCurve::PreferenceForFit,
             select_as_parent: SelectionCurve::PreferenceForFit,
+            select_as_elite: SelectionCurve::StrongPreferenceForFit,
         }
     }
 }
@@ -101,18 +111,26 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     /// previous generation from which to draw upon.
     pub fn fill_all_islands(&mut self) {
         for island in self.islands.iter_mut() {
+            let mut elite_remaining = self.config.elite_individuals_per_generation;
             while island.len_future_generation() < self.config.individuals_per_island {
                 self.vm.engine_mut().clear();
 
-                if island.len() == 0 {
+                let next = if island.len() == 0 {
                     let code = self.vm.engine_mut().rand_code(None);
-                    island.add_individual_to_future_generation(Individual::new(code, FnvHashMap::default(), None));
+                    Individual::new(code, FnvHashMap::default(), None)
                 } else {
-                    let left = island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
-                    let right = island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
-                    let child = self.vm.engine_mut().rand_child(left, right);
-                    island.add_individual_to_future_generation(child);
-                }
+                    if elite_remaining > 0 {
+                        elite_remaining -= 1;
+                        island.select_one_individual(self.config.select_as_elite, self.vm.get_rng()).unwrap().clone()
+                    } else {
+                        let left =
+                            island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                        let right =
+                            island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                        self.vm.engine_mut().rand_child(left, right)
+                    }
+                };
+                island.add_individual_to_future_generation(next);
             }
 
             // Now that the future generation is full, make it the current generation

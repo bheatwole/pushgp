@@ -314,8 +314,42 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         self.reset_all_islands();
         std::mem::swap(&mut self.config, &mut swap_config);
 
-        unimplemented!("still working on it")
+        // Determine the max count for any instruction
+        let most_fit_max = most_fit_instructions.iter().fold(0, |acc, (_key, count)| acc + count);
+        let least_fit_max = least_fit_instructions.iter().fold(0, |acc, (_key, count)| acc + count);
+
+        // Loop through every instruction that the VM has and calculate the new weight. An instruction that appears
+        // more than twice as often in the least fit individuals will have a weight of zero. An instruction that appears
+        // only in the most fit individuals will have a weight of 255. Instructions that do not appear at all will be
+        // skipped (and get whatever the user decides is the default weight).
+        let mut weights = FnvHashMap::default();
+        let all_instructions = self.vm.engine().get_weights().get_instruction_names();
+        for instruction in all_instructions {
+            let most_fit_frequency = instruction_frequency(instruction, &most_fit_instructions, most_fit_max);
+            let least_fit_frequency = instruction_frequency(instruction, &least_fit_instructions, least_fit_max) * 0.5;
+            if most_fit_frequency > 0.0 || least_fit_frequency > 0.0 {
+                // This instruction appeared at least once, so we should calculate its effect
+                let total_frequency = most_fit_frequency - least_fit_frequency;
+                if total_frequency <= 0.0 {
+                    // This instruction had a very negative effect, don't use it
+                    weights.insert(instruction, 0);
+                } else {
+                    let weight: u8 = (total_frequency * 255.0).floor() as u8;
+                    weights.insert(instruction, weight);
+                }
+            }
+        }
+
+        weights
     }
 }
 
 fn update_instruction_count<Vm: VirtualMachine>(instructions: &mut FnvHashMap<&'static str, usize>, code: &Code<Vm>) {}
+
+
+
+// The frequency of an instruction is how often it appears relative to the instruction that appears the most
+fn instruction_frequency(search_for: &str, instructions: &FnvHashMap<&'static str, usize>, max: usize) -> f64 {
+    let count = instructions.get(search_for).unwrap_or(&0);
+    (*count) as f64 / max as f64
+}

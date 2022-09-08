@@ -91,6 +91,13 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         self.islands.get_mut(id)
     }
 
+    /// Removes all individuals from all islands
+    pub fn reset_all_islands(&mut self) {
+        for island in self.islands.iter_mut() {
+            island.clear();
+        }
+    }
+ 
     /// Runs the next generation across all islands.
     pub fn run_one_generation(&mut self) {
         for island in self.islands.iter_mut() {
@@ -262,5 +269,18 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
         }
 
         distances
+    }
+
+    /// Generates 10 random individuals per island per run. The instructions in the most fit and least fit individual
+    /// are counted and a determination made as to which instructions most benefit, and which cause the most harm, to
+    /// the population as a whole.
+    /// 
+    /// This will call `clear` on all islands, so do not run after starting normal generations.
+    pub fn heuristically_calculate_instruction_weights(&mut self, runs: usize) -> FnvHashMap<&'static str, u8> {
+
+        // Reset the islands
+        self.reset_all_islands();
+
+        unimplemented!("still working on it")
     }
 }

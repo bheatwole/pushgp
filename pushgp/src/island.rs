@@ -17,6 +17,13 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
         }
     }
 
+    /// Resets the island to it's 'new' state.
+    pub fn clear(&mut self) {
+        self.individuals.clear();
+        self.individuals_are_sorted = false;
+        self.future.clear();
+    }
+
     /// Returns the most fit of all the individuals (the one sorted to the tail by the sorting algorithm). Returns None
     /// if there are no Individuals or if the individuals have not been sorted
     pub fn most_fit_individual(&self) -> Option<&Individual<RunResult, Vm>> {

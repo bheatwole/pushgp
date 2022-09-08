@@ -1,4 +1,4 @@
-use crate::{Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
+use crate::{Code, Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
 use fnv::FnvHashMap;
 use rand::{prelude::SliceRandom, Rng};
 use std::vec;
@@ -97,7 +97,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
             island.clear();
         }
     }
- 
+
     /// Runs the next generation across all islands.
     pub fn run_one_generation(&mut self) {
         for island in self.islands.iter_mut() {
@@ -274,13 +274,48 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     /// Generates 10 random individuals per island per run. The instructions in the most fit and least fit individual
     /// are counted and a determination made as to which instructions most benefit, and which cause the most harm, to
     /// the population as a whole.
-    /// 
+    ///
     /// This will call `clear` on all islands, so do not run after starting normal generations.
     pub fn heuristically_calculate_instruction_weights(&mut self, runs: usize) -> FnvHashMap<&'static str, u8> {
+        let mut most_fit_instructions: FnvHashMap<&'static str, usize> = FnvHashMap::default();
+        let mut least_fit_instructions: FnvHashMap<&'static str, usize> = FnvHashMap::default();
 
-        // Reset the islands
+        // Setup a config for this algorithm and swap it in for the original configuration
+        let mut swap_config = WorldConfiguration {
+            individuals_per_island: 10,
+            elite_individuals_per_generation: 0,
+            generations_between_migrations: 0,
+            number_of_individuals_migrating: 0,
+            migration_algorithm: MigrationAlgorithm::Circular,
+            clone_migrated_individuals: true,
+            select_for_migration: SelectionCurve::Fair,
+            select_as_parent: SelectionCurve::Fair,
+            select_as_elite: SelectionCurve::Fair,
+        };
+        std::mem::swap(&mut self.config, &mut swap_config);
+
+        // Start our runs
+        for _ in 0..runs {
+            // Run the initial generation on all islands
+            self.reset_all_islands();
+            self.fill_all_islands();
+            self.run_one_generation();
+
+            // Update the instruction count from the most fit and least fit individuals
+            for island in self.islands.iter() {
+                let code = island.most_fit_individual().unwrap().get_code();
+                update_instruction_count(&mut most_fit_instructions, code);
+                let code = island.least_fit_individual().unwrap().get_code();
+                update_instruction_count(&mut least_fit_instructions, code);
+            }
+        }
+
+        // Reset the islands one last time and restore the original config
         self.reset_all_islands();
+        std::mem::swap(&mut self.config, &mut swap_config);
 
         unimplemented!("still working on it")
     }
 }
+
+fn update_instruction_count<Vm: VirtualMachine>(instructions: &mut FnvHashMap<&'static str, usize>, code: &Code<Vm>) {}

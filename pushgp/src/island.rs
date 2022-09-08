@@ -33,6 +33,15 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
         self.individuals.last()
     }
 
+    /// Returns the least fit of all the individuals (the one sorted to the head by the sorting algorithm). Returns None
+    /// if there are no Individuals or if the individuals have not been sorted
+    pub fn least_fit_individual(&self) -> Option<&Individual<RunResult, Vm>> {
+        if !self.individuals_are_sorted {
+            return None;
+        }
+        self.individuals.first()
+    }
+
     /// Uses the specified VM to run one generation of individuals. Calls all of the user-supplied functions from the
     /// `Island` trait.
     pub fn run_one_generation(&mut self, vm: &mut Vm) {

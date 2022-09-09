@@ -241,6 +241,16 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
         names
     }
 
+    /// Returns a list of clones of all the atoms found in the instruction.
+    fn extract_atoms(&self) -> Vec<Box<dyn Instruction<Vm>>> {
+        let mut atoms = vec![];
+        for item in self.value.iter() {
+            atoms.append(&mut item.extract_atoms());
+        }
+
+        atoms
+    }
+
     /// Returns the number of items in this list. Unlike 'points' it does not recurse into sub-lists
     fn len(&self) -> usize {
         self.value.len()
@@ -331,6 +341,19 @@ mod tests {
         assert_eq!("BNAME", names[2]);
         assert_eq!("CNAME", names[3]);
         assert_eq!("ANAME", names[4]);
+    }
+
+    #[test]
+    fn extract_atoms() {
+        let vm = new_base_vm();
+        let (_, code) = vm.engine().parse("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )").unwrap();
+        let atoms = code.extract_atoms();
+        assert_eq!(5, atoms.len());
+        assert_eq!(&vm.engine().must_parse("TRUE"), &atoms[0]);
+        assert_eq!(&vm.engine().must_parse("0.012345"), &atoms[1]);
+        assert_eq!(&vm.engine().must_parse("-12784"), &atoms[2]);
+        assert_eq!(&vm.engine().must_parse("a_name"), &atoms[3]);
+        assert_eq!(&vm.engine().must_parse("BOOL.AND"), &atoms[4]);
     }
 
     #[test]

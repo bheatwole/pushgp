@@ -140,6 +140,12 @@ pub trait Instruction<Vm: 'static>: std::any::Any + std::fmt::Display {
         vec![]
     }
 
+    /// Returns a list of clones of all the atoms found in the instruction. The default implementation returns a list
+    /// that contains a clone of itself
+    fn extract_atoms(&self) -> Vec<Box<dyn Instruction<Vm>>> {
+        vec![self.clone()]
+    }
+
     /// Returns the number of items in this list. Unlike 'points' it does not recurse into sub-lists
     fn len(&self) -> usize {
         1

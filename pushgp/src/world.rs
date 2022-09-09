@@ -344,7 +344,11 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     }
 }
 
-fn update_instruction_count<Vm: VirtualMachine>(instructions: &mut FnvHashMap<&'static str, usize>, code: &Code<Vm>) {}
+fn update_instruction_count<Vm: VirtualMachine>(instructions: &mut FnvHashMap<&'static str, usize>, code: &Code<Vm>) {
+    for atom in code.extract_atoms().iter() {
+        *(instructions.entry(atom.name()).or_insert(0)) += 1;
+    }
+}
 
 
 

@@ -104,6 +104,12 @@ pub trait Instruction<Vm: 'static>: std::any::Any + std::fmt::Display {
         items
     }
 
+    /// Appends this item to an already-existing discrepancy items HashMap
+    fn append_discrepancy_items(&self, items: &mut fnv::FnvHashMap<Code<Vm>, i64>) {
+        let counter = items.entry(self.clone()).or_insert(0);
+        *counter += 1;
+    }
+
     /// Coerces the item to a list
     fn to_list(&self) -> Vec<Box<dyn Instruction<Vm>>> {
         vec![self.clone()]

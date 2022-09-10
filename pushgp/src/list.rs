@@ -167,17 +167,22 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
     fn discrepancy_items(&self) -> FnvHashMap<Code<Vm>, i64> {
         let mut items = FnvHashMap::default();
         for i in self.value.iter() {
-            if i.is_list() {
-                let counter = items.entry(i.clone()).or_insert(0);
-                *counter += 1;
-            }
-            for (key, count) in i.discrepancy_items() {
-                let counter = items.entry(key).or_insert(0);
-                *counter += count;
-            }
+            i.append_discrepancy_items(&mut items);
         }
 
         items
+    }
+
+    /// Appends this item to an already-existing discrepancy items HashMap
+    fn append_discrepancy_items(&self, items: &mut fnv::FnvHashMap<Code<Vm>, i64>) {
+        // Append the list itself
+        let counter = items.entry(self.clone()).or_insert(0);
+        *counter += 1;
+
+        // Append all the items in the list
+        for i in self.value.iter() {
+            i.append_discrepancy_items(items);
+        }
     }
 
     /// Coerces the item to a list

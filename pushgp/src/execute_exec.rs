@@ -1,10 +1,10 @@
 use crate::*;
 use pushgp_macros::*;
 
-pub type Exec<Vm> = Box<dyn Instruction<Vm>>;
+pub type Exec = Code;
 
 pub trait VirtualMachineMustHaveExec<Vm: 'static> {
-    fn exec(&mut self) -> &mut Stack<Exec<Vm>>;
+    fn exec(&mut self) -> &mut Stack<Exec>;
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the EXEC stack back
@@ -31,12 +31,12 @@ fn do_n_count(vm: &mut Vm, code: Exec, count: Integer) {
         vm.integer().push(count);
     } else {
         // Turn into DoNRange with (Count - 1) as destination
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(0)),
-            Box::new(IntegerLiteralValue::new(count - 1)),
-            Box::new(ExecDoNRange {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, 0),
+            IntegerLiteralValue::new_code(vm, count - 1),
+            ExecDoNRange::new_code(vm),
             code,
-        ]));
+        ]);
         vm.exec().push(next);
     }
 }
@@ -59,12 +59,12 @@ fn do_n_range(vm: &mut Vm, code: Exec, dest: Integer, cur: Integer) {
     // If we haven't reached the destination yet, push the next iteration onto the stack first.
     if cur != dest {
         let increment = if cur < dest { 1 } else { -1 };
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(cur + increment)),
-            Box::new(IntegerLiteralValue::new(dest)),
-            Box::new(ExecDoNRange {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, cur + increment),
+            IntegerLiteralValue::new_code(vm, dest),
+            ExecDoNRange::new_code(vm),
             code.clone(),
-        ]));
+        ]);
         vm.exec().push(next);
     }
 
@@ -88,15 +88,15 @@ fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
     } else {
         // The difference between Count and Times is that the 'current index' is not available to
         // the loop body. Pop that value first
-        let code = Box::new(PushList::new(vec![Box::new(IntegerPop {}), code]));
+        let code = Code::new_list(vec![IntegerPop::new_code(vm), code]);
 
         // Turn into DoNRange with (Count - 1) as destination
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(0)),
-            Box::new(IntegerLiteralValue::new(count - 1)),
-            Box::new(ExecDoNRange {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, 0),
+            IntegerLiteralValue::new_code(vm, count - 1),
+            ExecDoNRange::new_code(vm),
             code,
-        ]));
+        ]);
         vm.exec().push(next);
     }
 }
@@ -173,7 +173,7 @@ fn swap(vm: &mut Vm) {
 /// another instance of C, followed by another instance of A.
 #[stack_instruction(Exec)]
 fn s(vm: &mut Vm, a: Exec, b: Exec, c: Exec) {
-    vm.exec().push(Box::new(PushList::new(vec![b, c.clone()])));
+    vm.exec().push(Code::new_list(vec![b, c.clone()]));
     vm.exec().push(c);
     vm.exec().push(a);
 }
@@ -201,7 +201,7 @@ fn yank(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Exec)]
 fn y(vm: &mut Vm, repeat: Exec) {
     // Construct the looping code
-    let next_exec = Box::new(PushList::new(vec![Box::new(ExecY {}), repeat.clone()]));
+    let next_exec = Code::new_list(vec![ExecY::new_code(vm), repeat.clone()]);
     // Push them back so that we DO and the DO AGAIN
     vm.exec().push(next_exec);
     vm.exec().push(repeat);

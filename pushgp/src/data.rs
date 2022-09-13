@@ -1,0 +1,178 @@
+use rust_decimal::{Decimal, prelude::FromPrimitive};
+use smartstring::{LazyCompact, SmartString};
+
+use crate::{Code, Name, Float};
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum Data {
+    /// Indicates the Code has no data associated with it. This is slightly preferrable to Option<Data> because wrapping
+    /// in an Option forces Code to have two enums and thus larger size.
+    None,
+    Integer(i64),
+    UnsignedInteger(u64),
+    Decimal(Decimal),
+
+    /// Use for Names. The extract_names code looks for this type specifically
+    Name(Name),
+
+    /// The SmartString will keep strings smaller than 24 bytes on the stack and avoid heap allocations
+    String(SmartString<LazyCompact>),
+
+    /// Use this variant to encode custom data that doesn't fit nicely into any other category but is small enough to
+    /// be stored on the stack. At 24 bytes it takes the same amount of stack space as a Vec<u8> and so does not
+    /// increase memory usage.
+    StackBytes([u8; 24]),
+
+    /// Use this variant to encode custom data that doesn't fit nicely into any other category and is larger than
+    /// 24 bytes
+    Bytes(Vec<u8>),
+
+    /// Holds the data for a list
+    CodeList(Vec<Code>),
+}
+
+impl Data {
+    pub fn bool_value(&self) -> Option<bool> {
+        match self {
+            Data::Integer(x) => Some(*x != 0),
+            _ => None,
+        }
+    }
+
+    pub fn integer_value(&self) -> Option<i64> {
+        match self {
+            Data::Integer(x) => Some(*x),
+            _ => None,
+        }
+    }
+
+    pub fn unsigned_integer_value(&self) -> Option<u64> {
+        match self {
+            Data::UnsignedInteger(x) => Some(*x),
+            _ => None,
+        }
+    }
+
+    pub fn decimal_value(&self) -> Option<Decimal> {
+        match self {
+            Data::Decimal(x) => Some(*x),
+            _ => None,
+        }
+    }
+
+    pub fn name_value(&self) -> Option<Name> {
+        match self {
+            Data::Name(x) => Some(x.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn code_iter(&self) -> Option<std::slice::Iter<'_, Code>> {
+        match self {
+            Data::CodeList(list) => Some(list.iter()),
+            _ => None,
+        }
+    }
+}
+
+impl From<bool> for Data {
+    fn from(value: bool) -> Self {
+        Data::Integer(if value { 1 } else { 0 })
+    }
+}
+
+impl From<i8> for Data {
+    fn from(value: i8) -> Self {
+        Data::Integer(value as i64)
+    }
+}
+
+impl From<i16> for Data {
+    fn from(value: i16) -> Self {
+        Data::Integer(value as i64)
+    }
+}
+
+impl From<i32> for Data {
+    fn from(value: i32) -> Self {
+        Data::Integer(value as i64)
+    }
+}
+
+impl From<i64> for Data {
+    fn from(value: i64) -> Self {
+        Data::Integer(value as i64)
+    }
+}
+
+impl From<isize> for Data {
+    fn from(value: isize) -> Self {
+        Data::Integer(value as i64)
+    }
+}
+
+impl From<u8> for Data {
+    fn from(value: u8) -> Self {
+        Data::UnsignedInteger(value as u64)
+    }
+}
+
+impl From<u16> for Data {
+    fn from(value: u16) -> Self {
+        Data::UnsignedInteger(value as u64)
+    }
+}
+
+impl From<u32> for Data {
+    fn from(value: u32) -> Self {
+        Data::UnsignedInteger(value as u64)
+    }
+}
+
+impl From<u64> for Data {
+    fn from(value: u64) -> Self {
+        Data::UnsignedInteger(value as u64)
+    }
+}
+
+impl From<usize> for Data {
+    fn from(value: usize) -> Self {
+        Data::UnsignedInteger(value as u64)
+    }
+}
+
+impl From<f32> for Data {
+    fn from(value: f32) -> Self {
+        Data::Decimal(Decimal::from_f32(value).unwrap())
+    }
+}
+
+impl From<f64> for Data {
+    fn from(value: f64) -> Self {
+        Data::Decimal(Decimal::from_f64(value).unwrap())
+    }
+}
+
+impl From<Float> for Data {
+    fn from(value: Float) -> Self {
+        Data::Decimal(value.into())
+    }
+}
+
+impl From<Decimal> for Data {
+    fn from(value: Decimal) -> Self {
+        Data::Decimal(value)
+    }
+}
+
+impl From<Name> for Data {
+    fn from(value: Name) -> Self {
+        Data::Name(value)
+    }
+}
+
+impl From<Vec<Code>> for Data {
+    fn from(list: Vec<Code>) -> Self {
+        Data::CodeList(list)
+    }
+}

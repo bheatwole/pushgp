@@ -1,277 +1,50 @@
 use crate::*;
-use fnv::FnvHashMap;
-use get_size::GetSize;
 
 #[derive(Debug)]
-pub struct PushList<Vm> {
-    value: Vec<Code<Vm>>,
-}
+pub struct PushList {}
 
-impl<Vm> PushList<Vm> {
-    pub fn new(value: Vec<Code<Vm>>) -> PushList<Vm> {
-        PushList { value }
-    }
-}
-
-impl<Vm> StaticName for PushList<Vm> {
+impl StaticName for PushList {
     fn static_name() -> &'static str {
         "__PUSH.LIST"
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> StaticInstruction<Vm> for PushList<Vm> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for PushList {
+    fn name(&self) -> &'static str {
+        PushList::static_name()
+    }
+
     // The PushList cannot be parsed this way because it requires recursive parsing (and thus access to the parser). See
     // parse.rs for the implementation of recursive parsing
-    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
+    fn parse<'a>(&self, input: &'a str, _opcode: u32) -> nom::IResult<&'a str, Code> {
         Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify)))
+    }
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code, vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+        write!(f, "(")?;
+        if let Some(iter) = code.get_data().code_iter() {
+            for c in iter {
+                vtable.fmt(f, c)?;
+            }
+        } else {
+            panic!("fmt called for PushList with data that is not a CodeList")
+        }
+        write!(f, " )")
     }
 
     // A PushList should typically have its weight set to zero and never called for a random value. The tree of
     // Code values is created in the random code generation.
-    fn random_value(_engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
-        Box::new(PushList::new(vec![]))
+    fn random_value(&self, _engine: &mut VirtualMachineEngine<Vm>) -> Code {
+        Code::new(0, Data::CodeList(vec![]))
     }
-}
-
-impl<Vm> std::fmt::Display for PushList<Vm> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(")?;
-        for c in self.value.iter() {
-            write!(f, " {}", c)?;
-        }
-        write!(f, " )")
-    }
-}
-
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for PushList<Vm> {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn name(&self) -> &'static str {
-        PushList::<Vm>::static_name()
-    }
-
-    fn size_of(&self) -> usize {
-        self.value.get_size()
-    }
-
-    fn clone(&self) -> Code<Vm> {
-        let mut cloned_list = vec![];
-        for item in self.value.iter() {
-            cloned_list.push(item.clone());
-        }
-        Box::new(PushList::new(cloned_list))
-    }
-
-    /// Executing a PushList pushes the items of the list onto the Exec stack so that the first item in the list is
-    /// executed next
-    fn execute(&mut self, vm: &mut Vm) {
-        while let Some(item) = self.value.pop() {
-            vm.exec().push(item);
-        }
-    }
-
-    /// Eq for PushList must check that the other instruction is also a PushList and, if so, that each item in each list
-    /// is equivalent
-    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<PushList<Vm>>() {
-            if self.value.len() == other.value.len() {
-                for i in 0..self.value.len() {
-                    if self.value.get(i).unwrap() != other.value.get(i).unwrap() {
-                        return false;
-                    }
-                }
-                true
-            } else {
-                false
+    
+    fn execute(&self, mut code: Code, vm: &mut Vm) {
+        match code.get_data_mut() {
+            Data::CodeList(list) => for item in list.drain(..) {
+                vm.exec().push(item);
             }
-        } else {
-            false
+            _ => panic!("execute called for PushList with data that is not a CodeList"),
         }
-    }
-
-    /// The hash value for PushList include the value in the hash as well as the name
-    fn hash(&self) -> u64 {
-        let mut to_hash: Vec<u8> = PushList::<Vm>::static_name().as_bytes().iter().map(|c| *c).collect();
-        for item in self.value.iter() {
-            to_hash.push(b' ');
-            let normalized = item.hash().to_string();
-            to_hash.extend_from_slice(normalized.as_bytes());
-        }
-        seahash::hash(&to_hash[..])
-    }
-
-    /// Returns true if this code is a List
-    fn is_list(&self) -> bool {
-        true
-    }
-
-    /// Returns true if this code is anything BUT a list
-    fn is_atom(&self) -> bool {
-        false
-    }
-
-    /// Returns true if the specified code is equal to this item or any child
-    fn contains(&self, look_for: &dyn Instruction<Vm>) -> bool {
-        for i in self.value.iter() {
-            if i.as_ref().eq(look_for) {
-                return true;
-            }
-
-            if i.is_list() {
-                if i.contains(look_for) {
-                    return true;
-                }
-            }
-        }
-        false
-    }
-
-    /// Returns the smallest sub-list that contains the specified code
-    fn container(&self, look_for: &dyn Instruction<Vm>) -> Option<Box<dyn Instruction<Vm>>> {
-        for i in self.value.iter() {
-            if i.as_ref().eq(look_for) {
-                return Some(Box::new(PushList::new(self.value.clone())));
-            }
-        }
-        for i in self.value.iter() {
-            if let Some(code) = i.container(look_for) {
-                return Some(code);
-            }
-        }
-        None
-    }
-
-    /// Similar to `contains` but does not recurse into Lists
-    fn has_member(&self, look_for: &dyn Instruction<Vm>) -> bool {
-        for item in self.value.iter() {
-            if item.as_ref().eq(look_for) {
-                return true;
-            }
-        }
-        false
-    }
-
-    /// Similar to `extract_point` but does not recurse into lists
-    fn position_of(&self, look_for: &dyn Instruction<Vm>) -> Option<usize> {
-        for (i, item) in self.value.iter().enumerate() {
-            if item.as_ref().eq(look_for) {
-                return Some(i);
-            }
-        }
-        None
-    }
-
-    /// The discrepancy output is a HashMap of every unique sub-list and atom from the specified code
-    fn discrepancy_items(&self) -> FnvHashMap<Code<Vm>, i64> {
-        let mut items = FnvHashMap::default();
-        for i in self.value.iter() {
-            i.append_discrepancy_items(&mut items);
-        }
-
-        items
-    }
-
-    /// Appends this item to an already-existing discrepancy items HashMap
-    fn append_discrepancy_items(&self, items: &mut fnv::FnvHashMap<Code<Vm>, i64>) {
-        // Append the list itself
-        let counter = items.entry(self.clone()).or_insert(0);
-        *counter += 1;
-
-        // Append all the items in the list
-        for i in self.value.iter() {
-            i.append_discrepancy_items(items);
-        }
-    }
-
-    /// Coerces the item to a list
-    fn to_list(&self) -> Vec<Box<dyn Instruction<Vm>>> {
-        self.value.clone()
-    }
-
-    /// Returns the number of 'points' of the entire code. Each atom and list is considered one point.
-    fn points(&self) -> i64 {
-        let sub_points: i64 = self.value.iter().map(|c| c.points()).sum();
-        1 + sub_points
-    }
-
-    /// Returns the item of code at the specified 'point' in the code tree if `point` is less than the number of points
-    /// in the code. Returns the number of points used otherwise.
-    fn extract_point(&self, point: i64) -> Extraction<Vm> {
-        if 0 == point {
-            return Extraction::Extracted(self.clone());
-        }
-        let mut used = 1;
-        for item in self.value.iter() {
-            match item.extract_point(point - used) {
-                Extraction::Extracted(code) => return Extraction::Extracted(code),
-                Extraction::Used(u) => used += u,
-            }
-        }
-        Extraction::Used(used)
-    }
-
-    /// Descends to the specified point in the code tree and swaps the list or atom there with the specified replacement
-    /// code. If the replacement point is greater than the number of points in the Code, this has no effect.
-    fn replace_point(&self, mut point: i64, replace_with: &dyn Instruction<Vm>) -> (Box<dyn Instruction<Vm>>, i64) {
-        // If this is the replacement point, return the replacement
-        if 0 == point {
-            (replace_with.clone(), 1)
-        } else if point < 1 {
-            // After we've performed the replacement, everything gets returned as-is
-            (self.clone(), 1)
-        } else {
-            // We need to track both the number of points used and the points remaining until replacement.
-            let mut next_list = vec![];
-            let mut total_used = 1;
-            point -= 1;
-            for item in self.value.iter() {
-                let (next, used) = item.replace_point(point, replace_with);
-                point -= used;
-                total_used += used;
-                next_list.push(next);
-            }
-            (Box::new(PushList::new(next_list)), total_used)
-        }
-    }
-
-    /// Returns a list of all names found in the instruction.
-    fn extract_names(&self) -> Vec<String> {
-        let mut names = vec![];
-        for item in self.value.iter() {
-            names.append(&mut item.extract_names());
-        }
-
-        names
-    }
-
-    /// Returns a list of clones of all the atoms found in the instruction.
-    fn extract_atoms(&self) -> Vec<Box<dyn Instruction<Vm>>> {
-        let mut atoms = vec![];
-        for item in self.value.iter() {
-            atoms.append(&mut item.extract_atoms());
-        }
-
-        atoms
-    }
-
-    /// Returns the number of items in this list. Unlike 'points' it does not recurse into sub-lists
-    fn len(&self) -> usize {
-        self.value.len()
-    }
-
-    /// Replaces the specified search code with the specified replacement code
-    fn replace(&self, look_for: &dyn Instruction<Vm>, replace_with: &dyn Instruction<Vm>) -> Box<dyn Instruction<Vm>> {
-        if self.eq(look_for) {
-            return replace_with.clone();
-        }
-
-        let mut next_list = vec![];
-        for item in self.value.iter() {
-            next_list.push(item.replace(look_for, replace_with));
-        }
-        Box::new(PushList::new(next_list))
     }
 }
 
@@ -341,11 +114,11 @@ mod tests {
         let code = vm.engine().must_parse("( ANAME ( 1 TRUE ANAME ) BNAME ( ( CNAME ANAME ) ) )");
         let names = code.extract_names();
         assert_eq!(5, names.len());
-        assert_eq!("ANAME", names[0]);
-        assert_eq!("ANAME", names[1]);
-        assert_eq!("BNAME", names[2]);
-        assert_eq!("CNAME", names[3]);
-        assert_eq!("ANAME", names[4]);
+        assert_eq!(Name::from("ANAME"), names[0]);
+        assert_eq!(Name::from("ANAME"), names[1]);
+        assert_eq!(Name::from("BNAME"), names[2]);
+        assert_eq!(Name::from("CNAME"), names[3]);
+        assert_eq!(Name::from("ANAME"), names[4]);
     }
 
     #[test]

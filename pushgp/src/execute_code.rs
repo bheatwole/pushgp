@@ -1,10 +1,8 @@
 use crate::*;
 use pushgp_macros::*;
 
-pub type Code<Vm> = Box<dyn Instruction<Vm>>;
-
 pub trait VirtualMachineMustHaveCode<Vm: 'static> {
-    fn code(&mut self) -> &mut Stack<Code<Vm>>;
+    fn code(&mut self) -> &mut Stack<Code>;
 }
 
 /// Pushes the result of appending the top two pieces of code. If one of the pieces of code is a single instruction
@@ -14,7 +12,7 @@ fn append(vm: &mut Vm, src: Code, dst: Code) {
     let src = src.to_list();
     let mut dst = dst.to_list();
     dst.extend_from_slice(&src[..]);
-    vm.code().push(Box::new(PushList::new(dst)));
+    vm.code().push(Code::new_list(dst));
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the top piece of code is a single instruction or a literal, and FALSE
@@ -53,14 +51,14 @@ fn cdr(vm: &mut Vm, code: Code) {
         if code.len() > 1 {
             let mut as_vec = code.to_list();
             as_vec.remove(0);
-            PushList::new(as_vec)
+            Code::new_list(as_vec)
         } else {
-            PushList::new(vec![])
+            Code::new_list(vec![])
         }
     } else {
-        PushList::new(vec![])
+        Code::new_list(vec![])
     };
-    vm.code().push(Box::new(rest))
+    vm.code().push(rest)
 }
 
 /// Pushes the result of "consing" (in the Lisp sense) the second stack item onto the first stack item (which is
@@ -70,7 +68,7 @@ fn cdr(vm: &mut Vm, code: Code) {
 fn cons(vm: &mut Vm, top: Code, push_first: Code) {
     let mut as_vec = top.to_list();
     as_vec.insert(0, push_first);
-    vm.code().push(Box::new(PushList::new(as_vec)))
+    vm.code().push(Code::new_list(as_vec))
 }
 
 /// Pushes the "container" of the second CODE stack item within the first CODE stack item onto the CODE stack. If
@@ -80,7 +78,7 @@ fn cons(vm: &mut Vm, top: Code, push_first: Code) {
 /// empty list if there is no such container.
 #[stack_instruction(Code)]
 fn container(vm: &mut Vm, look_for: Code, look_in: Code) {
-    if let Some(code) = look_in.container(look_for.as_ref()) {
+    if let Some(code) = look_in.container(&look_for) {
         vm.code().push(code);
     }
 }
@@ -89,7 +87,7 @@ fn container(vm: &mut Vm, look_for: Code, look_in: Code) {
 /// (e.g. in a sub-list).
 #[stack_instruction(Code)]
 fn contains(vm: &mut Vm, look_for: Code, look_in: Code) {
-    vm.bool().push(look_in.contains(look_for.as_ref()));
+    vm.bool().push(look_in.contains(&look_for));
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the CODE stack onto
@@ -158,13 +156,13 @@ fn do_n_count(vm: &mut Vm, code: Code, count: Integer) {
         vm.integer().push(count);
     } else {
         // Turn into DoNRange with (Count - 1) as destination
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(0)),
-            Box::new(IntegerLiteralValue::new(count - 1)),
-            Box::new(CodeQuote {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, 0),
+            IntegerLiteralValue::new_code(vm, count - 1),
+            CodeQuote::new_code(vm),
             code,
-            Box::new(CodeDoNRange {}),
-        ]));
+            CodeDoNRange::new_code(vm),
+        ]);
         vm.exec().push(next);
     }
 }
@@ -186,13 +184,13 @@ fn do_n_range(vm: &mut Vm, code: Code, dest: Integer, cur: Integer) {
     // If we haven't reached the destination yet, push the next iteration onto the stack first.
     if cur != dest {
         let increment = if cur < dest { 1 } else { -1 };
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(cur + increment)),
-            Box::new(IntegerLiteralValue::new(dest)),
-            Box::new(CodeQuote {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, cur + increment),
+            IntegerLiteralValue::new_code(vm, dest),
+            CodeQuote::new_code(vm),
             code.clone(),
-            Box::new(CodeDoNRange {}),
-        ]));
+            CodeDoNRange::new_code(vm),
+        ]);
         vm.exec().push(next);
     }
 
@@ -216,16 +214,16 @@ fn do_n_times(vm: &mut Vm, code: Code, count: Integer) {
     } else {
         // The difference between Count and Times is that the 'current index' is not available to
         // the loop body. Pop that value first
-        let code = Box::new(PushList::new(vec![Box::new(IntegerPop {}), code]));
+        let code = Code::new_list(vec![IntegerPop::new_code(vm), code]);
 
         // Turn into DoNRange with (Count - 1) as destination
-        let next = Box::new(PushList::new(vec![
-            Box::new(IntegerLiteralValue::new(0)),
-            Box::new(IntegerLiteralValue::new(count - 1)),
-            Box::new(CodeQuote {}),
+        let next = Code::new_list(vec![
+            IntegerLiteralValue::new_code(vm, 0),
+            IntegerLiteralValue::new_code(vm, count - 1),
+            CodeQuote::new_code(vm),
             code,
-            Box::new(CodeDoNRange {}),
-        ]));
+            CodeDoNRange::new_code(vm),
+        ]);
         vm.exec().push(next);
     }
 }
@@ -241,7 +239,8 @@ fn do_n(vm: &mut Vm, code: Code) {
 /// stack then this final pop may end up popping something else.
 #[stack_instruction(Code)]
 fn _do(vm: &mut Vm, code: Code) {
-    vm.exec().push(Box::new(CodePop {}));
+    let pop = CodePop::new_code(vm);
+    vm.exec().push(pop);
     vm.exec().push(code.clone());
     vm.code().push(code);
 }
@@ -286,25 +285,29 @@ fn flush(vm: &mut Vm) {
 /// Pops the BOOLEAN stack and pushes the popped item (TRUE or FALSE) onto the CODE stack.
 #[stack_instruction(Code)]
 fn from_boolean(vm: &mut Vm, value: Bool) {
-    vm.code().push(Box::new(BoolLiteralValue::new(value)));
+    let code = BoolLiteralValue::new_code(vm, value);
+    vm.code().push(code);
 }
 
 /// Pops the FLOAT stack and pushes the popped item onto the CODE stack.
 #[stack_instruction(Code)]
 fn from_float(vm: &mut Vm, value: Float) {
-    vm.code().push(Box::new(FloatLiteralValue::new(value)));
+    let code = FloatLiteralValue::new_code(vm, value);
+    vm.code().push(code);
 }
 
 /// Pops the INTEGER stack and pushes the popped integer onto the CODE stack.
 #[stack_instruction(Code)]
 fn from_integer(vm: &mut Vm, value: Integer) {
-    vm.code().push(Box::new(IntegerLiteralValue::new(value)));
+    let code = IntegerLiteralValue::new_code(vm, value);
+    vm.code().push(code);
 }
 
 /// Pops the NAME stack and pushes the popped item onto the CODE stack.
 #[stack_instruction(Code)]
 fn from_name(vm: &mut Vm, value: Name) {
-    vm.code().push(Box::new(NameLiteralValue::new(value)));
+    let code = NameLiteralValue::new_code(vm, value);
+    vm.code().push(code);
 }
 
 /// If the top item of the BOOLEAN stack is TRUE this recursively executes the second item of the CODE stack;
@@ -322,7 +325,7 @@ fn _if(vm: &mut Vm, false_branch: Code, true_branch: Code, switch_on: Bool) {
 fn insert(vm: &mut Vm, search_in: Code, replace_with: Code, point: Integer) {
     let total_points = search_in.points();
     let point = point.abs() % total_points;
-    vm.code().push(search_in.replace_point(point, replace_with.as_ref()).0);
+    vm.code().push(search_in.replace_point(point, &replace_with).0);
 }
 
 /// Pushes the length of the top item on the CODE stack onto the INTEGER stack. If the top item is not a list then
@@ -336,14 +339,14 @@ fn length(vm: &mut Vm, code: Code) {
 /// Pushes a list of the top two items of the CODE stack onto the CODE stack.
 #[stack_instruction(Code)]
 fn list(vm: &mut Vm, a: Code, b: Code) {
-    vm.code().push(Box::new(PushList::new(vec![b, a])));
+    vm.code().push(Code::new_list(vec![b, a]));
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item of the CODE stack is a member of the first item (which is
 /// coerced to a list if necessary). Pushes FALSE onto the BOOLEAN stack otherwise.
 #[stack_instruction(Code)]
 fn member(vm: &mut Vm, look_in: Code, look_for: Code) {
-    vm.bool().push(look_in.has_member(look_for.as_ref()));
+    vm.bool().push(look_in.has_member(&look_for));
 }
 
 /// Does nothing.
@@ -359,11 +362,11 @@ fn nth_cdr(vm: &mut Vm, index: Integer, list: Code) {
     let index = index.abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
-        vm.code().push(Box::new(PushList::new(list)));
+        vm.code().push(Code::new_list(list));
     } else {
         let index = index % list.len();
         list.remove(index);
-        vm.code().push(Box::new(PushList::new(list)));
+        vm.code().push(Code::new_list(list));
     }
 }
 
@@ -375,7 +378,7 @@ fn nth(vm: &mut Vm, index: Integer, list: Code) {
     let index = index.abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
-        vm.code().push(Box::new(PushList::new(list)));
+        vm.code().push(Code::new_list(list));
     } else {
         let index = index % list.len();
         list.truncate(index + 1);
@@ -398,7 +401,7 @@ fn pop(vm: &mut Vm, _popped: Code) {}
 /// coerced to a list if necessary). Pushes -1 if no match is found.
 #[stack_instruction(Code)]
 fn position(vm: &mut Vm, look_in: Code, look_for: Code) {
-    match look_in.position_of(look_for.as_ref()) {
+    match look_in.position_of(&look_for) {
         Some(index) => vm.integer().push(index as i64),
         None => vm.integer().push(-1),
     }
@@ -452,7 +455,7 @@ fn stack_depth(vm: &mut Vm) {
 /// Pushes the result of substituting the third item on the code stack for the second item in the first item.
 #[stack_instruction(Code)]
 fn substitute(vm: &mut Vm, look_in: Code, look_for: Code, replace_with: Code) {
-    vm.code().push(look_in.replace(look_for.as_ref(), replace_with.as_ref()));
+    vm.code().push(look_in.replace(&look_for, &replace_with));
 }
 
 /// Swaps the top two pieces of CODE.

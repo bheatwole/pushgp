@@ -1,6 +1,8 @@
 use crate::*;
 
-pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static {
+pub trait VirtualMachine:
+    Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static + OpcodeConvertor
+{
     /// The engine implements functions that are common to all virtual machines. Each VirtualMachine must have an engine
     fn engine(&self) -> &VirtualMachineEngine<Self>;
 
@@ -36,10 +38,12 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
     fn next(&mut self) -> Option<usize> {
         // Pop the top piece of code from the exec stack and execute it.
         if let Some(mut exec) = self.engine_mut().exec().pop() {
-            exec.execute(self);
+            if let Some(instruction) = self.engine().get_instruction(exec.get_opcode()) {
+                instruction.execute(exec, self);
 
-            // Return the number of points required to perform that action
-            return Some(1);
+                // Return the number of points required to perform that action
+                return Some(1);
+            }
         }
 
         // No action was found
@@ -56,7 +60,7 @@ pub trait VirtualMachine: Sized + DoesVirtualMachineHaveName + VirtualMachineMus
 pub struct BaseVm {
     engine: VirtualMachineEngine<BaseVm>,
     bool_stack: Stack<Bool>,
-    code_stack: Stack<Code<BaseVm>>,
+    code_stack: Stack<Code>,
     float_stack: Stack<Float>,
     integer_stack: Stack<Integer>,
     name_stack: NameStack,
@@ -112,13 +116,13 @@ impl VirtualMachineMustHaveBool<BaseVm> for BaseVm {
 }
 
 impl VirtualMachineMustHaveCode<BaseVm> for BaseVm {
-    fn code(&mut self) -> &mut Stack<Code<BaseVm>> {
+    fn code(&mut self) -> &mut Stack<Code> {
         &mut self.code_stack
     }
 }
 
 impl VirtualMachineMustHaveExec<BaseVm> for BaseVm {
-    fn exec(&mut self) -> &mut Stack<Code<BaseVm>> {
+    fn exec(&mut self) -> &mut Stack<Code> {
         self.engine.exec()
     }
 }
@@ -143,4 +147,16 @@ impl VirtualMachineMustHaveName<BaseVm> for BaseVm {
 
 impl DoesVirtualMachineHaveName for BaseVm {
     const HAS_NAME: bool = true;
+}
+
+impl OpcodeConvertor for BaseVm {
+    /// Returns the name for the specified opcode, or None if the opcode does not exist
+    fn name_for_opcode(&self, opcode: Opcode) -> Option<&'static str> {
+        self.engine().name_for_opcode(opcode)
+    }
+
+    /// Returns the opcode for the specified name, or None if the named instruction has not been registered
+    fn opcode_for_name(&self, name: &'static str) -> Option<Opcode> {
+        self.engine().opcode_for_name(name)
+    }
 }

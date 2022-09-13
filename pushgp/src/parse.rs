@@ -9,36 +9,38 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub type ParseFn<Vm> = fn(input: &str) -> IResult<&str, Code<Vm>>;
+pub type ParseFn = fn(input: &str, opcode: u32) -> IResult<&str, Code>;
 
-pub struct Parser<Vm: VirtualMachine> {
-    parsers: Vec<ParseFn<Vm>>,
+/// A CodeParser is an object that is able to parse a string into a chunk of code
+pub trait CodeParser {
+    fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code>;
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Parser<Vm> {
-    pub fn new() -> Parser<Vm> {
-        Parser { parsers: vec![] }
+#[derive(PartialEq)]
+pub struct Parser<'a, P: CodeParser> {
+    code_parser: &'a P,
+}
+
+impl<'a, P: CodeParser> Parser<'a, P> {
+    pub fn new(code_parser: &P) -> Parser<P> {
+        Parser { code_parser }
     }
 
-    pub fn add_instruction<C: StaticInstruction<Vm>>(&mut self) {
-        self.parsers.push(C::parse)
-    }
-
-    pub fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
+    pub fn parse<'b>(&self, input: &'b str) -> nom::IResult<&'b str, Code> {
         match self.parse_list(input) {
             Ok((rest, code)) => return Ok((rest, code)),
             Err(_) => {}
         }
-        self.parse_one(input)
+        self.code_parser.parse(input)
     }
 
-    pub fn must_parse(&self, input: &str) -> Code<Vm> {
+    pub fn must_parse(&self, input: &str) -> Code {
         let (rest, code) = self.parse(input).unwrap();
         assert_eq!(rest.len(), 0);
         code
     }
 
-    fn parse_list<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
+    fn parse_list<'b>(&self, input: &'b str) -> nom::IResult<&'b str, Code> {
         let mut list = vec![];
         let (mut input, _) = start_list(input)?;
         'outer: loop {
@@ -52,46 +54,26 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Parser<Vm> {
         }
         (input, _) = end_list(input)?;
 
-        Ok((input, Box::new(PushList::<Vm>::new(list))))
-    }
-
-    fn parse_one<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
-        for parse_fn in self.parsers.iter() {
-            match parse_fn(input) {
-                Ok((rest, instruction)) => return Ok((rest, instruction)),
-                Err(_) => {
-                    // Continue searching
-                }
-            }
-        }
-
-        // Return an error if none of our parsers could parse the string
-        Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify)))
+        Ok((input, Code::new_list(list)))
     }
 }
 
-impl<Vm: VirtualMachine> std::fmt::Debug for Parser<Vm> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Parser with {} entries", self.parsers.len())
-    }
-}
-
-impl<Vm: VirtualMachine> std::cmp::PartialEq for Parser<Vm> {
-    fn eq(&self, other: &Parser<Vm>) -> bool {
-        if self.parsers.len() == other.parsers.len() {
-            for i in 0..self.parsers.len() {
-                let lhs = self.parsers[i];
-                let rhs = other.parsers[i];
-                if lhs as usize != rhs as usize {
-                    return false;
-                }
-            }
-            true
-        } else {
-            false
-        }
-    }
-}
+// impl<'a, P> std::cmp::PartialEq for Parser<'a, P> {
+//     fn eq(&self, other: &Parser) -> bool {
+//         if self.parsers.len() == other.parsers.len() {
+//             for i in 0..self.parsers.len() {
+//                 let lhs = self.parsers[i];
+//                 let rhs = other.parsers[i];
+//                 if lhs as usize != rhs as usize {
+//                     return false;
+//                 }
+//             }
+//             true
+//         } else {
+//             false
+//         }
+//     }
+// }
 
 fn start_list(input: &str) -> IResult<&str, ()> {
     let (input, _) = tag("( ")(input)?;
@@ -177,12 +159,12 @@ pub fn parse_code_integer(input: &str) -> IResult<&str, i64> {
     }
 }
 
-pub fn parse_code_name(input: &str) -> IResult<&str, String> {
+pub fn parse_code_name(input: &str) -> IResult<&str, Name> {
     // Grab anything that is not a space, tab, line ending or list marker
     let (input, name_chars) = many1(none_of(" \t\r\n()"))(input)?;
     let (input, _) = space_or_end(input)?;
     let name: String = name_chars.iter().collect();
-    Ok((input, name))
+    Ok((input, name.into()))
 }
 
 #[cfg(test)]

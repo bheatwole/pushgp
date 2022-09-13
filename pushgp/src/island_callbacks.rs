@@ -3,17 +3,17 @@ use crate::{Individual, VirtualMachine};
 pub trait IslandCallbacks<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
     /// Trait implementations can use this callback to configure any data that will apply to all individuals in this
     /// generation. Called once before any individuals are run. The default implementation does nothing.
-    fn pre_generation_run(&mut self, _individuals: &[Individual<RunResult, Vm>]) {}
+    fn pre_generation_run(&mut self, _individuals: &[Individual<RunResult>]) {}
 
     /// Trait implementations can use this callback to perform any cleanup for this generation. Called once after all
     /// individuals are run. The default implementation does nothing.
-    fn post_generation_run(&mut self, _individuals: &[Individual<RunResult, Vm>]) {}
+    fn post_generation_run(&mut self, _individuals: &[Individual<RunResult>]) {}
 
     /// Run the virtual machine for a single individual. Called once for each individual on the island.
     ///
     /// A typical implementation might look like the following:
     /// ```ignore
-    /// fn run_individual(&mut self, vm: &mut Vm, individual: &mut Individual<RunResult, Vm>) {
+    /// fn run_individual(&mut self, vm: &mut Vm, individual: &mut Individual<RunResult>) {
     ///     // Clear the stacks and defined functions from any previous runs
     ///     vm.clear();
     ///
@@ -42,9 +42,9 @@ pub trait IslandCallbacks<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine
     /// In a simulation where the inputs do not vary from generation to generation, the implementation may wish to check
     /// to see if a RunResult has already been saved for each individual, and skipping the function if already
     /// calculated in a previous run.
-    fn run_individual(&mut self, vm: &mut Vm, individual: &mut Individual<RunResult, Vm>);
+    fn run_individual(&mut self, vm: &mut Vm, individual: &mut Individual<RunResult>);
 
     /// Compare two individuals. The sort order is least fit to most fit. Called multiple times by the sorting algorithm
     /// after all individuals have been run.
-    fn sort_individuals(&self, a: &Individual<RunResult, Vm>, b: &Individual<RunResult, Vm>) -> std::cmp::Ordering;
+    fn sort_individuals(&self, a: &Individual<RunResult>, b: &Individual<RunResult>) -> std::cmp::Ordering;
 }

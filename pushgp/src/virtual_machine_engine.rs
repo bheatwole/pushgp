@@ -336,7 +336,7 @@ impl<Vm: VirtualMachine> OpcodeConvertor for VirtualMachineEngine<Vm> {
 
 impl<Vm: VirtualMachine> CodeParser for VirtualMachineEngine<Vm> {
     fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code> {
-        let parser = Parser::new(self);
+        let parser = Parser::new(&self.vtable);
         parser.parse(input)
     }
 }

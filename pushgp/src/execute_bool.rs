@@ -23,16 +23,12 @@ impl BoolLiteralValue {
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for BoolLiteralValue {
-    fn name(&self) -> &'static str {
-        BoolLiteralValue::static_name()
-    }
-
-    fn parse<'a>(&self, input: &'a str, opcode: u32) -> nom::IResult<&'a str, Code> {
+    fn parse<'a>(input: &'a str, opcode: u32) -> nom::IResult<&'a str, Code> {
         let (rest, value) = crate::parse::parse_code_bool(input)?;
         Ok((rest, Code::new(opcode, value.into())))
     }
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
         if let Some(value) = code.get_data().bool_value() {
             write!(f, "{}", if value { "TRUE" } else { "FALSE" })
         } else {
@@ -40,14 +36,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for Bo
         }
     }
 
-    fn random_value(&self, engine: &mut VirtualMachineEngine<Vm>) -> Code {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
         use rand::Rng;
         let value = if 0 == engine.get_rng().gen_range(0..=1) { false } else { true };
         BoolLiteralValue::new_code(engine, value)
     }
 
     /// Executing a BoolLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) {
         if let Some(value) = code.get_data().bool_value() {
             vm.bool().push(value);
         }
@@ -117,9 +113,8 @@ fn pop(vm: &mut Vm, _a: Bool) {}
 /// Pushes a random BOOLEAN
 #[stack_instruction(Bool)]
 fn rand(vm: &mut Vm) {
-    let instruction = BoolLiteralValue {};
-    let random_value = instruction.random_value(vm.engine_mut());
-    instruction.execute(random_value, vm);
+    let random_value = vm.random_value::<BoolLiteralValue>();
+    vm.execute_immediate::<BoolLiteralValue>(random_value);
 }
 
 /// Rotates the top three items on the BOOLEAN stack, pulling the third item out and pushing it on top. This is

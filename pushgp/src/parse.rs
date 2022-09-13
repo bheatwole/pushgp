@@ -9,8 +9,6 @@ use nom::{
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub type ParseFn = fn(input: &str, opcode: u32) -> IResult<&str, Code>;
-
 /// A CodeParser is an object that is able to parse a string into a chunk of code
 pub trait CodeParser {
     fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code>;
@@ -206,35 +204,37 @@ mod tests {
 
     #[test]
     fn parse_name() {
-        let expected = "1234KCMA|AA/AA.AAA=";
+        let expected: Name = "1234KCMA|AA/AA.AAA=".into();
         assert_eq!(parse_code_name("1234KCMA|AA/AA.AAA=").unwrap().1, expected);
     }
 
     #[test]
     fn parse_instruction() {
-        let mut parser = Parser::<BaseVm>::new();
-        parser.add_instruction::<BoolAnd>();
-        let expected: Box<dyn Instruction<BaseVm>> = Box::new(BoolAnd {});
-        assert_eq!(&parser.must_parse("BOOL.AND"), &expected);
+        let mut vtable = InstructionTable::<BaseVm>::new();
+        vtable.add_instruction::<BoolAnd>();
+        let parser = Parser::new(&vtable);
+        let expected = Code::new(1, Data::None);
+        assert_eq!(parser.must_parse("BOOL.AND"), expected);
     }
 
     #[test]
     fn parse_list() {
-        let mut parser = Parser::new();
-        parser.add_instruction::<BoolAnd>();
-        parser.add_instruction::<BoolLiteralValue>();
-        parser.add_instruction::<IntegerLiteralValue>();
-        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![]));
-        assert_eq!(&parser.must_parse("( )"), &expected);
+        let mut vtable = InstructionTable::<BaseVm>::new();
+        vtable.add_instruction::<BoolAnd>();
+        vtable.add_instruction::<BoolLiteralValue>();
+        vtable.add_instruction::<IntegerLiteralValue>();
+        let parser = Parser::new(&vtable);
 
-        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![
-            Box::new(BoolLiteralValue::new(true)),
-            Box::new(IntegerLiteralValue::new(123)),
-        ]));
-        assert_eq!(&parser.must_parse("( TRUE 123 )"), &expected);
+        assert_eq!(parser.must_parse("( )"), Code::new_list(vec![]));
 
-        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![Box::new(BoolAnd {})]));
-        assert_eq!(&parser.must_parse("( BOOL.AND )"), &expected);
+        let expected = Code::new_list(vec![
+            BoolLiteralValue::new_code(&vtable, true),
+            IntegerLiteralValue::new_code(&vtable, 123),
+        ]);
+        assert_eq!(parser.must_parse("( TRUE 123 )"), expected);
+
+        let expected = Code::new_list(vec![BoolAnd::new_code(&vtable)]);
+        assert_eq!(parser.must_parse("( BOOL.AND )"), expected);
 
         // no trailing paren should fail
         assert!(parser.parse("( 123").is_err());
@@ -242,23 +242,24 @@ mod tests {
 
     #[test]
     fn code_parsing() {
-        let mut parser = Parser::new();
-        parser.add_instruction::<BoolAnd>();
-        parser.add_instruction::<BoolLiteralValue>();
-        parser.add_instruction::<FloatLiteralValue>();
-        parser.add_instruction::<IntegerLiteralValue>();
-        parser.add_instruction::<NameLiteralValue>();
+        let mut vtable = InstructionTable::<BaseVm>::new();
+        vtable.add_instruction::<BoolAnd>();
+        vtable.add_instruction::<BoolLiteralValue>();
+        vtable.add_instruction::<FloatLiteralValue>();
+        vtable.add_instruction::<IntegerLiteralValue>();
+        vtable.add_instruction::<NameLiteralValue>();
+        let parser = Parser::new(&vtable);
 
         let code = "( ( TRUE 0.012345 -12784 ) BOOL.AND TRUENAME )";
-        let expected: Box<dyn Instruction<BaseVm>> = Box::new(PushList::<BaseVm>::new(vec![
-            Box::new(PushList::<BaseVm>::new(vec![
-                Box::new(BoolLiteralValue::new(true)),
-                Box::new(FloatLiteralValue::new(Decimal::new(12345, 6).into())),
-                Box::new(IntegerLiteralValue::new(-12784)),
-            ])),
-            Box::new(BoolAnd {}),
-            Box::new(NameLiteralValue::new("TRUENAME")),
-        ]));
-        assert_eq!(&parser.must_parse(code), &expected);
+        let expected = Code::new_list(vec![
+            Code::new_list(vec![
+                BoolLiteralValue::new_code(&vtable, true),
+                FloatLiteralValue::new_code(&vtable, Decimal::new(12345, 6).into()),
+                IntegerLiteralValue::new_code(&vtable, -12784),
+            ]),
+            BoolAnd::new_code(&vtable),
+            NameLiteralValue::new_code(&vtable, "TRUENAME".into()),
+        ]);
+        assert_eq!(parser.must_parse(code), expected);
     }
 }

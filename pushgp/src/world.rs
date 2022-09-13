@@ -345,7 +345,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
 
     fn update_instruction_count(&self, instructions: &mut FnvHashMap<&'static str, usize>, code: &Code) {
         for atom in code.extract_atoms().iter() {
-            let name = self.vm.name_for_opcode(code.get_opcode()).unwrap();
+            let name = self.vm.name_for_opcode(atom.get_opcode()).unwrap();
             *(instructions.entry(name).or_insert(0)) += 1;
         }
     }

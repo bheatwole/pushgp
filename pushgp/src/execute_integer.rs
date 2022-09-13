@@ -25,16 +25,12 @@ impl IntegerLiteralValue {
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for IntegerLiteralValue {
-    fn name(&self) -> &'static str {
-        IntegerLiteralValue::static_name()
-    }
-
-    fn parse<'a>(&self, input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
+    fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
         let (rest, value) = crate::parse::parse_code_integer(input)?;
         Ok((rest, Code::new(opcode, value.into())))
     }
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
         if let Some(value) = code.get_data().integer_value() {
             write!(f, "{}", value)
         } else {
@@ -42,14 +38,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveInteger<Vm>> Instruction<Vm> for
         }
     }
 
-    fn random_value(&self, engine: &mut VirtualMachineEngine<Vm>) -> Code {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
         use rand::Rng;
         let value: i64 = engine.get_rng().gen_range(i64::MIN..=i64::MAX);
         IntegerLiteralValue::new_code(engine, value)
     }
 
     /// Executing a IntegerLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) {
         if let Some(value) = code.get_data().integer_value() {
             vm.integer().push(value)
         }
@@ -173,9 +169,8 @@ fn quotient(vm: &mut Vm, divisor: Integer, dividend: Integer) {
 /// equal to MAX-RANDOM-INTEGER.
 #[stack_instruction(Integer)]
 fn rand(vm: &mut Vm) {
-    let instruction = IntegerLiteralValue {};
-    let random_value = instruction.random_value(vm.engine_mut());
-    instruction.execute(random_value, vm);
+    let random_value = vm.random_value::<IntegerLiteralValue>();
+    vm.execute_immediate::<IntegerLiteralValue>(random_value);
 }
 
 /// Rotates the top three items on the INTEGER stack, pulling the third item out and pushing it on top. This is

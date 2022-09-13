@@ -89,23 +89,20 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
         where
             Vm: #(#bound_types)+*,
         {
-            fn name(&self) -> &'static str {
-                #struct_name::static_name()
-            }
-            fn parse<'a>(&self, input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, #pushgp::Code> {
+            fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, #pushgp::Code> {
                 let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
                 let (rest, _) = #pushgp::space_or_end(rest)?;
 
                 Ok((rest, #pushgp::Code::new(opcode, #pushgp::Data::None)))
             }
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _code: &#pushgp::Code, _vtable: &#pushgp::InstructionTable<Vm>) -> std::fmt::Result {
+            fn fmt(f: &mut std::fmt::Formatter<'_>, _code: &#pushgp::Code, _vtable: &#pushgp::InstructionTable<Vm>) -> std::fmt::Result {
                 f.write_str(#struct_name::static_name())
             }
-            fn random_value(&self, engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code {
+            fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code {
                 #struct_name::new_code(engine)
             }
             #(#docs)*
-            fn execute(&self, code: Code, vm: &mut Vm) #body
+            fn execute(code: Code, vm: &mut Vm) #body
         }
     })
 }
@@ -237,10 +234,15 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                     let method: String = expr.method.to_string();
                     if !(method == "engine"
                         || method == "engine_mut"
+                        || method == "clear"
+                        || method == "size_of"
                         || method == "run"
                         || method == "next"
                         || method == "generate_random_instruction"
-                        || method == "get_rng")
+                        || method == "get_rng"
+                        || method == "random_value"
+                        || method == "execute"
+                        || method == "execute_immediate")
                     {
                         parse_results.stacks.insert(method.to_case(Case::Pascal));
                     }

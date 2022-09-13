@@ -91,16 +91,12 @@ impl FloatLiteralValue {
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for FloatLiteralValue {
-    fn name(&self) -> &'static str {
-        FloatLiteralValue::static_name()
-    }
-
-    fn parse<'a>(&self, input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
+    fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
         let (rest, value) = crate::parse::parse_code_float(input)?;
         Ok((rest, Code::new(opcode, Data::from(value))))
     }
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
         if let Some(value) = code.get_data().decimal_value() {
             // Decimals without a fractional part will parse as an integer
             if value.fract().is_zero() {
@@ -113,14 +109,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
         }
     }
 
-    fn random_value(&self, engine: &mut VirtualMachineEngine<Vm>) -> Code {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
         use rand::Rng;
         let value: f64 = engine.get_rng().gen_range(-1f64..1f64);
         FloatLiteralValue::new_code(engine, Decimal::from_f64(value).unwrap().into())
     }
 
     /// Executing a FloatLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&self, code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) {
         if let Some(value) = code.get_data().decimal_value() {
             vm.float().push(value.into())
         }
@@ -236,9 +232,8 @@ fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
 /// to MAX-RANDOM-FLOAT.
 #[stack_instruction(Float)]
 fn rand(vm: &mut Vm) {
-    let instruction = FloatLiteralValue {};
-    let random_value = instruction.random_value(vm.engine_mut());
-    instruction.execute(random_value, vm);
+    let random_value = vm.random_value::<FloatLiteralValue>();
+    vm.execute_immediate::<FloatLiteralValue>(random_value);
 }
 
 /// Rotates the top three items on the FLOAT stack, pulling the third item out and pushing it on top. This is

@@ -37,9 +37,9 @@ pub trait VirtualMachine:
     /// how expensive an instruction was. Typically returns Some(1)
     fn next(&mut self) -> Option<usize> {
         // Pop the top piece of code from the exec stack and execute it.
-        if let Some(mut exec) = self.engine_mut().exec().pop() {
-            if let Some(instruction) = self.engine().get_instruction(exec.get_opcode()) {
-                instruction.execute(exec, self);
+        if let Some(exec) = self.engine_mut().exec().pop() {
+            if let Some(execute_fn) = self.engine().execute_fn(exec.get_opcode()) {
+                execute_fn(exec, self);
 
                 // Return the number of points required to perform that action
                 return Some(1);
@@ -53,6 +53,14 @@ pub trait VirtualMachine:
     /// Returns the random number generator used by the VirtualMachine.
     fn get_rng(&mut self) -> &mut rand::rngs::SmallRng {
         self.engine_mut().get_rng()
+    }
+
+    fn random_value<I: Instruction<Self>>(&mut self) -> Code {
+        I::random_value(self.engine_mut())
+    }
+
+    fn execute_immediate<I: Instruction<Self>>(&mut self, code: Code) {
+        I::execute(code, self)
     }
 }
 

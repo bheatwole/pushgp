@@ -53,10 +53,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.defined_names.clear();
     }
 
-    pub fn add_instruction<I: 'static + Instruction<Vm>>(&mut self, instruction: I) {
-        let opcode = self.vtable.add_instruction(Box::new(instruction));
-        let instruction = self.vtable.instruction(opcode).unwrap();
-        let name = instruction.name();
+    pub fn add_instruction<I: 'static + Instruction<Vm>>(&mut self) {
+        let opcode = self.vtable.add_instruction::<I>();
+        let name = self.vtable.name_for_opcode(opcode).unwrap();
 
         self.weights.add_instruction(name, self.config.get_instruction_weight(name), opcode);
     }
@@ -79,8 +78,13 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// Creates a new random instruction
     fn generate_random_instruction(&mut self) -> Code {
         let opcode = self.weights.pick_random_instruction_opcode(&mut self.rng);
-        let instruction = self.get_instruction(opcode).unwrap();
-        instruction.random_value(self)
+        let random_value_fn = self.vtable.random_value_fn(opcode).unwrap();
+        random_value_fn(self)
+    }
+
+    /// Returns the execute fn pointer for the specified opcode or None
+    pub fn execute_fn(&self, opcode: Opcode) -> Option<ExecuteFn<Vm>> {
+        self.vtable.execute_fn(opcode)
     }
 
     pub fn must_parse<'a>(&self, input: &'a str) -> Code {
@@ -103,11 +107,6 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     pub fn set_code(&mut self, code: Code) {
         self.clear();
         self.exec_stack.push(code);
-    }
-
-    /// Returns the instruction for a particular opcode
-    pub fn get_instruction(&self, opcode: Opcode) -> Option<&Box<dyn Instruction<Vm>>> {
-        self.vtable.instruction(opcode)
     }
 
     /// Returns the code for the specified name, or None if the name is not defined

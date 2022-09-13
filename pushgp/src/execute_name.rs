@@ -96,16 +96,12 @@ impl NameLiteralValue {
 impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHaveName<Vm>> Instruction<Vm>
     for NameLiteralValue
 {
-    fn name(&self) -> &'static str {
-        NameLiteralValue::static_name()
-    }
-
-    fn parse<'a>(&self, input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
+    fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
         let (rest, value) = crate::parse::parse_code_name(input)?;
         Ok((rest, Code::new(opcode, value.into())))
     }
 
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
         if let Some(value) = code.get_data().name_value() {
             write!(f, "{}", value)
         } else {
@@ -113,7 +109,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
         }
     }
 
-    fn random_value(&self, engine: &mut VirtualMachineEngine<Vm>) -> Code {
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
         use rand::Rng;
         let random_value = engine.get_rng().gen_range(0..=u64::MAX);
 
@@ -127,7 +123,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
     /// defined, or pushes the Name onto the Name stack if the Name is not defined yet. However the NAME.QUOTE
     /// instruction can alter this behavior by forcing the next Name to be pushed to the Name stack whether or not it
     /// already has a definition.
-    fn execute(&self, code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) {
         if let Some(value) = code.get_data().name_value() {
             if vm.name().should_quote_next_name() {
                 vm.name().push(value.clone());
@@ -190,13 +186,12 @@ fn rand_bound_name(vm: &mut Vm) {
 /// Pushes a newly generated random NAME.
 #[stack_instruction(Name)]
 fn rand(vm: &mut Vm) {
-    let instruction = NameLiteralValue {};
-    let random_value = instruction.random_value(vm.engine_mut());
+    let random_value = vm.random_value::<NameLiteralValue>();
 
     // Executing this random value literal would alter the 'should_quote_next_name' value, so save and restore it
     let should_quote = vm.name().should_quote_next_name();
     vm.name().set_should_quote_next_name(false);
-    instruction.execute(random_value, vm);
+    vm.execute_immediate::<NameLiteralValue>(random_value);
     vm.name().set_should_quote_next_name(should_quote);
 }
 

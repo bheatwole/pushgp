@@ -257,7 +257,7 @@ mod tests {
         test_code_define: ("( SOMENAME CODE.QUOTE TRUE CODE.DEFINE )", "( )", vec![("SOMENAME", "TRUE")]),
         test_code_definition: ("( CODE.QUOTE TRUE ANAME ANAME CODE.DEFINE CODE.DEFINITION )", "( CODE.QUOTE TRUE )", vec![("ANAME", "TRUE")]),
         test_code_discrepancy_zero: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.DISCREPANCY )", "( 0 )", vec![]),
-        test_code_discrepancy_multi: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE 1 CODE.DISCREPANCY )", "( 7 )", vec![]),
+        test_code_discrepancy_multi: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE 1 CODE.DISCREPANCY )", "( 8 )", vec![]),
         test_code_do: ("( CODE.QUOTE ( FALSE 1 ) CODE.DO )", "( FALSE 1 )", vec![]),
         test_code_do_pops_last: ("( CODE.QUOTE ( CODE.QUOTE FALSE ) CODE.DO )", "( CODE.QUOTE ( CODE.QUOTE FALSE ) )", vec![]),
         test_code_do_n_count: ("( 4 CODE.QUOTE BOOL.FROMINT CODE.DONCOUNT )", "( FALSE TRUE TRUE TRUE )", vec![]),

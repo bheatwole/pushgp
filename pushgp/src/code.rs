@@ -87,23 +87,23 @@ impl Code {
     /// The discrepancy output is a HashMap of every unique sub-list and atom from the specified code
     pub fn discrepancy_items(&self) -> FnvHashMap<Code, i64> {
         let mut items = FnvHashMap::default();
-        for i in self.data.code_iter().unwrap() {
-            i.append_discrepancy_items(&mut items);
-        }
+        self.append_discrepancy_items(&mut items);
 
         items
     }
 
     /// Appends this item to an already-existing discrepancy items HashMap
     fn append_discrepancy_items(&self, items: &mut FnvHashMap<Code, i64>) {
-        // Append the list itself
+        // Append 'self' whether it is an atom or a list
         let counter = items.entry(self.clone()).or_insert(0);
         *counter += 1;
 
-        // Append all the items in the list
+        // If this is a list, also append all the items in the list
+        if self.is_list() {
         for i in self.data.code_iter().unwrap() {
             i.append_discrepancy_items(items);
         }
+    }
     }
 
     /// Coerces the item to a list

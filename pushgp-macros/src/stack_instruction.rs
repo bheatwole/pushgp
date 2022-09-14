@@ -241,7 +241,6 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                         || method == "generate_random_instruction"
                         || method == "get_rng"
                         || method == "random_value"
-                        || method == "execute"
                         || method == "execute_immediate")
                     {
                         parse_results.stacks.insert(method.to_case(Case::Pascal));

@@ -444,6 +444,19 @@ mod tests {
     }
 
     #[test]
+    fn print_all_opcode_names() {
+        // This 'test' prints the name associated with every opcode in the BaseVm. This is used when debugging test code
+        // which lists the opcode, but not the name. Run with `cargo test print_all_opcode_names -- --show-output` and
+        // keep handy for running the next test
+        let vm = new_base_vm();
+        let mut opcode = 0;
+        while let Some(name) = vm.name_for_opcode(opcode) {
+            println!("{} => {}", opcode, name);
+            opcode += 1;
+        }
+    }
+
+    #[test]
     fn not_parsable() {
         let vm = new_base_vm();
         let result = vm.engine().parse("( DOESNT WORK");

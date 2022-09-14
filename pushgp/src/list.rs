@@ -36,7 +36,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
     
     fn execute(mut code: Code, vm: &mut Vm) {
         match code.get_data_mut() {
-            Data::CodeList(list) => for item in list.drain(..) {
+            Data::CodeList(list) => while let Some(item) = list.pop() {
                 vm.exec().push(item);
             }
             _ => panic!("execute called for PushList with data that is not a CodeList"),

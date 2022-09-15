@@ -240,6 +240,7 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                         || method == "next"
                         || method == "generate_random_instruction"
                         || method == "get_rng"
+                        || method == "fmt"
                         || method == "random_value"
                         || method == "execute_immediate")
                     {

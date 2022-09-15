@@ -20,6 +20,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
         write!(f, "(")?;
         if let Some(iter) = code.get_data().code_iter() {
             for c in iter {
+                write!(f, " ")?;
                 vtable.fmt(f, c)?;
             }
         } else {

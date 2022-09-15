@@ -82,6 +82,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         random_value_fn(self)
     }
 
+    /// Formats a code object in the way that std::fmt::Display expects, except with Code as a parameter
+    pub fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code) -> std::fmt::Result {
+        self.vtable.fmt(f, code)
+    }
+
     /// Returns the execute fn pointer for the specified opcode or None
     pub fn execute_fn(&self, opcode: Opcode) -> Option<ExecuteFn<Vm>> {
         self.vtable.execute_fn(opcode)

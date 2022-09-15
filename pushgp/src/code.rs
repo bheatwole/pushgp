@@ -46,6 +46,12 @@ impl Code {
         &mut self.data
     }
 
+    /// Wraps the code and a virtual machine together so that the code can be printed.
+    /// `println!("{}", code.for_display(my_vm))`
+    pub fn for_display<'a, Vm: VirtualMachine>(&'a self, vm: &'a Vm) -> CodeWithVirtualMachine<'a, Vm> {
+        CodeWithVirtualMachine { code: &self, vm }
+    }
+
     /// Returns true if this code is a List
     pub fn is_list(&self) -> bool {
         self.opcode == 0
@@ -247,6 +253,17 @@ impl Code {
             }
             Code::new(0, Data::CodeList(next_list))
         }
+    }
+}
+
+pub struct CodeWithVirtualMachine<'a, Vm: VirtualMachine> {
+    code: &'a Code,
+    vm: &'a Vm,
+}
+
+impl<'a, Vm: VirtualMachine> std::fmt::Display for CodeWithVirtualMachine<'a, Vm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.vm.fmt(f, self.code)
     }
 }
 
@@ -463,15 +480,15 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // #[test]
-    // fn code_display() {
-    //     let code = Code::new_list(vec![]);
-    //     assert_eq!("( )", format!("{}", code));
+    #[test]
+    fn code_display() {
+        let vm = new_base_vm();
+        let code = Code::new_list(vec![]);
+        assert_eq!("( )", format!("{}", code.for_display(&vm)));
 
-    //     let vm = new_base_vm();
-    //     let (_, code) = vm.engine().parse("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )").unwrap();
-    //     assert_eq!("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )", format!("{}", code));
-    // }
+        let (_, code) = vm.engine().parse("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )").unwrap();
+        assert_eq!("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )", format!("{}", code.for_display(&vm)));
+    }
 
     #[test]
     fn code_points() {

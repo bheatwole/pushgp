@@ -55,10 +55,19 @@ pub trait VirtualMachine:
         self.engine_mut().get_rng()
     }
 
+    /// Formats a code object in the way that std::fmt::Display expects, except with Code as a parameter
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code) -> std::fmt::Result {
+        self.engine().fmt(f, code)
+    }
+
+    /// Calls the random_value function for the instruction that is specified using a type parameter. That means you
+    /// have to know the type at compile time.
     fn random_value<I: Instruction<Self>>(&mut self) -> Code {
         I::random_value(self.engine_mut())
     }
 
+    /// Calls the execute function for the instruction that is specified using a type parameter. That means you have to
+    ///  know the type at compile time.
     fn execute_immediate<I: Instruction<Self>>(&mut self, code: Code) {
         I::execute(code, self)
     }

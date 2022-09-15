@@ -126,7 +126,7 @@ fn discrepancy(vm: &mut Vm, a: Code, b: Code) {
     let mut discrepancy = 0;
     for (key, &a_count) in a_items.iter() {
         let b_count = *b_items.get(key).unwrap_or(&0);
-        discrepancy += (a_count - b_count).abs();
+        discrepancy += (a_count - b_count).saturating_abs();
     }
 
     // Count up the difference from b to a for only the keys we didn't use already
@@ -328,7 +328,7 @@ fn _if(vm: &mut Vm, false_branch: Code, true_branch: Code, switch_on: Bool) {
 #[stack_instruction(Code)]
 fn insert(vm: &mut Vm, search_in: Code, replace_with: Code, point: Integer) {
     let total_points = search_in.points();
-    let point = point.abs() % total_points;
+    let point = point.saturating_abs() % total_points;
     vm.code().push(search_in.replace_point(point, &replace_with).0);
 }
 
@@ -363,7 +363,7 @@ fn noop(vm: &mut Vm) {}
 /// the list without its first element.
 #[stack_instruction(Code)]
 fn nth_cdr(vm: &mut Vm, index: Integer, list: Code) {
-    let index = index.abs() as usize;
+    let index = index.saturating_abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
         vm.code().push(Code::new_list(list));
@@ -379,7 +379,7 @@ fn nth_cdr(vm: &mut Vm, index: Integer, list: Code) {
 /// stack and is taken modulo the length of the expression into which it is indexing.
 #[stack_instruction(Code)]
 fn nth(vm: &mut Vm, index: Integer, list: Code) {
-    let index = index.abs() as usize;
+    let index = index.saturating_abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
         vm.code().push(Code::new_list(list));

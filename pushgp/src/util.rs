@@ -9,7 +9,7 @@ pub fn stack_to_vec(mut stack_index: i64, vec_len: usize) -> usize {
 
     // If the stack index is negative, add however many times the vec_len it takes to make it positive again
     if stack_index < 0 {
-        let times = (stack_index / vec_len as i64).abs() + 1;
+        let times = (stack_index / vec_len as i64).saturating_abs() + 1;
         stack_index += vec_len as i64 * times;
     }
 

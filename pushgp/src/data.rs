@@ -1,3 +1,4 @@
+use get_size::GetSize;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use smartstring::{LazyCompact, SmartString};
 
@@ -70,6 +71,39 @@ impl Data {
         match self {
             Data::CodeList(list) => Some(list.iter()),
             _ => None,
+        }
+    }
+}
+
+const SIZE_OF_VEC_U8: usize = std::mem::size_of::<Vec<u8>>();
+
+impl GetSize for Data {
+    fn get_heap_size(&self) -> usize {
+        match self {
+            // These two have heap data equivilant to length of the string if it is more than the size of a Vec<u8>
+            Data::Name(name) => {
+                if name.len() < SIZE_OF_VEC_U8 {
+                    0
+                } else {
+                    name.len()
+                }
+            }
+            Data::String(string) => {
+                if string.len() < SIZE_OF_VEC_U8 {
+                    0
+                } else {
+                    string.len()
+                }
+            }
+
+            // The heap size is the capacity of the vector
+            Data::Bytes(bytes) => bytes.capacity(),
+
+            // The heap size is the sum of the size (stack + heap) of all items because they are all stored on the heap
+            Data::CodeList(list) => list.iter().map(|item| item.get_size()).sum(),
+
+            // All other variants have no heap data
+            _ => 0,
         }
     }
 }

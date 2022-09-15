@@ -144,9 +144,16 @@ impl<T: Clone + GetSize> Stack<T> {
 mod tests {
 
     use get_size::GetSize;
-    use rust_decimal::{Decimal, prelude::FromPrimitive};
 
     use crate::*;
+
+    fn new_base_vm() -> BaseVm {
+        let mut vm = BaseVm::new(None, Configuration::new_simple());
+        add_base_instructions(&mut vm);
+        add_base_literals(&mut vm);
+
+        vm
+    }
 
     #[test]
     fn stack_bool_mem_size() {
@@ -157,50 +164,46 @@ mod tests {
         assert_eq!(2, stack.size_of());
     }
 
-    // #[test]
-    // fn stack_code_mem_size() {
-    //     // The size of the box around any element of code is 16 bytes
-    //     assert_eq!(16, std::mem::size_of::<Code<BaseVm>>());
+    #[test]
+    fn stack_code_mem_size() {
+        let mut vm = new_base_vm();
 
-    //     // Size (stack + heap) of a simple instruction is zero
-    //     assert_eq!(0, Instruction::<BaseVm>::size_of(&IntegerSum {}));
+        // The size of Data is 32 bytes
+        assert_eq!(32, std::mem::size_of::<Data>());
+        // Code adds on 8 bytes
+        assert_eq!(40, std::mem::size_of::<Code>());
 
-    //     // Size (stack + heap) of a value-holding instruction is the size of the value
-    //     assert_eq!(std::mem::size_of::<Bool>(), Instruction::<BaseVm>::size_of(&BoolLiteralValue::new(true)));
-    //     assert_eq!(std::mem::size_of::<Float>(), Instruction::<BaseVm>::size_of(&FloatLiteralValue::new(Decimal::from_f64(1.0).unwrap().into())));
-    //     assert_eq!(std::mem::size_of::<Integer>(), Instruction::<BaseVm>::size_of(&IntegerLiteralValue::new(1)));
-    //     assert_eq!("name".to_string().get_size(), Instruction::<BaseVm>::size_of(&NameLiteralValue::new("name")));
+        // Size (stack + heap) of a simple instruction is zero
+        assert_eq!(0, std::mem::size_of::<IntegerSum>());
 
-    //     // The size of a stack of boxed instructions should be the size of each instruction + 16 bytes per box
-    //     let mut expected_size = 
-    //         0 + // IntegerSum
-    //         std::mem::size_of::<Bool>() + // BoolLiteralValue
-    //         std::mem::size_of::<Float>() + // FloatLiteralValue
-    //         std::mem::size_of::<Integer>() + // IntegerLiteralValue
-    //         "name".to_string().get_size()  // NameLiteralValue
-    //         ;
-    //     expected_size += 16 * 5;
+        // // Size (stack + heap) of a value-holding instruction is also zero because the value is held in Data
+        assert_eq!(0, std::mem::size_of::<BoolLiteralValue>());
+        assert_eq!(0, std::mem::size_of::<FloatLiteralValue>());
+        assert_eq!(0, std::mem::size_of::<IntegerLiteralValue>());
+        assert_eq!(0, std::mem::size_of::<NameLiteralValue>());
 
-    //     let mut stack = Stack::<Code<BaseVm>>::new();
-    //     stack.push(Box::new(IntegerSum {}));
-    //     stack.push(Box::new(BoolLiteralValue::new(true)));
-    //     stack.push(Box::new(FloatLiteralValue::new(Decimal::from_f64(1.0).unwrap().into())));
-    //     stack.push(Box::new(IntegerLiteralValue::new(1)));
-    //     stack.push(Box::new(NameLiteralValue::new("name")));
-    //     assert_eq!(expected_size, stack.size_of());
+        // The size of a stack of Code should be the 40 times the number of elements
+        let mut stack = Stack::<Code>::new();
+        stack.push(vm.random_value::<IntegerSum>());
+        stack.push(vm.random_value::<BoolLiteralValue>());
+        stack.push(vm.random_value::<FloatLiteralValue>());
+        stack.push(vm.random_value::<IntegerLiteralValue>());
+        stack.push(vm.random_value::<NameLiteralValue>());
+        let mut expected_size = stack.len() * 40;
+        assert_eq!(expected_size, stack.size_of());
 
-    //     // Finally, the size of a list of those same boxed instructions should be the same as the stack + the size of
-    //     // the vector to hold the items
-    //     let list = PushList::<BaseVm>::new(vec![
-    //         Box::new(IntegerSum {}),
-    //         Box::new(BoolLiteralValue::new(true)),
-    //         Box::new(FloatLiteralValue::new(Decimal::from_f64(1.0).unwrap().into())),
-    //         Box::new(IntegerLiteralValue::new(1)),
-    //         Box::new(NameLiteralValue::new("name")),
-    //     ]);
-    //     expected_size += std::mem::size_of::<Vec<Code<BaseVm>>>();
-    //     assert_eq!(expected_size, list.size_of());
-    // }
+        // Finally, the size of a list of those same instructions should be the same as the stack + the size of one more
+        // Code
+        let list = Code::new_list(vec![
+            vm.random_value::<IntegerSum>(),
+            vm.random_value::<BoolLiteralValue>(),
+            vm.random_value::<FloatLiteralValue>(),
+            vm.random_value::<IntegerLiteralValue>(),
+            vm.random_value::<NameLiteralValue>(),
+        ]);
+        expected_size += std::mem::size_of::<Code>();
+        assert_eq!(expected_size, list.get_size());
+    }
 
     #[test]
     fn stack_push_pop() {

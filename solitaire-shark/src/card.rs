@@ -140,17 +140,37 @@ impl Card {
 
 impl get_size::GetSize for Card {}
 
+impl Into<Data> for Card {
+    fn into(self) -> Data {
+        Data::UnsignedInteger(self as u64)
+    }
+}
+
+trait DataToCard {
+    fn card_value(&self) -> Card;
+}
+
+impl DataToCard for Data {
+    fn card_value(&self) -> Card {
+        match self {
+            Data::UnsignedInteger(value) => Card::from_repr(*value as u8).unwrap(),
+            _ => panic!(
+                "card_value called for Data that does not have a unsigned integer value stored"
+            ),
+        }
+    }
+}
+
 pub trait VirtualMachineMustHaveCard<Vm> {
     fn card(&mut self) -> &mut Stack<Card>;
 }
 
-pub struct CardLiteralValue {
-    value: Card,
-}
+pub struct CardLiteralValue {}
 
 impl CardLiteralValue {
-    pub fn new(value: Card) -> CardLiteralValue {
-        CardLiteralValue { value }
+    pub fn new_code<Oc: OpcodeConvertor>(oc: &Oc, value: Card) -> Code {
+        let opcode = oc.opcode_for_name(Self::static_name()).unwrap();
+        Code::new(opcode, value.into())
     }
 }
 
@@ -160,10 +180,8 @@ impl StaticName for CardLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
-    for CardLiteralValue
-{
-    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
+impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for CardLiteralValue {
+    fn parse(input: &str, opcode: Opcode) -> nom::IResult<&str, Code> {
         let (rest, card_name) = alt((
             alt((
                 tag("AceOfSpades"),
@@ -226,63 +244,29 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> StaticInstruction<Vm>
                 tag("KingOfHearts"),
             )),
         ))(input)?;
-        Ok((
-            rest,
-            Box::new(CardLiteralValue::new(Card::from_str(card_name).unwrap())),
-        ))
+
+        let card: Card = Card::from_str(card_name).unwrap();
+        Ok((rest, Code::new(opcode, card.into())))
     }
 
-    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
-        let value = engine
-            .get_rng()
-            .gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
-        Box::new(CardLiteralValue::new(Card::from_repr(value).unwrap()))
-    }
-}
-
-impl std::fmt::Display for CardLiteralValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
-    }
-}
-
-impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for CardLiteralValue {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn name(&self) -> &'static str {
-        CardLiteralValue::static_name()
-    }
-
-    fn clone(&self) -> Code<Vm> {
-        Box::new(CardLiteralValue::new(self.value))
+    fn fmt(
+        f: &mut std::fmt::Formatter<'_>,
+        code: &Code,
+        _vtable: &InstructionTable<Vm>,
+    ) -> std::fmt::Result {
+        write!(f, "{}", code.get_data().card_value())
     }
 
     /// Executing a CardLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&mut self, vm: &mut Vm) {
-        vm.card().push(self.value)
+    fn execute(code: Code, vm: &mut Vm) {
+        vm.card().push(code.get_data().card_value())
     }
 
-    /// Eq for CardLiteralValue must check that the other instruction is also a CardLiteralValue and, if so, that the
-    /// value is equivalent
-    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<CardLiteralValue>() {
-            self.value == other.value
-        } else {
-            false
-        }
-    }
-
-    /// The hash value for CardLiteralValue include the value in the hash as well as the name
-    fn hash(&self) -> u64 {
-        let mut to_hash: Vec<u8> = CardLiteralValue::static_name()
-            .as_bytes()
-            .iter()
-            .map(|c| *c)
-            .collect();
-        to_hash.push(self.value as u8);
-        seahash::hash(&to_hash[..])
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
+        let value = engine
+            .get_rng()
+            .gen_range((Card::AceOfSpades as u8)..=(Card::KingOfHearts as u8));
+        CardLiteralValue::new_code(engine, Card::from_repr(value).unwrap())
     }
 }
 
@@ -375,8 +359,8 @@ fn top_play_pile(vm: &mut Vm) {
 /// onto the EXEC stack.
 #[stack_instruction(Card)]
 fn define(vm: &mut Vm, value: Card, name: Name) {
-    vm.engine_mut()
-        .define_name(name, Box::new(CardLiteralValue::new(value)));
+    let code = CardLiteralValue::new_code(vm, value);
+    vm.engine_mut().define_name(name, code);
 }
 
 /// Duplicates the top item on the CARD stack. Does not pop its argument (which, if it did, would negate the
@@ -413,8 +397,8 @@ fn pop(vm: &mut Vm, _a: Card) {}
 /// Pushes a random Card onto the CARD stack
 #[stack_instruction(Card)]
 fn rand(vm: &mut Vm) {
-    let mut random_card = CardLiteralValue::random_value(vm.engine_mut());
-    random_card.execute(vm);
+    let random_value = vm.random_value::<CardLiteralValue>();
+    vm.execute_immediate::<CardLiteralValue>(random_value);
 }
 
 // "CARD.ROT"

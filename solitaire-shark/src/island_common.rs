@@ -31,7 +31,7 @@ impl IslandCommon {
     pub fn run_individual(
         &mut self,
         vm: &mut SolitareVm,
-        individual: &mut pushgp::Individual<RunResult, SolitareVm>,
+        individual: &mut pushgp::Individual<RunResult>,
     ) {
         let mut result = RunResult::new();
 

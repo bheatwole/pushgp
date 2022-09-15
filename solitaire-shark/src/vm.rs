@@ -6,7 +6,7 @@ pub struct SolitareVm {
     engine: VirtualMachineEngine<SolitareVm>,
     bool_stack: Stack<Bool>,
     card_stack: Stack<Card>,
-    code_stack: Stack<Code<SolitareVm>>,
+    code_stack: Stack<Code>,
     integer_stack: Stack<Integer>,
     name_stack: NameStack,
     game: GameState,
@@ -74,13 +74,13 @@ impl VirtualMachineMustHaveCard<SolitareVm> for SolitareVm {
 }
 
 impl VirtualMachineMustHaveCode<SolitareVm> for SolitareVm {
-    fn code(&mut self) -> &mut Stack<Code<SolitareVm>> {
+    fn code(&mut self) -> &mut Stack<Code> {
         &mut self.code_stack
     }
 }
 
 impl VirtualMachineMustHaveExec<SolitareVm> for SolitareVm {
-    fn exec(&mut self) -> &mut Stack<Code<SolitareVm>> {
+    fn exec(&mut self) -> &mut Stack<Code> {
         self.engine.exec()
     }
 }
@@ -108,6 +108,18 @@ pub trait VirtualMachineMustHaveGame<Vm> {
 impl VirtualMachineMustHaveGame<SolitareVm> for SolitareVm {
     fn game(&mut self) -> &mut GameState {
         &mut self.game
+    }
+}
+
+impl OpcodeConvertor for SolitareVm {
+    /// Returns the name for the specified opcode, or None if the opcode does not exist
+    fn name_for_opcode(&self, opcode: Opcode) -> Option<&'static str> {
+        self.engine().name_for_opcode(opcode)
+    }
+
+    /// Returns the opcode for the specified name, or None if the named instruction has not been registered
+    fn opcode_for_name(&self, name: &'static str) -> Option<Opcode> {
+        self.engine().opcode_for_name(name)
     }
 }
 
@@ -263,8 +275,6 @@ pub fn add_instructions(vm: &mut SolitareVm) {
     // These must be last, with Name the very last of all. The reason is that parsing runs in order from top to bottom
     // and all the 'normal' instructions use an exact match. However the literal values use more involved parsing and
     // Name is the catch-all (anything that does not parsed earlier will become a Name up to the next white-space).
-    vm.engine_mut()
-        .add_instruction::<pushgp::PushList<SolitareVm>>();
     vm.engine_mut()
         .add_instruction::<pushgp::BoolLiteralValue>();
     vm.engine_mut()

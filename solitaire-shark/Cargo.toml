@@ -18,3 +18,8 @@ strum_macros = "0.24"
 [dependencies.rand]
 version = "0.8"
 features = ["small_rng"]
+
+# Uncomment when you want to profile for valgrind. Example valgrind:
+# valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/release/solitaire-shark
+# [profile.release]
+# debug = true

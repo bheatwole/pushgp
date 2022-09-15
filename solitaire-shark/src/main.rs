@@ -60,6 +60,12 @@ fn main() {
     world.create_island(Box::new(IslandOne::new()));
     world.create_island(Box::new(IslandTwo::new()));
 
+    // Calculate the best instructions. Commented out for now because this doesn't seem to be effective
+    // let weights = world.heuristically_calculate_instruction_weights(1000);
+    // for (instruction, weight) in weights.iter() {
+    //     println!("{:3} for {}", weight, instruction);
+    // }
+
     // Run the world for 10_000 generations
     let mut generations_complete = 0;
     world.run_generations_until(|world| {

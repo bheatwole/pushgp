@@ -218,7 +218,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
 
         // Get the migrating individual from the source island
         let source_island = self.islands.get_mut(source_island_id).unwrap();
-        let migrating: Individual<RunResult, Vm> = if self.config.clone_migrated_individuals {
+        let migrating: Individual<RunResult> = if self.config.clone_migrated_individuals {
             source_island.select_one_individual(curve, self.vm.get_rng()).unwrap().clone()
         } else {
             source_island.select_and_remove_one_individual(curve, self.vm.get_rng()).unwrap()
@@ -304,9 +304,9 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
             // Update the instruction count from the most fit and least fit individuals
             for island in self.islands.iter() {
                 let code = island.most_fit_individual().unwrap().get_code();
-                update_instruction_count(&mut most_fit_instructions, code);
+                self.update_instruction_count(&mut most_fit_instructions, code);
                 let code = island.least_fit_individual().unwrap().get_code();
-                update_instruction_count(&mut least_fit_instructions, code);
+                self.update_instruction_count(&mut least_fit_instructions, code);
             }
         }
 
@@ -342,15 +342,14 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
 
         weights
     }
-}
 
-fn update_instruction_count<Vm: VirtualMachine>(instructions: &mut FnvHashMap<&'static str, usize>, code: &Code<Vm>) {
-    for atom in code.extract_atoms().iter() {
-        *(instructions.entry(atom.name()).or_insert(0)) += 1;
+    fn update_instruction_count(&self, instructions: &mut FnvHashMap<&'static str, usize>, code: &Code) {
+        for atom in code.extract_atoms().iter() {
+            let name = self.vm.name_for_opcode(atom.get_opcode()).unwrap();
+            *(instructions.entry(name).or_insert(0)) += 1;
+        }
     }
 }
-
-
 
 // The frequency of an instruction is how often it appears relative to the instruction that appears the most
 fn instruction_frequency(search_for: &str, instructions: &FnvHashMap<&'static str, usize>, max: usize) -> f64 {

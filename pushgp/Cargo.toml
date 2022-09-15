@@ -15,6 +15,7 @@ nom = "7.1"
 pushgp-macros = { path = "../pushgp-macros" }
 rust_decimal = "1.15"
 seahash = "4.1"
+smartstring = "1.0"
 
 [dependencies.rand]
 version = "0.8"

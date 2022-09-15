@@ -17,22 +17,22 @@ impl IslandTwo {
 }
 
 impl IslandCallbacks<RunResult, SolitareVm> for IslandTwo {
-    fn pre_generation_run(&mut self, _individuals: &[pushgp::Individual<RunResult, SolitareVm>]) {
+    fn pre_generation_run(&mut self, _individuals: &[pushgp::Individual<RunResult>]) {
         self.common.generate_game_seeds();
     }
 
     fn run_individual(
         &mut self,
         vm: &mut SolitareVm,
-        individual: &mut pushgp::Individual<RunResult, SolitareVm>,
+        individual: &mut pushgp::Individual<RunResult>,
     ) {
         self.common.run_individual(vm, individual);
     }
 
     fn sort_individuals(
         &self,
-        a: &pushgp::Individual<RunResult, SolitareVm>,
-        b: &pushgp::Individual<RunResult, SolitareVm>,
+        a: &pushgp::Individual<RunResult>,
+        b: &pushgp::Individual<RunResult>,
     ) -> std::cmp::Ordering {
         // island_two_fitness_score_fn: run 100 games and score on most cards to finished stacks, then win rate
         let a_result = a.get_run_result().unwrap();

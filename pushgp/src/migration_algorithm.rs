@@ -4,7 +4,7 @@ pub enum MigrationAlgorithm {
     Circular,
 
     /// The islands are arranged in a circle and individuals migrate to the island 'n' number of islands clockwise. 'n'
-    /// must be in the range 1..number of islands and will be taken 'mod number of islands' if it is larger. 
+    /// must be in the range 1..number of islands and will be taken 'mod number of islands' if it is larger.
     /// MigrationAlgorithm::Circular is equivalent to MigrationAlgorithm::Cyclical(1)
     Cyclical(usize),
 

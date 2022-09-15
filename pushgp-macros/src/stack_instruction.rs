@@ -77,25 +77,11 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
                 #instruction_name_str
             }
         }
-        impl<Vm> #pushgp::StaticInstruction<Vm> for #struct_name
-        where
-            Vm: #(#bound_types)+*,
-        {
-            fn parse(input: &str) -> nom::IResult<&str, #pushgp::Code<Vm>> {
-                let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
-                let (rest, _) = #pushgp::space_or_end(rest)?;
 
-                Ok((rest, Box::new(#struct_name {})))
-            }
-
-            fn random_value(_engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code<Vm> {
-                Box::new(#struct_name {})
-            }
-        }
-
-        impl std::fmt::Display for #struct_name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str(#struct_name::static_name())
+        impl #struct_name {
+            pub fn new_code<Oc: #pushgp::OpcodeConvertor>(oc: &Oc) -> Code {
+                let opcode = oc.opcode_for_name(Self::static_name()).unwrap();
+                #pushgp::Code::new(opcode, #pushgp::Data::None)
             }
         }
 
@@ -103,17 +89,20 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
         where
             Vm: #(#bound_types)+*,
         {
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
+            fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, #pushgp::Code> {
+                let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
+                let (rest, _) = #pushgp::space_or_end(rest)?;
+
+                Ok((rest, #pushgp::Code::new(opcode, #pushgp::Data::None)))
             }
-            fn name(&self) -> &'static str {
-                #struct_name::static_name()
+            fn fmt(f: &mut std::fmt::Formatter<'_>, _code: &#pushgp::Code, _vtable: &#pushgp::InstructionTable<Vm>) -> std::fmt::Result {
+                f.write_str(#struct_name::static_name())
             }
-            fn clone(&self) -> #pushgp::Code<Vm> {
-                Box::new(#struct_name{})
+            fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code {
+                #struct_name::new_code(engine)
             }
             #(#docs)*
-            fn execute(&mut self, vm: &mut Vm) #body
+            fn execute(code: Code, vm: &mut Vm) #body
         }
     })
 }
@@ -245,10 +234,15 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                     let method: String = expr.method.to_string();
                     if !(method == "engine"
                         || method == "engine_mut"
+                        || method == "clear"
+                        || method == "size_of"
                         || method == "run"
                         || method == "next"
                         || method == "generate_random_instruction"
-                        || method == "get_rng")
+                        || method == "get_rng"
+                        || method == "fmt"
+                        || method == "random_value"
+                        || method == "execute_immediate")
                     {
                         parse_results.stacks.insert(method.to_case(Case::Pascal));
                     }

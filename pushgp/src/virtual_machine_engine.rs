@@ -1,4 +1,5 @@
 use fnv::FnvHashMap;
+use get_size::GetSize;
 use rand::{
     rngs::SmallRng,
     seq::{IteratorRandom, SliceRandom},
@@ -7,28 +8,28 @@ use rand::{
 
 use crate::*;
 
+pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm);
+
 #[derive(Debug, PartialEq)]
 pub struct VirtualMachineEngine<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> {
     rng: SmallRng,
-    exec_stack: Stack<Exec<Vm>>,
-    parser: Parser<Vm>,
+    exec_stack: Stack<Exec>,
     config: Configuration,
-    weights: InstructionWeights<Vm>,
-    defined_names: FnvHashMap<Name, Code<Vm>>,
+    weights: InstructionWeights,
+    vtable: InstructionTable<Vm>,
+    defined_names: FnvHashMap<Name, Code>,
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<Vm> {
     pub fn new(seed: Option<u64>, config: Configuration) -> VirtualMachineEngine<Vm> {
-        let vm = VirtualMachineEngine {
+        VirtualMachineEngine {
             rng: small_rng_from_optional_seed(seed),
             exec_stack: Stack::new(),
-            parser: Parser::new(),
             config,
             weights: InstructionWeights::new(),
+            vtable: InstructionTable::new(),
             defined_names: FnvHashMap::default(),
-        };
-
-        vm
+        }
     }
 
     pub fn get_rng(&mut self) -> &mut rand::rngs::SmallRng {
@@ -39,11 +40,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.rng = small_rng_from_optional_seed(seed);
     }
 
-    pub fn exec(&mut self) -> &mut Stack<Code<Vm>> {
+    pub fn exec(&mut self) -> &mut Stack<Code> {
         &mut self.exec_stack
     }
 
-    pub fn get_weights(&self) -> &InstructionWeights<Vm> {
+    pub fn get_weights(&self) -> &InstructionWeights {
         &self.weights
     }
 
@@ -52,9 +53,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.defined_names.clear();
     }
 
-    pub fn add_instruction<C: StaticInstruction<Vm>>(&mut self) {
-        self.parser.add_instruction::<C>();
-        self.weights.add_instruction::<C>(self.config.get_instruction_weight(C::static_name()));
+    pub fn add_instruction<I: 'static + Instruction<Vm>>(&mut self) {
+        let opcode = self.vtable.add_instruction::<I>();
+        let name = self.vtable.name_for_opcode(opcode).unwrap();
+
+        self.weights.add_instruction(name, self.config.get_instruction_weight(name), opcode);
     }
 
     pub fn get_configuration(&self) -> &Configuration {
@@ -68,21 +71,28 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.weights.reset_weights_from_configuration(&self.config);
     }
 
-    pub fn get_instruction_weights(&self) -> &InstructionWeights<Vm> {
+    pub fn get_instruction_weights(&self) -> &InstructionWeights {
         &self.weights
     }
 
     /// Creates a new random instruction
-    fn generate_random_instruction(&mut self) -> Code<Vm> {
-        let generator = self.weights.pick_random_instruction_generator(&mut self.rng);
-        generator(self)
+    fn generate_random_instruction(&mut self) -> Code {
+        let opcode = self.weights.pick_random_instruction_opcode(&mut self.rng);
+        let random_value_fn = self.vtable.random_value_fn(opcode).unwrap();
+        random_value_fn(self)
     }
 
-    pub fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code<Vm>> {
-        self.parser.parse(input)
+    /// Formats a code object in the way that std::fmt::Display expects, except with Code as a parameter
+    pub fn fmt(&self, f: &mut std::fmt::Formatter<'_>, code: &Code) -> std::fmt::Result {
+        self.vtable.fmt(f, code)
     }
 
-    pub fn must_parse<'a>(&self, input: &'a str) -> Code<Vm> {
+    /// Returns the execute fn pointer for the specified opcode or None
+    pub fn execute_fn(&self, opcode: Opcode) -> Option<ExecuteFn<Vm>> {
+        self.vtable.execute_fn(opcode)
+    }
+
+    pub fn must_parse<'a>(&self, input: &'a str) -> Code {
         let (rest, code) = self.parse(input).unwrap();
         assert_eq!(rest.len(), 0);
         code
@@ -99,22 +109,22 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         }
     }
 
-    pub fn set_code(&mut self, code: Code<Vm>) {
+    pub fn set_code(&mut self, code: Code) {
         self.clear();
         self.exec_stack.push(code);
     }
 
     /// Returns the code for the specified name, or None if the name is not defined
-    pub fn definition_for_name(&self, name: &String) -> Option<Code<Vm>> {
+    pub fn definition_for_name(&self, name: &Name) -> Option<Code> {
         self.defined_names.get(name).map(|c| c.clone())
     }
 
-    pub fn define_name(&mut self, name: String, code: Code<Vm>) {
+    pub fn define_name(&mut self, name: Name, code: Code) {
         self.defined_names.insert(name, code);
     }
 
     /// Returns a list of all the names that are defined
-    pub fn all_defined_names(&self) -> Vec<String> {
+    pub fn all_defined_names(&self) -> Vec<Name> {
         self.defined_names.keys().map(|k| k.clone()).collect()
     }
 
@@ -122,14 +132,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     pub fn size_of(&self) -> usize {
         let mut size = self.exec_stack.size_of();
         for (_, code) in self.defined_names.iter() {
-            size += code.size_of();
+            size += code.get_size();
         }
 
         size
     }
 
     /// Returns one random defined name, or None if there are no defined names
-    pub fn random_defined_name(&mut self) -> Option<Code<Vm>> {
+    pub fn random_defined_name(&mut self) -> Option<Code> {
         if 0 == self.defined_names.len() {
             return None;
         }
@@ -152,7 +162,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// Creates a newly-generated random chunk of code. The limit for the size of the expression is taken is the points
     /// parameters; to ensure that it is in the appropriate range this is taken modulo the value of the
     /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
-    pub fn rand_code(&mut self, points: Option<usize>) -> Code<Vm> {
+    pub fn rand_code(&mut self, points: Option<usize>) -> Code {
         let shape = self.generate_random_code_shape(points);
         self.fill_code_shape(shape)
     }
@@ -164,9 +174,9 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// both parents have the same defined_name, the value for that will come from the left individual.
     pub fn rand_child<RunResult: std::fmt::Debug + Clone>(
         &mut self,
-        left: &Individual<RunResult, Vm>,
-        right: &Individual<RunResult, Vm>,
-    ) -> Individual<RunResult, Vm> {
+        left: &Individual<RunResult>,
+        right: &Individual<RunResult>,
+    ) -> Individual<RunResult> {
         match self.select_genetic_operation() {
             GeneticOperation::Mutation => self.mutate(left),
             GeneticOperation::Crossover => self.crossover(left, right),
@@ -179,11 +189,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// The defined_names of the child will only include the code that is specifically named in the child's code.
     pub fn mutate<RunResult: std::fmt::Debug + Clone>(
         &mut self,
-        parent: &Individual<RunResult, Vm>,
-    ) -> Individual<RunResult, Vm> {
+        parent: &Individual<RunResult>,
+    ) -> Individual<RunResult> {
         let (selected_point, replace_shape) = self.select_operation_point_and_shape(parent.get_code());
         let replacement_code = self.fill_code_shape(replace_shape);
-        let (child_code, _) = parent.get_code().replace_point(selected_point, replacement_code.as_ref());
+        let (child_code, _) = parent.get_code().replace_point(selected_point, &replacement_code);
         let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
         // Ensure the individuals defined_names are correct
@@ -201,14 +211,14 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// both parents have the same defined_name, the value for that will come from the left individual.
     pub fn crossover<RunResult: std::fmt::Debug + Clone>(
         &mut self,
-        left: &Individual<RunResult, Vm>,
-        right: &Individual<RunResult, Vm>,
-    ) -> Individual<RunResult, Vm> {
+        left: &Individual<RunResult>,
+        right: &Individual<RunResult>,
+    ) -> Individual<RunResult> {
         let left_selected_point = self.select_random_point(left.get_code());
         let left_code = extract_known_point(left.get_code(), left_selected_point);
         let right_selected_point = self.select_random_point(right.get_code());
 
-        let (child_code, _) = right.get_code().replace_point(right_selected_point, left_code.as_ref());
+        let (child_code, _) = right.get_code().replace_point(right_selected_point, &left_code);
         let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
         // Ensure the individuals defined_names are correct. Do the left parent last so that those defined names will
@@ -221,12 +231,12 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         child
     }
 
-    fn select_random_point(&mut self, code: &Code<Vm>) -> i64 {
+    fn select_random_point(&mut self, code: &Code) -> i64 {
         let total_points = code.points();
         self.rng.gen_range(0..total_points)
     }
 
-    fn select_operation_point_and_shape(&mut self, parent: &Code<Vm>) -> (i64, CodeShape) {
+    fn select_operation_point_and_shape(&mut self, parent: &Code) -> (i64, CodeShape) {
         let selected_point = self.select_random_point(parent);
         let replace_size = match parent.extract_point(selected_point) {
             Extraction::Used(_) => 1,
@@ -238,7 +248,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     }
 
     // Returns one random atom
-    fn fill_code_shape(&mut self, shape: CodeShape) -> Code<Vm> {
+    fn fill_code_shape(&mut self, shape: CodeShape) -> Code {
         match shape {
             CodeShape::Atom => {
                 // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
@@ -265,7 +275,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
                 for s in list.drain(..) {
                     code.push(self.fill_code_shape(s));
                 }
-                Box::new(PushList::new(code))
+                Code::new_list(code)
             }
         }
     }
@@ -316,6 +326,25 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     }
 }
 
+impl<Vm: VirtualMachine> OpcodeConvertor for VirtualMachineEngine<Vm> {
+    /// Returns the name for the specified opcode, or None if the opcode does not exist
+    fn name_for_opcode(&self, opcode: Opcode) -> Option<&'static str> {
+        self.vtable.name_for_opcode(opcode)
+    }
+
+    /// Returns the opcode for the specified name, or None if the named instruction has not been registered
+    fn opcode_for_name(&self, name: &'static str) -> Option<Opcode> {
+        self.vtable.opcode_for_name(name)
+    }
+}
+
+impl<Vm: VirtualMachine> CodeParser for VirtualMachineEngine<Vm> {
+    fn parse<'a>(&self, input: &'a str) -> nom::IResult<&'a str, Code> {
+        let parser = Parser::new(&self.vtable);
+        parser.parse(input)
+    }
+}
+
 fn small_rng_from_optional_seed(rng_seed: Option<u64>) -> SmallRng {
     if let Some(seed) = rng_seed {
         SmallRng::seed_from_u64(seed)
@@ -325,7 +354,7 @@ fn small_rng_from_optional_seed(rng_seed: Option<u64>) -> SmallRng {
 }
 
 // Returns the sub-tree of code from a larger piece of code where 'point' is known to be less than `code.points()`
-fn extract_known_point<Vm: VirtualMachine>(code: &Code<Vm>, point: i64) -> Code<Vm> {
+fn extract_known_point(code: &Code, point: i64) -> Code {
     match code.extract_point(point) {
         Extraction::Used(_) => {
             panic!("do not call extract_known_point unless point is known to be less than code.points()")

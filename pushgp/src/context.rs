@@ -1,188 +1,3 @@
-// use crate::{Code, Configuration, InstructionDataStack, StackTrait, VirtualTable};
-// use fnv::FnvHashMap;
-// use log::*;
-// use rand::rngs::SmallRng;
-// use std::cell::RefCell;
-
-// #[derive(Clone, Debug, PartialEq)]
-// pub struct Context<State: std::fmt::Debug + Clone> {
-//     virtual_table: VirtualTable<State>,
-//     config: Configuration<State>,
-//     stacks: FnvHashMap<&'static str, InstructionDataStack>,
-//     quote_next_name: RefCell<bool>,
-//     defined_names: RefCell<FnvHashMap<String, Code>>,
-//     state: Option<State>,
-// }
-
-// impl<State: std::fmt::Debug + Clone> Context<State> {
-//     /// Creates a new context for running Code. The VirtualTable holds the list of instructions that are known. The
-//     /// Configuration specifies how new code is to be generated. The list of stacks is the names of the stacks that
-//     /// will be available to running instructions.
-//     ///
-//     /// You will get a panic if you include an instruction in the virtual table that uses a stack that is not named
-//     /// when you call new()
-//     pub fn new(
-//         virtual_table: &VirtualTable<State>,
-//         config: Configuration<State>,
-//         stacks: &[&'static str],
-//         state: Option<State>,
-//     ) -> Context<State> {
-//         let mut context = Context {
-//             virtual_table: virtual_table.clone(),
-//             config,
-//             stacks: FnvHashMap::default(),
-//             quote_next_name: RefCell::new(false),
-//             defined_names: RefCell::new(FnvHashMap::default()),
-//             state,
-//         };
-
-//         for stack_name in stacks {
-//             context.stacks.insert(stack_name, InstructionDataStack::new());
-//         }
-
-//         // Every context must have an Exec stack
-//         if context.get_stack("Exec").is_none() {
-//             context.stacks.insert("Exec", InstructionDataStack::new());
-//         }
-
-//         context
-//     }
-
-//     pub fn clear(&mut self) {
-//         for stack in self.stacks.values() {
-//             stack.clear();
-//         }
-//         self.set_should_quote_next_name(false);
-//         self.defined_names.borrow_mut().clear();
-//         self.state.take();
-//     }
-
-//     /// Returns the State for the Context. Pass a State that allows for interior mutability if you wish to modify state
-//     /// while the Context is running
-//     pub fn get_state(&self) -> Option<&State> {
-//         self.state.as_ref()
-//     }
-
-//     /// Pulls the current State out of the Context, replacing it with None
-//     pub fn take_state(&mut self) -> Option<State> {
-//         self.state.take()
-//     }
-
-//     /// Sets the state to the specified value, or None
-//     pub fn set_state(&mut self, state: Option<State>) {
-//         self.state = state
-//     }
-
-//     /// Seeds the random number with a specific value so that you may get repeatable results. Passing `None` will seed
-//     /// the generator with a truly random value ensuring unique results.
-//     pub fn set_seed(&self, seed: Option<u64>) {
-//         self.config.set_seed(seed);
-//     }
-
-//     /// Runs the specified function with the random number generator from the configuration
-//     pub fn run_random_function<F, ResultType>(&self, func: F) -> ResultType
-//     where
-//         F: Fn(&mut SmallRng) -> ResultType,
-//     {
-//         self.config.run_random_function(func)
-//     }
-
-//     /// Returns the VirtualTable of instructions associated with this Context
-//     pub fn get_virtual_table(&self) -> &VirtualTable<State> {
-//         &self.virtual_table
-//     }
-
-//     /// Returns the VirtualTable entry for the associated name, or None if not found
-//     pub fn id_for_name<S: AsRef<str>>(&self, name: S) -> Option<usize> {
-//         self.virtual_table.id_for_name(name)
-//     }
-
-//     /// Returns a pointer to the named stack or None. The stack must have been specified in the call to new().
-//     pub fn get_stack(&self, stack_name: &'static str) -> Option<&InstructionDataStack> {
-//         self.stacks.get(stack_name)
-//     }
-
-//     /// Returns true if the next Name encountered on the Exec stack should be pushed to the Name stack instead of
-//     /// possibly running the Code associated with the Name.
-//     pub fn should_quote_next_name(&self) -> bool {
-//         *self.quote_next_name.borrow()
-//     }
-
-//     /// Sets whether or not the next Name encountered on the Exec stack should be pushed to the Name stack instead of
-//     /// possibly running the Code associated with the Name. Uses interior mutability.
-//     pub fn set_should_quote_next_name(&self, quote_next_name: bool) {
-//         self.quote_next_name.replace(quote_next_name);
-//     }
-
-//     /// Returns the Code defined with the specified Name or None
-//     pub fn definition_for_name(&self, name: &String) -> Option<Code> {
-//         self.defined_names.borrow().get(name).map(|c| c.clone())
-//     }
-
-//     /// Defines the Code that will be placed on the top of the Exec stack when the specified Name is encountered. If the
-//     /// name was previously defined, the new definition replaces the old value.
-//     pub fn define_name(&self, name: String, code: Code) {
-//         self.defined_names.borrow_mut().insert(name, code);
-//     }
-
-//     /// Returns a list of all previously defined names. May be empty if no names have been defined
-//     pub fn all_defined_names(&self) -> Vec<String> {
-//         self.defined_names.borrow().keys().map(|k| k.clone()).collect()
-//     }
-
-//     /// Returns the number of previously defined names. Avoids an expensive copy of all names if only the count is
-//     /// needed.
-//     pub fn defined_names_len(&self) -> usize {
-//         self.defined_names.borrow().len()
-//     }
-
-//     /// Uses the Configuration to generate some random Code up to the specified number of points. If the number of
-//     /// points is larger than the maximum allowed in the Configuration, a smaller number will be used.
-//     pub fn random_code(&self, points: Option<usize>) -> Code {
-//         self.config.generate_random_code(points, Some(self))
-//     }
-
-//     /// Runs all instructions in the Exec stack until either the Exec stack is empty or the specified maximum number of
-//     /// steps have been taken.
-//     pub fn run(&self, max: usize) -> usize {
-//         trace!("{:?}", self);
-//         let mut total_count = 0;
-//         while let Some(count) = self.next() {
-//             total_count += count;
-//             if total_count >= max {
-//                 break;
-//             }
-//         }
-//         total_count
-//     }
-
-//     // Steps through one instruction on the Exec stack. Returns None if the Exec stack is empty. Returns the number of
-//     // steps taken (currently always 1).
-//     fn next(&self) -> Option<usize> {
-//         // Pop the top piece of code from the exec stack and execute it.
-//         let exec_stack = self.get_stack("Exec").unwrap();
-//         if let Some(exec) = exec_stack.pop() {
-//             match exec.into() {
-//                 Code::List(mut list) => {
-//                     // Push the code in reverse order so the first item of the list is the top of stack
-//                     while let Some(item) = list.pop() {
-//                         exec_stack.push(item.into());
-//                     }
-//                 }
-//                 Code::InstructionWithData(id, data) => {
-//                     self.virtual_table.call_execute(id, self, data);
-//                 }
-//             }
-
-//             // Return the number of points required to perform that action
-//             return Some(1);
-//         }
-
-//         // No action was found
-//         None
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use crate::*;
@@ -212,7 +27,7 @@ mod tests {
                 // Add the expected definitions to the expected run
                 for (name, src) in expected_definitions.drain(..) {
                     let (_, code) = expected_run.engine().parse(src).unwrap();
-                    expected_run.engine_mut().define_name(name.to_owned(), code);
+                    expected_run.engine_mut().define_name(name.into(), code);
                 }
                 assert_eq!(input_run, expected_run);
             }
@@ -221,7 +36,6 @@ mod tests {
     }
 
     // TODO: All of these tests should also appear in the docs for the associated instruction as a runnable test
-
     context_tests! {
         test_bool_and: ("( TRUE FALSE BOOL.AND )", "( FALSE )", vec![]),
         test_bool_define: ("( KMu7 TRUE BOOL.DEFINE KMu7 )", "( TRUE )", vec![("KMu7", "TRUE")]),
@@ -258,7 +72,7 @@ mod tests {
         test_code_define: ("( SOMENAME CODE.QUOTE TRUE CODE.DEFINE )", "( )", vec![("SOMENAME", "TRUE")]),
         test_code_definition: ("( CODE.QUOTE TRUE ANAME ANAME CODE.DEFINE CODE.DEFINITION )", "( CODE.QUOTE TRUE )", vec![("ANAME", "TRUE")]),
         test_code_discrepancy_zero: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.DISCREPANCY )", "( 0 )", vec![]),
-        test_code_discrepancy_multi: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE 1 CODE.DISCREPANCY )", "( 7 )", vec![]),
+        test_code_discrepancy_multi: ("( CODE.QUOTE ( ANAME ( 3 ( 1 ) ) 1 ( 1 ) ) CODE.QUOTE 1 CODE.DISCREPANCY )", "( 8 )", vec![]),
         test_code_do: ("( CODE.QUOTE ( FALSE 1 ) CODE.DO )", "( FALSE 1 )", vec![]),
         test_code_do_pops_last: ("( CODE.QUOTE ( CODE.QUOTE FALSE ) CODE.DO )", "( CODE.QUOTE ( CODE.QUOTE FALSE ) )", vec![]),
         test_code_do_n_count: ("( 4 CODE.QUOTE BOOL.FROMINT CODE.DONCOUNT )", "( FALSE TRUE TRUE TRUE )", vec![]),
@@ -301,7 +115,7 @@ mod tests {
         test_code_position_not_found: ("( CODE.QUOTE B CODE.QUOTE ( A ( B ) ) CODE.POSITION )", "( -1 )", vec![]),
         test_code_position_self: ("( CODE.QUOTE B CODE.QUOTE B CODE.POSITION )", "( 0 )", vec![]),
         test_code_rand_no_points: ("( CODE.RAND )", "( )", vec![]),
-        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( FLOAT.YANK FLOAT.FROMBOOLEAN CODE.DISCREPANCY ) )", vec![]),
+        test_code_rand_points: ("( 5 CODE.RAND )", "( CODE.QUOTE ( FLOAT.FLUSH EXEC.K INTEGER.LESS ) )", vec![]),
         test_code_rot: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C CODE.ROT )", "( CODE.QUOTE B CODE.QUOTE C CODE.QUOTE A )", vec![]),
         test_code_shove: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 2 CODE.SHOVE )", "( CODE.QUOTE C CODE.QUOTE A CODE.QUOTE B )", vec![]),
         test_code_shove_zero: ("( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C 0 CODE.SHOVE )", "( CODE.QUOTE A CODE.QUOTE B CODE.QUOTE C )", vec![]),

@@ -1,5 +1,4 @@
 use crate::*;
-use get_size::GetSize;
 use pushgp_macros::*;
 
 pub type Bool = bool;
@@ -8,15 +7,7 @@ pub trait VirtualMachineMustHaveBool<Vm> {
     fn bool(&mut self) -> &mut Stack<Bool>;
 }
 
-pub struct BoolLiteralValue {
-    value: bool,
-}
-
-impl BoolLiteralValue {
-    pub fn new(value: bool) -> BoolLiteralValue {
-        BoolLiteralValue { value }
-    }
-}
+pub struct BoolLiteralValue {}
 
 impl StaticName for BoolLiteralValue {
     fn static_name() -> &'static str {
@@ -24,61 +15,38 @@ impl StaticName for BoolLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> StaticInstruction<Vm> for BoolLiteralValue {
-    fn parse(input: &str) -> nom::IResult<&str, Code<Vm>> {
-        let (rest, value) = crate::parse::parse_code_bool(input)?;
-        Ok((rest, Box::new(BoolLiteralValue::new(value))))
-    }
-
-    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code<Vm> {
-        use rand::Rng;
-        Box::new(BoolLiteralValue::new(if 0 == engine.get_rng().gen_range(0..=1) { false } else { true }))
-    }
-}
-
-impl std::fmt::Display for BoolLiteralValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", if self.value { "TRUE" } else { "FALSE" })
+impl BoolLiteralValue {
+    pub fn new_code<Oc: OpcodeConvertor>(oc: &Oc, value: Bool) -> Code {
+        let opcode = oc.opcode_for_name(Self::static_name()).unwrap();
+        Code::new(opcode, value.into())
     }
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for BoolLiteralValue {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn parse<'a>(input: &'a str, opcode: u32) -> nom::IResult<&'a str, Code> {
+        let (rest, value) = crate::parse::parse_code_bool(input)?;
+        Ok((rest, Code::new(opcode, value.into())))
     }
 
-    fn name(&self) -> &'static str {
-        BoolLiteralValue::static_name()
-    }
-
-    fn size_of(&self) -> usize {
-        self.value.get_size()
-    }
-
-    fn clone(&self) -> Code<Vm> {
-        Box::new(BoolLiteralValue::new(self.value))
-    }
-
-    /// Executing a BoolLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&mut self, vm: &mut Vm) {
-        vm.bool().push(self.value)
-    }
-
-    /// Eq for BoolLiteralValue must check that the other instruction is also a BoolLiteralValue and, if so, that the
-    /// value is equivalent
-    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<BoolLiteralValue>() {
-            self.value == other.value
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+        if let Some(value) = code.get_data().bool_value() {
+            write!(f, "{}", if value { "TRUE" } else { "FALSE" })
         } else {
-            false
+            panic!("fmt called for BoolLiteralValue with Code that does not have a boolean value stored")
         }
     }
 
-    /// The hash value for BoolLiteralValue include the value in the hash as well as the name
-    fn hash(&self) -> u64 {
-        let mut to_hash: Vec<u8> = BoolLiteralValue::static_name().as_bytes().iter().map(|c| *c).collect();
-        to_hash.push(if self.value { 1 } else { 0 });
-        seahash::hash(&to_hash[..])
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
+        use rand::Rng;
+        let value = if 0 == engine.get_rng().gen_range(0..=1) { false } else { true };
+        BoolLiteralValue::new_code(engine, value)
+    }
+
+    /// Executing a BoolLiteralValue pushes the literal value that was part of the data onto the stack
+    fn execute(code: Code, vm: &mut Vm) {
+        if let Some(value) = code.get_data().bool_value() {
+            vm.bool().push(value);
+        }
     }
 }
 
@@ -91,7 +59,8 @@ fn and(vm: &mut Vm, a: Bool, b: Bool) {
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
 #[stack_instruction(Bool)]
 fn define(vm: &mut Vm, value: Bool, name: Name) {
-    vm.engine_mut().define_name(name, Box::new(BoolLiteralValue::new(value)));
+    let code = BoolLiteralValue::new_code(vm, value);
+    vm.engine_mut().define_name(name, code);
 }
 
 /// Duplicates the top item on the BOOLEAN stack. Does not pop its argument (which, if it did, would negate the
@@ -144,8 +113,8 @@ fn pop(vm: &mut Vm, _a: Bool) {}
 /// Pushes a random BOOLEAN
 #[stack_instruction(Bool)]
 fn rand(vm: &mut Vm) {
-    let mut random_bool = BoolLiteralValue::random_value(vm.engine_mut());
-    random_bool.execute(vm);
+    let random_value = vm.random_value::<BoolLiteralValue>();
+    vm.execute_immediate::<BoolLiteralValue>(random_value);
 }
 
 /// Rotates the top three items on the BOOLEAN stack, pulling the third item out and pushing it on top. This is

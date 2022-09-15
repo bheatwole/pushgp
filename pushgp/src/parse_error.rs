@@ -9,9 +9,7 @@ impl ParseError {
     }
 
     pub fn new_with_message<S: ToString>(msg: S) -> ParseError {
-        ParseError {
-            message: msg.to_string(),
-        }
+        ParseError { message: msg.to_string() }
     }
 }
 

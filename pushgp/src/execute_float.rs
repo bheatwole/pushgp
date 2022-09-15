@@ -1,5 +1,4 @@
 use crate::*;
-use get_size::GetSize;
 use pushgp_macros::*;
 use rust_decimal::{
     prelude::{FromPrimitive, ToPrimitive},
@@ -22,6 +21,12 @@ impl std::ops::Deref for Float {
 impl From<Decimal> for Float {
     fn from(inner: Decimal) -> Self {
         Float { inner }
+    }
+}
+
+impl Into<Decimal> for Float {
+    fn into(self) -> Decimal {
+        self.inner
     }
 }
 
@@ -70,15 +75,7 @@ pub trait VirtualMachineMustHaveFloat<Vm> {
     fn float(&mut self) -> &mut Stack<Float>;
 }
 
-pub struct FloatLiteralValue {
-    value: Float,
-}
-
-impl FloatLiteralValue {
-    pub fn new(value: Float) -> FloatLiteralValue {
-        FloatLiteralValue { value }
-    }
-}
+pub struct FloatLiteralValue {}
 
 impl StaticName for FloatLiteralValue {
     fn static_name() -> &'static str {
@@ -86,68 +83,43 @@ impl StaticName for FloatLiteralValue {
     }
 }
 
-impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> StaticInstruction<Vm> for FloatLiteralValue {
-    fn parse(input: &str) -> nom::IResult<&str, Box<dyn Instruction<Vm>>> {
-        let (rest, value) = crate::parse::parse_code_float(input)?;
-        Ok((rest, Box::new(FloatLiteralValue::new(Float { inner: value }))))
-    }
-
-    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Box<dyn Instruction<Vm>> {
-        use rand::Rng;
-        let float: f64 = engine.get_rng().gen_range(-1f64..1f64);
-        Box::new(FloatLiteralValue::new(Float { inner: Decimal::from_f64(float).unwrap() }))
-    }
-}
-
-impl std::fmt::Display for FloatLiteralValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Decimals without a fractional part will parse as an integer
-        if self.value.fract().is_zero() {
-            write!(f, "{}.0", self.value)
-        } else {
-            write!(f, "{}", self.value)
-        }
+impl FloatLiteralValue {
+    pub fn new_code<Oc: OpcodeConvertor>(oc: &Oc, value: Float) -> Code {
+        let opcode = oc.opcode_for_name(Self::static_name()).unwrap();
+        Code::new(opcode, value.into())
     }
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for FloatLiteralValue {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
+    fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
+        let (rest, value) = crate::parse::parse_code_float(input)?;
+        Ok((rest, Code::new(opcode, Data::from(value))))
     }
 
-    fn name(&self) -> &'static str {
-        FloatLiteralValue::static_name()
-    }
-
-    fn size_of(&self) -> usize {
-        self.value.get_size()
-    }
-
-    fn clone(&self) -> Box<dyn Instruction<Vm>> {
-        Box::new(FloatLiteralValue::new(self.value))
-    }
-
-    /// Executing a FloatLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(&mut self, vm: &mut Vm) {
-        vm.float().push(self.value)
-    }
-
-    /// Eq for FloatLiteralValue must check that the other instruction is also a FloatLiteralValue and, if so, that the
-    /// value is equivalent
-    fn eq(&self, other: &dyn Instruction<Vm>) -> bool {
-        if let Some(other) = other.as_any().downcast_ref::<FloatLiteralValue>() {
-            self.value == other.value
+    fn fmt(f: &mut std::fmt::Formatter<'_>, code: &Code, _vtable: &InstructionTable<Vm>) -> std::fmt::Result {
+        if let Some(value) = code.get_data().decimal_value() {
+            // Decimals without a fractional part will parse as an integer
+            if value.fract().is_zero() {
+                write!(f, "{}.0", value)
+            } else {
+                write!(f, "{}", value)
+            }
         } else {
-            false
+            panic!("fmt called for FloatLiteralValue with Code that does not have a decimal value stored")
         }
     }
 
-    /// The hash value for FloatLiteralValue include the value in the hash as well as the name
-    fn hash(&self) -> u64 {
-        let mut to_hash: Vec<u8> = FloatLiteralValue::static_name().as_bytes().iter().map(|c| *c).collect();
-        let normalized = self.value.normalize().to_string();
-        to_hash.extend_from_slice(normalized.as_bytes());
-        seahash::hash(&to_hash[..])
+    fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> Code {
+        use rand::Rng;
+        let value: f64 = engine.get_rng().gen_range(-1f64..1f64);
+        FloatLiteralValue::new_code(engine, Decimal::from_f64(value).unwrap().into())
+    }
+
+    /// Executing a FloatLiteralValue pushes the literal value that was part of the data onto the stack
+    fn execute(code: Code, vm: &mut Vm) {
+        if let Some(value) = code.get_data().decimal_value() {
+            vm.float().push(value.into())
+        }
     }
 }
 
@@ -161,7 +133,8 @@ fn cos(vm: &mut Vm, value: Float) {
 /// the EXEC stack.
 #[stack_instruction(Float)]
 fn define(vm: &mut Vm, value: Float, name: Name) {
-    vm.engine_mut().define_name(name, Box::new(FloatLiteralValue::new(value)));
+    let code = FloatLiteralValue::new_code(vm, value);
+    vm.engine_mut().define_name(name, code);
 }
 
 /// Pushes the difference of the top two items; that is, the second item minus the top item.
@@ -259,8 +232,8 @@ fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
 /// to MAX-RANDOM-FLOAT.
 #[stack_instruction(Float)]
 fn rand(vm: &mut Vm) {
-    let mut random_value = FloatLiteralValue::random_value(vm.engine_mut());
-    random_value.execute(vm);
+    let random_value = vm.random_value::<FloatLiteralValue>();
+    vm.execute_immediate::<FloatLiteralValue>(random_value);
 }
 
 /// Rotates the top three items on the FLOAT stack, pulling the third item out and pushing it on top. This is

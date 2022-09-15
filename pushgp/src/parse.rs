@@ -56,23 +56,6 @@ impl<'a, P: CodeParser> Parser<'a, P> {
     }
 }
 
-// impl<'a, P> std::cmp::PartialEq for Parser<'a, P> {
-//     fn eq(&self, other: &Parser) -> bool {
-//         if self.parsers.len() == other.parsers.len() {
-//             for i in 0..self.parsers.len() {
-//                 let lhs = self.parsers[i];
-//                 let rhs = other.parsers[i];
-//                 if lhs as usize != rhs as usize {
-//                     return false;
-//                 }
-//             }
-//             true
-//         } else {
-//             false
-//         }
-//     }
-// }
-
 fn start_list(input: &str) -> IResult<&str, ()> {
     let (input, _) = tag("( ")(input)?;
     Ok((input, ()))

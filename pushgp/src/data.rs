@@ -12,19 +12,18 @@ pub enum Data {
     UnsignedInteger(u64),
     Decimal(Decimal),
 
-    /// Use for Names. The extract_names code looks for this type specifically
+    /// Use for Names. The extract_names function looks for this type specifically
     Name(Name),
 
     /// The SmartString will keep strings smaller than 24 bytes on the stack and avoid heap allocations
     String(SmartString<LazyCompact>),
 
     /// Use this variant to encode custom data that doesn't fit nicely into any other category but is small enough to
-    /// be stored on the stack. At 24 bytes it takes the same amount of stack space as a Vec<u8> and so does not
-    /// increase memory usage.
-    StackBytes([u8; 24]),
+    /// be stored on the stack. At 30 bytes it does not increase memory usage for Data
+    StackBytes([u8; 30]),
 
     /// Use this variant to encode custom data that doesn't fit nicely into any other category and is larger than
-    /// 24 bytes
+    /// 30 bytes
     Bytes(Vec<u8>),
 
     /// Holds the data for a list

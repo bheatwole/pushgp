@@ -8,13 +8,8 @@ pub struct Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
 }
 
 impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, Vm> {
-    pub (crate) fn new(callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> Island<RunResult, Vm> {
-        Island {
-            functions: callbacks,
-            individuals: vec![],
-            individuals_are_sorted: false,
-            future: vec![],
-        }
+    pub(crate) fn new(callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> Island<RunResult, Vm> {
+        Island { functions: callbacks, individuals: vec![], individuals_are_sorted: false, future: vec![] }
     }
 
     /// Resets the island to it's 'new' state.

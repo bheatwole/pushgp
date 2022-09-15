@@ -1,4 +1,6 @@
-use crate::{Code, InstructionTable, Opcode, VirtualMachine, VirtualMachineEngine, VirtualMachineMustHaveExec, StaticName};
+use crate::{
+    Code, InstructionTable, Opcode, StaticName, VirtualMachine, VirtualMachineEngine, VirtualMachineMustHaveExec,
+};
 
 /// The Instruction is a trait that allows use as a trait object. This significantly restricts what kinds of methods
 /// we can include in this trait.
@@ -6,7 +8,7 @@ use crate::{Code, InstructionTable, Opcode, VirtualMachine, VirtualMachineEngine
 /// It is generic for a VirtualMachine. Most instructions will place additional `where` constraints on the VM. I.E. an
 /// instruction may require the VM to implement VirtualMachineHasBoolStack, VirtualMachineHasCodeStack and
 /// VirtualMachineHasGameState. (VirtualMachineHasGameState being a trait defined in the user's code)
-pub trait Instruction<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> : StaticName {
+pub trait Instruction<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>>: StaticName {
     /// Every instruction must be parsable by 'nom' from a string. While the instruction will know what text to look for
     /// and how to create its data, the opcode will vary from one virtual machine to another, and so it is passed as a
     /// parameter.

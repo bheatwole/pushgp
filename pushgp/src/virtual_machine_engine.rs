@@ -327,7 +327,6 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
 }
 
 impl<Vm: VirtualMachine> OpcodeConvertor for VirtualMachineEngine<Vm> {
-
     /// Returns the name for the specified opcode, or None if the opcode does not exist
     fn name_for_opcode(&self, opcode: Opcode) -> Option<&'static str> {
         self.vtable.name_for_opcode(opcode)

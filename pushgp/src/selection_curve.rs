@@ -51,11 +51,7 @@ impl SelectionCurve {
         };
 
         // With rounding error, it's possible to get a pick that's >= 1.0, so turn that into 0.9999999
-        let pick = if pick >= 1.0 {
-            0.99999999999
-        } else {
-            pick
-        };
+        let pick = if pick >= 1.0 { 0.99999999999 } else { pick };
 
         // Multiply the pick by the number of individuals and turn it into an integer
         (pick * number_of_individuals as f64).floor() as usize

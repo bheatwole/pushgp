@@ -1,7 +1,7 @@
-use rust_decimal::{Decimal, prelude::FromPrimitive};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use smartstring::{LazyCompact, SmartString};
 
-use crate::{Code, Name, Float};
+use crate::{Code, Float, Name};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Data {

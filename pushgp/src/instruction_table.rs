@@ -1,6 +1,6 @@
 use fnv::FnvHashMap;
 
-use crate::{Code, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine, CodeParser};
+use crate::{Code, CodeParser, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine};
 
 pub type NameFn = fn() -> &'static str;
 pub type ParseFn = fn(input: &str, opcode: Opcode) -> nom::IResult<&str, Code>;

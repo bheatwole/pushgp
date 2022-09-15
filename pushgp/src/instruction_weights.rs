@@ -1,4 +1,4 @@
-use crate::{Code, Configuration, VirtualMachineEngine, Opcode};
+use crate::{Code, Configuration, Opcode, VirtualMachineEngine};
 
 pub type GenerateFn<Vm> = fn(engine: &mut VirtualMachineEngine<Vm>) -> Code;
 
@@ -19,12 +19,7 @@ impl InstructionWeights {
     /// instruction that uses the Name stack will fail to compile.)
     pub fn add_instruction(&mut self, name: &'static str, weight: u8, opcode: Opcode) {
         self.sum_of_weights += weight as usize;
-        self.instructions.push(InstructionEntry {
-            name,
-            weight: weight,
-            combined_weight: self.sum_of_weights,
-            opcode,
-        });
+        self.instructions.push(InstructionEntry { name, weight: weight, combined_weight: self.sum_of_weights, opcode });
     }
 
     /// Returns the name of every instruction added to the weight table

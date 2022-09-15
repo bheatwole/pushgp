@@ -1,7 +1,7 @@
 /// Takes a stack index which is a zero-based index from the end of a Vec and translates it into a Vec index (zero-based
 /// from the front). Additionally, if the stack_index is larger than the vec_len, the modulo is used so that it is
 /// always a valid result
-/// 
+///
 /// stack index: [ 4, 3, 2, 1, 0 ]
 ///   vec index: [ 0, 1, 2, 3, 4 ]
 pub fn stack_to_vec(mut stack_index: i64, vec_len: usize) -> usize {

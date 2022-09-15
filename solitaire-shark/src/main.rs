@@ -3,6 +3,9 @@ mod game_state;
 mod island_common;
 mod island_one;
 mod island_two;
+mod island_three;
+mod island_four;
+mod island_five;
 mod pile;
 mod run_result;
 mod suit;
@@ -12,6 +15,10 @@ pub use card::{Card, VirtualMachineMustHaveCard};
 pub use game_state::GameState;
 use island_one::IslandOne;
 use island_two::IslandTwo;
+use island_three::IslandThree;
+use island_four::IslandFour;
+use island_five::IslandFive;
+
 use pushgp::{World, WorldConfiguration};
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
@@ -59,6 +66,9 @@ fn main() {
     // Add each island to the world
     world.create_island(Box::new(IslandOne::new()));
     world.create_island(Box::new(IslandTwo::new()));
+    world.create_island(Box::new(IslandThree::new()));
+    world.create_island(Box::new(IslandFour::new()));
+    world.create_island(Box::new(IslandFive::new()));
 
     // Calculate the best instructions. Commented out for now because this doesn't seem to be effective
     // let weights = world.heuristically_calculate_instruction_weights(1000);
@@ -80,6 +90,21 @@ fn main() {
         println!(
             "  island two:   {:.04} avg finished cards",
             most_fit_island_two.get_run_result().unwrap().number_of_finished_cards() as f64 / 100.0f64
+        );
+        let most_fit_island_three = world.get_island(2).unwrap().most_fit_individual().unwrap();
+        println!(
+            "  island three:   {:.04} avg remaining draw+play cards",
+            most_fit_island_three.get_run_result().unwrap().number_of_draw_stack_cards() as f64 / 100.0f64
+        );
+        let most_fit_island_four = world.get_island(3).unwrap().most_fit_individual().unwrap();
+        println!(
+            "  island four:   {:.04} avg remaining face down cards",
+            most_fit_island_four.get_run_result().unwrap().number_of_face_down_cards() as f64 / 100.0f64
+        );
+        let most_fit_island_five = world.get_island(4).unwrap().most_fit_individual().unwrap();
+        println!(
+            "  island five:   {:.04} avg remaining face up cards",
+            most_fit_island_five.get_run_result().unwrap().number_of_face_up_cards() as f64 / 100.0f64
         );
 
         generations_complete < 10_000

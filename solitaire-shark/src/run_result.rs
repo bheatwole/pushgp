@@ -36,4 +36,41 @@ impl RunResult {
 
         number_finished
     }
+
+    pub fn number_of_draw_stack_cards(&self) -> usize {
+        self.games
+            .iter()
+            .map(|game| game.number_of_cards_in_draw_pile() + game.number_of_cards_in_play_pile())
+            .sum()
+    }
+
+    pub fn number_of_face_down_cards(&self) -> usize {
+        self.games
+            .iter()
+            .map(|game| {
+                game.number_of_face_down_cards_in_work_pile(0)
+                    + game.number_of_face_down_cards_in_work_pile(1)
+                    + game.number_of_face_down_cards_in_work_pile(2)
+                    + game.number_of_face_down_cards_in_work_pile(3)
+                    + game.number_of_face_down_cards_in_work_pile(4)
+                    + game.number_of_face_down_cards_in_work_pile(5)
+                    + game.number_of_face_down_cards_in_work_pile(6)
+            })
+            .sum()
+    }
+
+    pub fn number_of_face_up_cards(&self) -> usize {
+        self.games
+            .iter()
+            .map(|game| {
+                game.number_of_face_up_cards_in_work_pile(0)
+                    + game.number_of_face_up_cards_in_work_pile(1)
+                    + game.number_of_face_up_cards_in_work_pile(2)
+                    + game.number_of_face_up_cards_in_work_pile(3)
+                    + game.number_of_face_up_cards_in_work_pile(4)
+                    + game.number_of_face_up_cards_in_work_pile(5)
+                    + game.number_of_face_up_cards_in_work_pile(6)
+            })
+            .sum()
+    }
 }

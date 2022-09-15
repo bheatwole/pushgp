@@ -267,11 +267,15 @@ fn equal(vm: &mut Vm, a: Code, b: Code) {
 #[stack_instruction(Code)]
 fn extract(vm: &mut Vm, code: Code, point: Integer) {
     let total_points = code.points();
-    let point = point.abs() % total_points;
-    match code.extract_point(point) {
+    let extract_point = point.saturating_abs() % total_points;
+    match code.extract_point(extract_point) {
         Extraction::Extracted(code) => vm.code().push(code),
         Extraction::Used(_) => {
-            panic!("should always be able to extract some code because of abs() and modulo")
+            panic!(
+                "should always be able to extract some code because of abs() and modulo, point was {}, code {}",
+                extract_point,
+                code.for_display(vm)
+            )
         }
     }
 }

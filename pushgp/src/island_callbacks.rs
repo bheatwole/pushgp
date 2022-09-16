@@ -45,6 +45,21 @@ pub trait IslandCallbacks<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine
     fn run_individual(&mut self, vm: &mut Vm, individual: &mut Individual<RunResult>);
 
     /// Compare two individuals. The sort order is least fit to most fit. Called multiple times by the sorting algorithm
-    /// after all individuals have been run.
-    fn sort_individuals(&self, a: &Individual<RunResult>, b: &Individual<RunResult>) -> std::cmp::Ordering;
+    /// after all individuals have been run. The default implementation sorts based on the score of the two individuals.
+    /// You should implement your own sorting function if the order of individual is based upon multiple criteria or a
+    /// simple score is impossible to calculate.
+    fn sort_individuals(&self, a: &Individual<RunResult>, b: &Individual<RunResult>) -> std::cmp::Ordering {
+        self.score_individual(a).cmp(&self.score_individual(b))
+    }
+
+    /// Score the effectiveness of one individual. The default implementation returns zero, indicating the worst
+    /// fitness possible. You should either implement score_individual or sort_individuals. (You may also implement
+    /// both). Use the score if it is easy to boil down the run results to a single number. 
+    /// 
+    /// The score is also used by the algorithm to determine the best instruction weights, so it can be useful to write
+    /// a score function for use with that algorithm, even if your primary method of choosing individual is by
+    /// implementing sort_individuals.
+    fn score_individual(&self, _i: &Individual<RunResult>) -> u64 {
+        0
+    }
 }

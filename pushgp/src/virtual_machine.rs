@@ -17,20 +17,21 @@ pub trait VirtualMachine:
 
     /// Runs the VirtualMachine until the Exec stack is empty or the specified number of instructions have been
     /// processed. The default implementation rarely needs to be overridden.
-    fn run(&mut self, max: usize) -> usize {
+    fn run(&mut self, max: usize) -> ExitStatus {
         // trace!("{:?}", self);
         let mut total_count = 0;
         while let Some(count) = self.next() {
             total_count += count;
             if total_count >= max {
-                break;
+                return ExitStatus::ExceededInstructionCount;
             }
             let size = self.size_of();
             if size >= self.engine().get_configuration().get_max_memory_size() {
-                break;
+                return ExitStatus::ExceededMemoryLimit;
             }
         }
-        total_count
+        
+        ExitStatus::Normal(total_count)
     }
 
     /// Processes the next instruction from the Exec stack. The return type allows for some VirtualMachines to indicate

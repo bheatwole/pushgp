@@ -1,7 +1,7 @@
 use crate::GeneticOperation;
 use fnv::FnvHashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Configuration {
     // A random program running long enough can use more memory than the real hardware has. Implement a way to
     // determine usage per stack element and track total usage compared to this number.

@@ -77,6 +77,11 @@ impl Configuration {
         }
     }
 
+    /// Sets the weight of the specified instruction. Returns the weight the instruction had previously, if any
+    pub fn set_instruction_weight(&mut self, instruction_name: &'static str, weight: u8) -> Option<u8> {
+        self.instruction_weights.insert(instruction_name, weight)
+    }
+
     /// Returns a random genetic operation
     pub fn random_genetic_operation<R: rand::Rng>(&self, rng: &mut R) -> GeneticOperation {
         let total: usize = self.mutation_rate as usize + self.crossover_rate as usize;

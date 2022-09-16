@@ -3,8 +3,8 @@ use fnv::FnvHashMap;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Configuration {
-    // A random program running long enough can use more memory than the real hardware has. Implement a way to
-    // determine usage per stack element and track total usage compared to this number.
+    // A random program running long enough can use more memory than the real hardware has. The virtual machine will
+    // stop processing a program when it exceeds this number.
     max_memory_size: usize,
 
     max_points_in_random_expressions: usize,

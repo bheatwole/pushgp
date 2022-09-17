@@ -1,6 +1,6 @@
 use crate::GameState;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SolitaireResults {
     games: Vec<GameState>,
 }

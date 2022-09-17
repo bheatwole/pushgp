@@ -60,6 +60,7 @@ impl Default for WorldConfiguration {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct World<R: RunResult, Vm: VirtualMachine> {
     vm: Vm,
     config: WorldConfiguration,

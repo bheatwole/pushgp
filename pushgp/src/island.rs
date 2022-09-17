@@ -1,5 +1,6 @@
 use crate::{Individual, IslandCallbacks, RunResult, SelectionCurve, VirtualMachine};
 
+#[derive(Debug)]
 pub struct Island<R: RunResult, Vm: VirtualMachine> {
     functions: Box<dyn IslandCallbacks<R, Vm>>,
     individuals: Vec<Individual<R>>,
@@ -125,3 +126,19 @@ impl<R: RunResult, Vm: VirtualMachine> Island<R, Vm> {
         self.future.push(individual);
     }
 }
+
+impl<R: RunResult, Vm: VirtualMachine> std::fmt::Debug for Box<dyn IslandCallbacks<R, Vm>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:p}", self.as_ref())
+    }
+}
+
+impl<R: RunResult, Vm: VirtualMachine> PartialEq for Island<R, Vm> {
+    fn eq(&self, other: &Self) -> bool {
+        self.functions.as_ref() as *const _ == other.functions.as_ref() as *const _ && 
+        self.individuals == other.individuals &&
+        self.individuals_are_sorted == other.individuals_are_sorted &&
+        self.future == other.future
+    }
+}
+

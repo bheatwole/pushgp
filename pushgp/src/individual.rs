@@ -1,6 +1,7 @@
 use crate::{Code, Name, RunResult};
 use fnv::FnvHashMap;
 
+#[derive(Debug, PartialEq)]
 pub struct Individual<R: RunResult> {
     code: Code,
     defined_names: FnvHashMap<Name, Code>,

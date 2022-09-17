@@ -1,4 +1,4 @@
-use crate::{Code, Individual, Island, IslandCallbacks, MigrationAlgorithm, RunResult, SelectionCurve, VirtualMachine};
+use crate::*;
 use fnv::FnvHashMap;
 use rand::{prelude::SliceRandom, Rng};
 use std::vec;
@@ -42,6 +42,10 @@ pub struct WorldConfiguration {
     /// The SelectionCurve used when choosing an elite individual to preserve for the next generation. The default is
     /// StrongPreferenceForFit.
     pub select_as_elite: SelectionCurve,
+
+    /// Determine how the world runs with regards to multi-threading. Placeholder: currently multi-threading is not
+    /// implemented
+    pub threading_model: ThreadingModel,
 }
 
 impl Default for WorldConfiguration {
@@ -56,6 +60,7 @@ impl Default for WorldConfiguration {
             select_for_migration: SelectionCurve::PreferenceForFit,
             select_as_parent: SelectionCurve::PreferenceForFit,
             select_as_elite: SelectionCurve::StrongPreferenceForFit,
+            threading_model: ThreadingModel::None,
         }
     }
 }
@@ -293,6 +298,7 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
             select_for_migration: SelectionCurve::Fair,
             select_as_parent: SelectionCurve::Fair,
             select_as_elite: SelectionCurve::Fair,
+            threading_model: ThreadingModel::None,
         };
         std::mem::swap(&mut self.config, &mut swap_config);
 

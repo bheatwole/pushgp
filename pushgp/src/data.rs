@@ -19,6 +19,9 @@ pub enum Data {
     /// The SmartString will keep strings smaller than 24 bytes on the stack and avoid heap allocations
     String(SmartString<LazyCompact>),
 
+    /// If a string is known to be static, we can pass the pointer efficiently
+    StaticString(&'static str),
+
     /// Use this variant to encode custom data that doesn't fit nicely into any other category but is small enough to
     /// be stored on the stack. At 30 bytes it does not increase memory usage for Data
     StackBytes([u8; 30]),
@@ -63,6 +66,22 @@ impl Data {
     pub fn name_value(&self) -> Option<Name> {
         match self {
             Data::Name(x) => Some(x.clone()),
+            Data::String(x) => Some(x.clone().into()),
+            _ => None,
+        }
+    }
+
+    pub fn string_value(&self) -> Option<String> {
+        match self {
+            Data::Name(x) => Some(x.to_string()),
+            Data::String(x) => Some(x.clone().into()),
+            _ => None,
+        }
+    }
+
+    pub fn static_string_value(&self) -> Option<&'static str> {
+        match self {
+            Data::StaticString(x) => Some(x),
             _ => None,
         }
     }

@@ -1,7 +1,7 @@
 use pushgp::VirtualMachine;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use crate::{run_result::RunResult, GameState, SolitareVm};
+use crate::{solitaire_result::SolitaireResults, GameState, SolitareVm};
 
 const GAMES_PER_RUN: usize = 100;
 
@@ -31,9 +31,9 @@ impl IslandCommon {
     pub fn run_individual(
         &mut self,
         vm: &mut SolitareVm,
-        individual: &mut pushgp::Individual<RunResult>,
+        individual: &mut pushgp::Individual<SolitaireResults>,
     ) {
-        let mut result = RunResult::new();
+        let mut result = SolitaireResults::new();
 
         // Play 100 games
         for game_index in 0..GAMES_PER_RUN {
@@ -61,7 +61,7 @@ impl IslandCommon {
         let last_game = vm.swap_game_state(GameState::new(1));
         result.save_game(last_game);
 
-        // Save the output of all games in the RunResult for the Individual
+        // Save the output of all games in the SolitaireResults for the Individual
         individual.set_run_result(Some(result));
     }
 }

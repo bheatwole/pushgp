@@ -1,16 +1,18 @@
 use crate::GameState;
 
 #[derive(Clone, Debug)]
-pub struct RunResult {
+pub struct SolitaireResults {
     games: Vec<GameState>,
 }
 
-impl RunResult {
-    pub fn new() -> RunResult {
-        RunResult { games: vec![] }
+impl pushgp::RunResult for SolitaireResults {}
+
+impl SolitaireResults {
+    pub fn new() -> SolitaireResults {
+        SolitaireResults { games: vec![] }
     }
 
-    /// Saves a game as part of the RunResult for an individual
+    /// Saves a game as part of the results for an individual
     pub fn save_game(&mut self, game: GameState) {
         self.games.push(game);
     }

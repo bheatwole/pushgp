@@ -7,7 +7,7 @@ mod island_three;
 mod island_four;
 mod island_five;
 mod pile;
-mod run_result;
+mod solitaire_result;
 mod suit;
 mod vm;
 
@@ -23,7 +23,7 @@ use pushgp::{World, WorldConfiguration};
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 
-use crate::{run_result::RunResult, vm::add_instructions};
+use crate::{solitaire_result::SolitaireResults, vm::add_instructions};
 
 fn main() {
     // Parameters:
@@ -61,7 +61,7 @@ fn main() {
 
     // Create the world with its parameters
     let world_config = WorldConfiguration::default();
-    let mut world = World::<RunResult, SolitareVm>::new(vm, world_config);
+    let mut world = World::<SolitaireResults, SolitareVm>::new(vm, world_config);
 
     // Add each island to the world
     world.create_island(Box::new(IslandOne::new()));

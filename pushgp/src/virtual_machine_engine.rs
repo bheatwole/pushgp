@@ -172,11 +172,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn rand_child<RunResult: std::fmt::Debug + Clone>(
-        &mut self,
-        left: &Individual<RunResult>,
-        right: &Individual<RunResult>,
-    ) -> Individual<RunResult> {
+    pub fn rand_child<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Individual<R> {
         match self.select_genetic_operation() {
             GeneticOperation::Mutation => self.mutate(left),
             GeneticOperation::Crossover => self.crossover(left, right),
@@ -187,10 +183,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// size, and replacing the selected point with the new code.
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code.
-    pub fn mutate<RunResult: std::fmt::Debug + Clone>(
-        &mut self,
-        parent: &Individual<RunResult>,
-    ) -> Individual<RunResult> {
+    pub fn mutate<R: RunResult>(&mut self, parent: &Individual<R>) -> Individual<R> {
         let (selected_point, replace_shape) = self.select_operation_point_and_shape(parent.get_code());
         let replacement_code = self.fill_code_shape(replace_shape);
         let (child_code, _) = parent.get_code().replace_point(selected_point, &replacement_code);
@@ -209,11 +202,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn crossover<RunResult: std::fmt::Debug + Clone>(
-        &mut self,
-        left: &Individual<RunResult>,
-        right: &Individual<RunResult>,
-    ) -> Individual<RunResult> {
+    pub fn crossover<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Individual<R> {
         let left_selected_point = self.select_random_point(left.get_code());
         let left_code = extract_known_point(left.get_code(), left_selected_point);
         let right_selected_point = self.select_random_point(right.get_code());

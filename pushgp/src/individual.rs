@@ -1,18 +1,14 @@
-use crate::{Code, Name};
+use crate::{Code, Name, RunResult};
 use fnv::FnvHashMap;
 
-pub struct Individual<RunResult: std::fmt::Debug + Clone> {
+pub struct Individual<R: RunResult> {
     code: Code,
     defined_names: FnvHashMap<Name, Code>,
-    run_result: Option<RunResult>,
+    run_result: Option<R>,
 }
 
-impl<RunResult: std::fmt::Debug + Clone> Individual<RunResult> {
-    pub fn new(
-        code: Code,
-        defined_names: FnvHashMap<Name, Code>,
-        initial_run_result: Option<RunResult>,
-    ) -> Individual<RunResult> {
+impl<R: RunResult> Individual<R> {
+    pub fn new(code: Code, defined_names: FnvHashMap<Name, Code>, initial_run_result: Option<R>) -> Individual<R> {
         Individual { code, defined_names, run_result: initial_run_result }
     }
 
@@ -52,22 +48,22 @@ impl<RunResult: std::fmt::Debug + Clone> Individual<RunResult> {
     }
 
     /// Borrows the current RunResult for the Individual
-    pub fn get_run_result(&self) -> Option<&RunResult> {
+    pub fn get_run_result(&self) -> Option<&R> {
         self.run_result.as_ref()
     }
 
     /// Mutably borrows the current RunResult for the Individual, allowing for changes to results
-    pub fn get_run_result_mut(&mut self) -> Option<&mut RunResult> {
+    pub fn get_run_result_mut(&mut self) -> Option<&mut R> {
         self.run_result.as_mut()
     }
 
     /// Replaces the RunResult for this Individual
-    pub fn set_run_result(&mut self, run_result: Option<RunResult>) {
+    pub fn set_run_result(&mut self, run_result: Option<R>) {
         self.run_result = run_result;
     }
 }
 
-impl<RunResult: std::fmt::Debug + Clone> Clone for Individual<RunResult> {
+impl<R: RunResult> Clone for Individual<R> {
     fn clone(&self) -> Self {
         Self { code: self.code.clone(), defined_names: self.defined_names.clone(), run_result: self.run_result.clone() }
     }

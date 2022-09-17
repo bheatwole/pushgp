@@ -1,4 +1,4 @@
-use crate::{Code, Individual, Island, IslandCallbacks, MigrationAlgorithm, SelectionCurve, VirtualMachine};
+use crate::{Code, Individual, Island, IslandCallbacks, MigrationAlgorithm, RunResult, SelectionCurve, VirtualMachine};
 use fnv::FnvHashMap;
 use rand::{prelude::SliceRandom, Rng};
 use std::vec;
@@ -60,22 +60,22 @@ impl Default for WorldConfiguration {
     }
 }
 
-pub struct World<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
+pub struct World<R: RunResult, Vm: VirtualMachine> {
     vm: Vm,
     config: WorldConfiguration,
-    islands: Vec<Island<RunResult, Vm>>,
+    islands: Vec<Island<R, Vm>>,
     generations_remaining_before_migration: usize,
 }
 
-impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm> {
-    pub fn new(vm: Vm, config: WorldConfiguration) -> World<RunResult, Vm> {
+impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
+    pub fn new(vm: Vm, config: WorldConfiguration) -> World<R, Vm> {
         let generations_remaining_before_migration = config.generations_between_migrations;
         World { vm, config, islands: vec![], generations_remaining_before_migration }
     }
 
     /// Adds a new island to the World that will use the specified callbacks to perform the various individual
     /// processing tasks required during its lifetime
-    pub fn create_island(&mut self, callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> IslandId {
+    pub fn create_island(&mut self, callbacks: Box<dyn IslandCallbacks<R, Vm>>) -> IslandId {
         let id = self.islands.len();
         self.islands.push(Island::new(callbacks));
 
@@ -83,12 +83,12 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     }
 
     /// Borrows an island by the specified ID
-    pub fn get_island(&self, id: IslandId) -> Option<&Island<RunResult, Vm>> {
+    pub fn get_island(&self, id: IslandId) -> Option<&Island<R, Vm>> {
         self.islands.get(id)
     }
 
     /// Mutably borrows an island by the specified ID
-    pub fn get_island_mut(&mut self, id: IslandId) -> Option<&mut Island<RunResult, Vm>> {
+    pub fn get_island_mut(&mut self, id: IslandId) -> Option<&mut Island<R, Vm>> {
         self.islands.get_mut(id)
     }
 
@@ -149,7 +149,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
     /// Runs generations until the specified function returns false
     pub fn run_generations_until<Until>(&mut self, mut until: Until)
     where
-        Until: FnMut(&World<RunResult, Vm>) -> bool,
+        Until: FnMut(&World<R, Vm>) -> bool,
     {
         // Always run at least one generation
         let mut running = true;
@@ -186,7 +186,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
                     // This algorithm achieves the desired goal of having individuals from each island migrate together
                     // to another random island, and each island is the source and destination exactly once.
                     let island_order = self.random_island_order();
-                    let distances = World::<RunResult, Vm>::distances_to_next_island(&island_order[..]);
+                    let distances = World::<R, Vm>::distances_to_next_island(&island_order[..]);
                     for (source_id, n) in std::iter::zip(island_order, distances) {
                         self.migrate_one_island_circular_n(source_id, n);
                     }
@@ -219,7 +219,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> World<RunResult, Vm
 
         // Get the migrating individual from the source island
         let source_island = self.islands.get_mut(source_island_id).unwrap();
-        let migrating: Individual<RunResult> = if self.config.clone_migrated_individuals {
+        let migrating: Individual<R> = if self.config.clone_migrated_individuals {
             source_island.select_one_individual(curve, self.vm.get_rng()).unwrap().clone()
         } else {
             source_island.select_and_remove_one_individual(curve, self.vm.get_rng()).unwrap()

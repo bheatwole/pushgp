@@ -1,14 +1,14 @@
-use crate::{Individual, IslandCallbacks, SelectionCurve, VirtualMachine};
+use crate::{Individual, IslandCallbacks, RunResult, SelectionCurve, VirtualMachine};
 
-pub struct Island<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> {
-    functions: Box<dyn IslandCallbacks<RunResult, Vm>>,
-    individuals: Vec<Individual<RunResult>>,
+pub struct Island<R: RunResult, Vm: VirtualMachine> {
+    functions: Box<dyn IslandCallbacks<R, Vm>>,
+    individuals: Vec<Individual<R>>,
     individuals_are_sorted: bool,
-    future: Vec<Individual<RunResult>>,
+    future: Vec<Individual<R>>,
 }
 
-impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, Vm> {
-    pub(crate) fn new(callbacks: Box<dyn IslandCallbacks<RunResult, Vm>>) -> Island<RunResult, Vm> {
+impl<R: RunResult, Vm: VirtualMachine> Island<R, Vm> {
+    pub(crate) fn new(callbacks: Box<dyn IslandCallbacks<R, Vm>>) -> Island<R, Vm> {
         Island { functions: callbacks, individuals: vec![], individuals_are_sorted: false, future: vec![] }
     }
 
@@ -21,7 +21,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
 
     /// Returns the most fit of all the individuals (the one sorted to the tail by the sorting algorithm). Returns None
     /// if there are no Individuals or if the individuals have not been sorted
-    pub fn most_fit_individual(&self) -> Option<&Individual<RunResult>> {
+    pub fn most_fit_individual(&self) -> Option<&Individual<R>> {
         if !self.individuals_are_sorted {
             return None;
         }
@@ -30,7 +30,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
 
     /// Returns the least fit of all the individuals (the one sorted to the head by the sorting algorithm). Returns None
     /// if there are no Individuals or if the individuals have not been sorted
-    pub fn least_fit_individual(&self) -> Option<&Individual<RunResult>> {
+    pub fn least_fit_individual(&self) -> Option<&Individual<R>> {
         if !self.individuals_are_sorted {
             return None;
         }
@@ -84,11 +84,11 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
 
     /// Select one individual from the island according to the specified SelectionCurve and borrow it.
     /// Returns the individual borrowed or None if the population is zero or not sorted
-    pub fn select_one_individual<R: rand::Rng>(
+    pub fn select_one_individual<Rnd: rand::Rng>(
         &self,
         curve: SelectionCurve,
-        rng: &mut R,
-    ) -> Option<&Individual<RunResult>> {
+        rng: &mut Rnd,
+    ) -> Option<&Individual<R>> {
         if !self.individuals_are_sorted {
             return None;
         }
@@ -103,11 +103,11 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
 
     /// Select one individual from the island according to the specified SelectionCurve and remove it permanently.
     /// Returns the individual removed or None if the population is zero or not sorted
-    pub fn select_and_remove_one_individual<R: rand::Rng>(
+    pub fn select_and_remove_one_individual<Rnd: rand::Rng>(
         &mut self,
         curve: SelectionCurve,
-        rng: &mut R,
-    ) -> Option<Individual<RunResult>> {
+        rng: &mut Rnd,
+    ) -> Option<Individual<R>> {
         if !self.individuals_are_sorted {
             return None;
         }
@@ -121,7 +121,7 @@ impl<RunResult: std::fmt::Debug + Clone, Vm: VirtualMachine> Island<RunResult, V
     }
 
     /// Adds an individual to the future generation
-    pub fn add_individual_to_future_generation(&mut self, individual: Individual<RunResult>) {
+    pub fn add_individual_to_future_generation(&mut self, individual: Individual<R>) {
         self.future.push(individual);
     }
 }

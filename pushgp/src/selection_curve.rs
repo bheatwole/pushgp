@@ -1,7 +1,7 @@
 /// Defines the algorithm used when a random individual is needed from a pool of individuals that has been sorted by a
 /// fitness function. The sorting algorithm defines the greatest fitness as being sorted at the end of a vector where
 /// `pool.sort_by(fitness_fn)` has been called.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SelectionCurve {
     // All individuals are as likely as any other to be selected
     Fair,

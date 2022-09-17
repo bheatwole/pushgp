@@ -5,6 +5,7 @@ use std::vec;
 
 pub type IslandId = usize;
 
+#[derive(Debug, PartialEq)]
 pub struct WorldConfiguration {
     /// The number of individuals on each island. Before running a generation, the island will be filled with the
     /// children of genetic selection if there was a previous generation, or new random individuals if there was no

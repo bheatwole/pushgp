@@ -79,7 +79,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
         }
 
         impl #struct_name {
-            pub fn new_code<Oc: #pushgp::OpcodeConvertor>(oc: &Oc) -> Code {
+            pub fn new_code<Oc: #pushgp::OpcodeConvertor>(oc: &Oc) -> #pushgp::Code {
                 let opcode = oc.opcode_for_name(Self::static_name()).unwrap();
                 #pushgp::Code::new(opcode, #pushgp::Data::None)
             }
@@ -89,7 +89,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
         where
             Vm: #(#bound_types)+*,
         {
-            fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, #pushgp::Code> {
+            fn parse<'a>(input: &'a str, opcode: #pushgp::Opcode) -> nom::IResult<&'a str, #pushgp::Code> {
                 let (rest, _) = nom::bytes::complete::tag(#struct_name::static_name())(input)?;
                 let (rest, _) = #pushgp::space_or_end(rest)?;
 
@@ -98,11 +98,11 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
             fn fmt(f: &mut std::fmt::Formatter<'_>, _code: &#pushgp::Code, _vtable: &#pushgp::InstructionTable<Vm>) -> std::fmt::Result {
                 f.write_str(#struct_name::static_name())
             }
-            fn random_value(engine: &mut VirtualMachineEngine<Vm>) -> #pushgp::Code {
+            fn random_value(engine: &mut #pushgp::VirtualMachineEngine<Vm>) -> #pushgp::Code {
                 #struct_name::new_code(engine)
             }
             #(#docs)*
-            fn execute(code: Code, vm: &mut Vm) #body
+            fn execute(code: #pushgp::Code, vm: &mut Vm) #body
         }
     })
 }

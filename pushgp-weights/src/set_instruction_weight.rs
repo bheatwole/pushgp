@@ -1,12 +1,11 @@
 use pushgp::StaticName;
 use pushgp_macros::stack_instruction;
 
-use crate::{VirtualMachineMustHaveInstructionName, VirtualMachineMustHaveWeight};
+use crate::{VirtualMachineMustHaveWeight, VirtualMachineMustHaveTarget};
 
 
 #[stack_instruction(Exec)]
-fn set_instruction_weight(vm: &mut Vm, instruction_name: InstructionName, weight: Weight) {
-    let mut config = vm.engine().get_configuration().clone();
-    config.set_instruction_weight(instruction_name, weight);
-    vm.engine_mut().reset_configuration(config);
+fn set_instruction_weight(vm: &mut Vm, instruction_name_index: Integer, weight: Weight) {
+    let index_usize: usize = instruction_name_index.saturating_abs() as usize;
+    vm.target().set_target_weight(index_usize, weight);
 }

@@ -67,6 +67,11 @@ impl Configuration {
         self.defined_name_weight
     }
 
+    /// Returns the map of all instructions with specific weights
+    pub fn get_weights(&self) -> &FnvHashMap<&'static str, u8> {
+        &self.instruction_weights
+    }
+
     /// Returns the weight of the specified instruction. If a weight the instruction was not specified earlier, a '1' is
     /// always returned. To turn off random generation of an instruction, you must specify it with a '0' weight.
     pub fn get_instruction_weight(&self, instruction_name: &'static str) -> u8 {

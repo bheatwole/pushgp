@@ -79,6 +79,14 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
         World { vm, config, islands: vec![], generations_remaining_before_migration }
     }
 
+    pub fn get_vm(&self) -> &Vm {
+        &self.vm
+    }
+
+    pub fn get_vm_mut(&mut self) -> &mut Vm {
+        &mut self.vm
+    }
+
     /// Adds a new island to the World that will use the specified callbacks to perform the various individual
     /// processing tasks required during its lifetime
     pub fn create_island(&mut self, callbacks: Box<dyn IslandCallbacks<R, Vm>>) -> IslandId {
@@ -86,6 +94,11 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
         self.islands.push(Island::new(callbacks));
 
         id
+    }
+
+    /// Returns the total number of islands
+    pub fn get_number_of_islands(&self) -> usize {
+        self.islands.len()
     }
 
     /// Borrows an island by the specified ID

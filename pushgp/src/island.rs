@@ -38,6 +38,11 @@ impl<R: RunResult, Vm: VirtualMachine> Island<R, Vm> {
         self.individuals.first()
     }
 
+    /// Returns one individual by index, or None if the index is out of range
+    pub fn get_one_individual(&self, index: usize) -> Option<&Individual<R>> {
+        self.individuals.get(index)
+    }
+
     /// Uses the specified VM to run one generation of individuals. Calls all of the user-supplied functions from the
     /// `Island` trait.
     pub fn run_one_generation(&mut self, vm: &mut Vm) {
@@ -124,6 +129,15 @@ impl<R: RunResult, Vm: VirtualMachine> Island<R, Vm> {
     /// Adds an individual to the future generation
     pub fn add_individual_to_future_generation(&mut self, individual: Individual<R>) {
         self.future.push(individual);
+    }
+
+    /// Returns the score for the individual specified by index, or None if the index is out of bounds
+    pub fn score_for_individual(&self, index: usize) -> Option<u64> {
+        if let Some(individual) = self.get_one_individual(index) {
+            Some(self.functions.score_individual(individual))
+        } else {
+            None
+        }
     }
 }
 

@@ -1,9 +1,7 @@
 use fnv::FnvHashMap;
 use pushgp::*;
 
-use crate::{
-    InstructionName, VirtualMachineMustHaveInstructionName, VirtualMachineMustHaveWeight, Weight,
-};
+use crate::{VirtualMachineMustHaveWeight, Weight, WorldTarget, Target, VirtualMachineMustHaveTarget};
 
 /// InstructionWeightVirtualMachine is used to determine the optimal instruction weights for another VirtualMachine. It
 /// does this by executing the initial run of random individuals on another world and using the genetic algorithm with
@@ -14,9 +12,9 @@ use crate::{
 #[derive(Clone, Debug, PartialEq)]
 pub struct InstructionWeightVirtualMachine<TargetRunResult: RunResult, TargetVm: VirtualMachine> {
     engine: VirtualMachineEngine<InstructionWeightVirtualMachine<TargetRunResult, TargetVm>>,
-    instruction_name_stack: Stack<InstructionName>,
+    integer_stack: Stack<Integer>,
     weight_stack: Stack<Weight>,
-    target_world: World<TargetRunResult, TargetVm>,
+    world_target: WorldTarget<TargetRunResult, TargetVm>,
 }
 
 impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
@@ -30,9 +28,9 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
                 None,
                 Configuration::new(65536, 100, 99, 1, 0, FnvHashMap::default()),
             ),
-            instruction_name_stack: Stack::new(),
+            integer_stack: Stack::new(),
             weight_stack: Stack::new(),
-            target_world: world.clone(),
+            world_target: WorldTarget::new(world),
         };
 
         vm.add_instructions();
@@ -42,7 +40,7 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
 
     fn add_instructions(&mut self) {
         self.engine_mut()
-            .add_instruction::<crate::instruction_name::InstructionNameLiteralValue>();
+            .add_instruction::<pushgp::IntegerLiteralValue>();
         self.engine_mut()
             .add_instruction::<crate::set_instruction_weight::ExecSetInstructionWeight>();
         self.engine_mut()
@@ -63,12 +61,12 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine> VirtualMachine
 
     fn clear(&mut self) {
         self.engine.clear();
-        self.instruction_name_stack.clear();
+        self.integer_stack.clear();
         self.weight_stack.clear();
     }
 
     fn size_of(&self) -> usize {
-        self.engine.size_of() + self.instruction_name_stack.size_of() + self.weight_stack.size_of()
+        self.engine.size_of() + self.integer_stack.size_of() + self.weight_stack.size_of()
     }
 }
 
@@ -82,12 +80,11 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
 }
 
 impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
-    VirtualMachineMustHaveInstructionName<
-        InstructionWeightVirtualMachine<TargetRunResult, TargetVm>,
-    > for InstructionWeightVirtualMachine<TargetRunResult, TargetVm>
+    VirtualMachineMustHaveInteger<InstructionWeightVirtualMachine<TargetRunResult, TargetVm>>
+    for InstructionWeightVirtualMachine<TargetRunResult, TargetVm>
 {
-    fn instruction_name(&mut self) -> &mut Stack<InstructionName> {
-        &mut self.instruction_name_stack
+    fn integer(&mut self) -> &mut Stack<Integer> {
+        &mut self.integer_stack
     }
 }
 
@@ -97,6 +94,15 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
 {
     fn weight(&mut self) -> &mut Stack<Weight> {
         &mut self.weight_stack
+    }
+}
+
+impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
+    VirtualMachineMustHaveTarget<InstructionWeightVirtualMachine<TargetRunResult, TargetVm>>
+    for InstructionWeightVirtualMachine<TargetRunResult, TargetVm>
+{
+    fn target(&mut self) -> &mut dyn Target {
+        &mut self.world_target
     }
 }
 

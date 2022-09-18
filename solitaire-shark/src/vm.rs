@@ -1,7 +1,7 @@
 use crate::{Card, GameState, VirtualMachineMustHaveCard};
 use pushgp::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SolitareVm {
     engine: VirtualMachineEngine<SolitareVm>,
     bool_stack: Stack<Bool>,

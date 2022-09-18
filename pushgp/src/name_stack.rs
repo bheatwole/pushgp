@@ -1,6 +1,6 @@
 use crate::{Name, Stack};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct NameStack {
     stack: Stack<Name>,
     quote_next_name: bool,

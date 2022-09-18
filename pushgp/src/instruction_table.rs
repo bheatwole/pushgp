@@ -17,6 +17,7 @@ pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm);
 ///
 /// The first entry in every InstructionTable is for PushList, which fixes the 'zero' opcode to reference PushList. All
 /// other instructions have opcodes in the order in which they are added to the table
+#[derive(Clone)]
 pub struct InstructionTable<Vm: VirtualMachine> {
     name_functions: Vec<NameFn>,
     parse_functions: Vec<ParseFn>,

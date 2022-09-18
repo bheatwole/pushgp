@@ -10,7 +10,7 @@ use crate::*;
 
 pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm);
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct VirtualMachineEngine<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> {
     rng: SmallRng,
     exec_stack: Stack<Exec>,

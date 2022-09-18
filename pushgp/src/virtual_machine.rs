@@ -1,7 +1,7 @@
 use crate::*;
 
 pub trait VirtualMachine:
-    Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static + OpcodeConvertor
+    Clone + Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static + OpcodeConvertor
 {
     /// The engine implements functions that are common to all virtual machines. Each VirtualMachine must have an engine
     fn engine(&self) -> &VirtualMachineEngine<Self>;
@@ -74,7 +74,7 @@ pub trait VirtualMachine:
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BaseVm {
     engine: VirtualMachineEngine<BaseVm>,
     bool_stack: Stack<Bool>,

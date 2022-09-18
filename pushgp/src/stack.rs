@@ -2,7 +2,7 @@ use get_size::GetSize;
 
 use crate::util::stack_to_vec;
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Stack<T: Clone + GetSize> {
     stack: Vec<T>,
     mem_size: usize,

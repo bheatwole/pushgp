@@ -3,7 +3,7 @@ use crate::{Code, Configuration, Opcode, VirtualMachineEngine};
 pub type GenerateFn<Vm> = fn(engine: &mut VirtualMachineEngine<Vm>) -> Code;
 
 /// This struct tracks the weights associated with each instruction, and allows quickly picking a random instruction.
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct InstructionWeights {
     instructions: Vec<InstructionEntry>,
     sum_of_weights: usize,
@@ -77,7 +77,7 @@ impl std::fmt::Debug for InstructionWeights {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct InstructionEntry {
     pub name: &'static str,
 

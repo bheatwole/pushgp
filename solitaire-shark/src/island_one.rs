@@ -45,4 +45,10 @@ impl IslandCallbacks<SolitaireResults, SolitareVm> for IslandOne {
 
         cmp
     }
+
+    fn clone(&self) -> Box<dyn IslandCallbacks<SolitaireResults, SolitareVm>> {
+        Box::new(IslandOne {
+            common: self.common.clone(),
+        })
+    }
 }

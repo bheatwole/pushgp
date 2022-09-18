@@ -5,6 +5,7 @@ use crate::{solitaire_result::SolitaireResults, GameState, SolitareVm};
 
 const GAMES_PER_RUN: usize = 100;
 
+#[derive(Clone)]
 pub struct IslandCommon {
     rng: SmallRng,
     game_seeds: Vec<u64>,

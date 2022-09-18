@@ -1,6 +1,8 @@
 use crate::{Individual, RunResult, VirtualMachine};
 
 pub trait IslandCallbacks<R: RunResult, Vm: VirtualMachine> {
+    fn clone(&self) -> Box<dyn IslandCallbacks<R, Vm>>;
+
     /// Trait implementations can use this callback to configure any data that will apply to all individuals in this
     /// generation. Called once before any individuals are run. The default implementation does nothing.
     fn pre_generation_run(&mut self, _individuals: &[Individual<R>]) {}
@@ -61,5 +63,17 @@ pub trait IslandCallbacks<R: RunResult, Vm: VirtualMachine> {
     /// implementing sort_individuals.
     fn score_individual(&self, _i: &Individual<R>) -> u64 {
         0
+    }
+}
+
+impl<R: RunResult, Vm: VirtualMachine> Clone for Box<dyn IslandCallbacks<R, Vm>> {
+    fn clone(&self) -> Self {
+        self.as_ref().clone()
+    }
+}
+
+impl<R: RunResult, Vm: VirtualMachine> std::fmt::Debug for Box<dyn IslandCallbacks<R, Vm>> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:p}", self.as_ref())
     }
 }

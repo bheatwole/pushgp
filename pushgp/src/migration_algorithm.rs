@@ -1,5 +1,5 @@
 /// Defines the method by which individuals migrate from island to island when it is time for a migration.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MigrationAlgorithm {
     /// The islands are arranged in a circle and individuals always migrate one island clockwise.
     Circular,

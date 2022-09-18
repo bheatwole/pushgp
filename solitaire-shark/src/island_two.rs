@@ -37,12 +37,20 @@ impl IslandCallbacks<SolitaireResults, SolitareVm> for IslandTwo {
         // island_two_fitness_score_fn: run 100 games and score on most cards to finished stacks, then win rate
         let a_result = a.get_run_result().unwrap();
         let b_result = b.get_run_result().unwrap();
-        let mut cmp = a_result.number_of_finished_cards().cmp(&b_result.number_of_finished_cards());
+        let mut cmp = a_result
+            .number_of_finished_cards()
+            .cmp(&b_result.number_of_finished_cards());
 
         if Ordering::Equal == cmp {
             cmp = a_result.games_won().cmp(&b_result.games_won());
         }
 
         cmp
+    }
+
+    fn clone(&self) -> Box<dyn IslandCallbacks<SolitaireResults, SolitareVm>> {
+        Box::new(IslandTwo {
+            common: self.common.clone(),
+        })
     }
 }

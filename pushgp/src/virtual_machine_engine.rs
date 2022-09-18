@@ -64,10 +64,6 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         &self.config
     }
 
-    pub fn get_configuration_mut(&mut self) -> &mut Configuration {
-        &mut self.config
-    }
-
     pub fn reset_configuration(&mut self, config: Configuration) {
         self.config = config;
 

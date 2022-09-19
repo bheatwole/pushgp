@@ -11,6 +11,7 @@ get-size = "0.1"
 nom = "7.1"
 pushgp = { path = "../pushgp" }
 pushgp-macros = { path = "../pushgp-macros" }
+pushgp-weights = { path = "../pushgp-weights" }
 seahash = "4.1"
 strum = "0.24"
 strum_macros = "0.24"
@@ -21,5 +22,7 @@ features = ["small_rng"]
 
 # Uncomment when you want to profile for valgrind. Example valgrind:
 # valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes --simulate-cache=yes ./target/release/solitaire-shark
+# or
+# valgrind --tool=massif  ./target/release/solitaire-shark
 # [profile.release]
 # debug = true

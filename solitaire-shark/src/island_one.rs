@@ -46,6 +46,10 @@ impl IslandCallbacks<SolitaireResults, SolitareVm> for IslandOne {
         cmp
     }
 
+    fn score_individual(&self, i: &pushgp::Individual<SolitaireResults>) -> u64 {
+        i.get_run_result().unwrap().games_won() as u64
+    }
+
     fn clone(&self) -> Box<dyn IslandCallbacks<SolitaireResults, SolitareVm>> {
         Box::new(IslandOne {
             common: self.common.clone(),

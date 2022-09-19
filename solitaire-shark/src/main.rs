@@ -19,7 +19,7 @@ use island_three::IslandThree;
 use island_four::IslandFour;
 use island_five::IslandFive;
 
-use pushgp::{World, WorldConfiguration};
+use pushgp::{World, WorldConfiguration, VirtualMachine};
 pub use suit::Suit;
 pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 
@@ -75,6 +75,12 @@ fn main() {
     // for (instruction, weight) in weights.iter() {
     //     println!("{:3} for {}", weight, instruction);
     // }
+
+    // Calculate the best instructions
+    let weights = pushgp_weights::find_best_weights(&world);
+    let mut config = world.get_vm().engine().get_configuration().clone();
+    config.set_all_instruction_weights(weights);
+    world.get_vm_mut().engine_mut().reset_configuration(config);
 
     // Run the world for 10_000 generations
     let mut generations_complete = 0;

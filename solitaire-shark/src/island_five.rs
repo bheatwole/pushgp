@@ -38,14 +38,18 @@ impl IslandCallbacks<SolitaireResults, SolitareVm> for IslandFive {
         let a_result = a.get_run_result().unwrap();
         let b_result = b.get_run_result().unwrap();
         let mut cmp = b_result
-            .number_of_face_down_cards()
-            .cmp(&a_result.number_of_face_down_cards());
+            .number_of_face_up_cards()
+            .cmp(&a_result.number_of_face_up_cards());
 
         if Ordering::Equal == cmp {
             cmp = a_result.games_won().cmp(&b_result.games_won());
         }
 
         cmp
+    }
+
+    fn score_individual(&self, i: &pushgp::Individual<SolitaireResults>) -> u64 {
+        5200 - i.get_run_result().unwrap().number_of_face_up_cards() as u64
     }
 
     fn clone(&self) -> Box<dyn IslandCallbacks<SolitaireResults, SolitareVm>> {

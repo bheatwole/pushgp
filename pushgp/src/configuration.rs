@@ -82,6 +82,11 @@ impl Configuration {
         }
     }
 
+    /// Resets all the instruction weights
+    pub fn set_all_instruction_weights(&mut self, new_weights: FnvHashMap<&'static str, u8>) {
+        self.instruction_weights = new_weights
+    }
+
     /// Sets the weight of the specified instruction. Returns the weight the instruction had previously, if any
     pub fn set_instruction_weight(&mut self, instruction_name: &'static str, weight: u8) -> Option<u8> {
         self.instruction_weights.insert(instruction_name, weight)

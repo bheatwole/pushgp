@@ -78,7 +78,7 @@ fn main() {
 
     // Run the world for 10_000 generations
     let mut generations_complete = 0;
-    world.run_generations_until(|world| {
+    world.run_generations_while(|world| {
         generations_complete += 1;
         println!("Generation {} is complete", generations_complete);
         let most_fit_island_one = world.get_island(0).unwrap().most_fit_individual().unwrap();

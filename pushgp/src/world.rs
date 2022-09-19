@@ -166,16 +166,16 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
     }
 
     /// Runs generations until the specified function returns false
-    pub fn run_generations_until<Until>(&mut self, mut until: Until)
+    pub fn run_generations_while<While>(&mut self, mut while_fn: While)
     where
-        Until: FnMut(&World<R, Vm>) -> bool,
+        While: FnMut(&World<R, Vm>) -> bool,
     {
         // Always run at least one generation
         let mut running = true;
         while running {
             self.fill_all_islands();
             self.run_one_generation();
-            running = until(self);
+            running = while_fn(self);
         }
     }
 

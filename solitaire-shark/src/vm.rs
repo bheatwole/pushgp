@@ -15,12 +15,12 @@ pub struct SolitareVm {
 impl SolitareVm {
     pub fn new(seed: u64, config: Configuration) -> SolitareVm {
         let vm = SolitareVm {
-            engine: VirtualMachineEngine::new(Some(seed), config),
-            bool_stack: Stack::new(),
-            card_stack: Stack::new(),
-            code_stack: Stack::new(),
-            integer_stack: Stack::new(),
-            name_stack: NameStack::new(),
+            engine: VirtualMachineEngine::new(Some(seed), config, 40),
+            bool_stack: Stack::new(200),
+            card_stack: Stack::new(200),
+            code_stack: Stack::new(20),
+            integer_stack: Stack::new(200),
+            name_stack: NameStack::new(200),
             game: GameState::new(seed),
         };
 
@@ -49,15 +49,6 @@ impl VirtualMachine for SolitareVm {
         self.code_stack.clear();
         self.integer_stack.clear();
         self.name_stack.clear();
-    }
-
-    fn size_of(&self) -> usize {
-        self.engine.size_of()
-            + self.bool_stack.size_of()
-            + self.card_stack.size_of()
-            + self.code_stack.size_of()
-            + self.integer_stack.size_of()
-            + self.name_stack.size_of()
     }
 }
 

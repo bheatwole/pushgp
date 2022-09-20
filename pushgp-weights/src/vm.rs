@@ -27,9 +27,10 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine>
             engine: VirtualMachineEngine::new(
                 None,
                 Configuration::new(65536, 100, 99, 1, 0, FnvHashMap::default()),
+                200,
             ),
-            integer_stack: Stack::new(),
-            weight_stack: Stack::new(),
+            integer_stack: Stack::new(1000),
+            weight_stack: Stack::new(1000),
             world_target: WorldTarget::new(world),
         };
 
@@ -63,10 +64,6 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine> VirtualMachine
         self.engine.clear();
         self.integer_stack.clear();
         self.weight_stack.clear();
-    }
-
-    fn size_of(&self) -> usize {
-        self.engine.size_of() + self.integer_stack.size_of() + self.weight_stack.size_of()
     }
 }
 

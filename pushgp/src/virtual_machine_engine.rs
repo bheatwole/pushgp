@@ -1,5 +1,4 @@
 use fnv::FnvHashMap;
-use get_size::GetSize;
 use rand::{
     rngs::SmallRng,
     seq::{IteratorRandom, SliceRandom},
@@ -21,10 +20,10 @@ pub struct VirtualMachineEngine<Vm: VirtualMachine + VirtualMachineMustHaveExec<
 }
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<Vm> {
-    pub fn new(seed: Option<u64>, config: Configuration) -> VirtualMachineEngine<Vm> {
+    pub fn new(seed: Option<u64>, config: Configuration, max_exec_stack_len: usize) -> VirtualMachineEngine<Vm> {
         VirtualMachineEngine {
             rng: small_rng_from_optional_seed(seed),
-            exec_stack: Stack::new(),
+            exec_stack: Stack::new(max_exec_stack_len),
             config,
             weights: InstructionWeights::new(),
             vtable: InstructionTable::new(),
@@ -126,16 +125,6 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// Returns a list of all the names that are defined
     pub fn all_defined_names(&self) -> Vec<Name> {
         self.defined_names.keys().map(|k| k.clone()).collect()
-    }
-
-    /// Returns the total amount of memory used by the Exec stack and all defined names
-    pub fn size_of(&self) -> usize {
-        let mut size = self.exec_stack.size_of();
-        for (_, code) in self.defined_names.iter() {
-            size += code.get_size();
-        }
-
-        size
     }
 
     /// Returns one random defined name, or None if there are no defined names

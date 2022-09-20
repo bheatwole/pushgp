@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 fnv = "1.0"
-get-size = "0.1"
 nom = "7.1"
 pushgp = { path = "../pushgp" }
 pushgp-macros = { path = "../pushgp-macros" }

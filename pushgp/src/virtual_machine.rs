@@ -12,9 +12,6 @@ pub trait VirtualMachine:
     /// Clears the data out of the VirtualMachine, making it ready for new code
     fn clear(&mut self);
 
-    /// Returns the amount of memory used by the virtual machine
-    fn size_of(&self) -> usize;
-
     /// Runs the VirtualMachine until the Exec stack is empty or the specified number of instructions have been
     /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> ExitStatus {
@@ -24,10 +21,6 @@ pub trait VirtualMachine:
             total_count += count;
             if total_count >= max {
                 return ExitStatus::ExceededInstructionCount;
-            }
-            let size = self.size_of();
-            if size >= self.engine().get_configuration().get_max_memory_size() {
-                return ExitStatus::ExceededMemoryLimit;
             }
         }
         
@@ -87,12 +80,12 @@ pub struct BaseVm {
 impl BaseVm {
     pub fn new(seed: Option<u64>, config: Configuration) -> BaseVm {
         let vm = BaseVm {
-            engine: VirtualMachineEngine::new(seed, config),
-            bool_stack: Stack::new(),
-            code_stack: Stack::new(),
-            float_stack: Stack::new(),
-            integer_stack: Stack::new(),
-            name_stack: NameStack::new(),
+            engine: VirtualMachineEngine::new(seed, config, 20),
+            bool_stack: Stack::new(200),
+            code_stack: Stack::new(20),
+            float_stack: Stack::new(200),
+            integer_stack: Stack::new(200),
+            name_stack: NameStack::new(200),
         };
 
         vm
@@ -115,15 +108,6 @@ impl VirtualMachine for BaseVm {
         self.float_stack.clear();
         self.integer_stack.clear();
         self.name_stack.clear();
-    }
-
-    fn size_of(&self) -> usize {
-        self.engine.size_of()
-            + self.bool_stack.size_of()
-            + self.code_stack.size_of()
-            + self.float_stack.size_of()
-            + self.integer_stack.size_of()
-            + self.name_stack.size_of()
     }
 }
 

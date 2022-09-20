@@ -138,8 +138,6 @@ impl Card {
     }
 }
 
-impl get_size::GetSize for Card {}
-
 impl Into<Data> for Card {
     fn into(self) -> Data {
         Data::UnsignedInteger(self as u64)

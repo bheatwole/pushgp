@@ -1,5 +1,4 @@
 use fnv::FnvHashMap;
-use get_size::GetSize;
 
 use crate::{
     Data, Name, VirtualMachine, VirtualMachineMustHaveBool, VirtualMachineMustHaveCode, VirtualMachineMustHaveExec,
@@ -263,13 +262,6 @@ pub struct CodeWithVirtualMachine<'a, Vm: VirtualMachine> {
 impl<'a, Vm: VirtualMachine> std::fmt::Display for CodeWithVirtualMachine<'a, Vm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.vm.fmt(f, self.code)
-    }
-}
-
-impl GetSize for Code {
-    fn get_heap_size(&self) -> usize {
-        // Data may have information on the heap
-        self.data.get_heap_size()
     }
 }
 

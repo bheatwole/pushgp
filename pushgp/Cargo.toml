@@ -12,7 +12,6 @@ fnv = "1.0"
 
 # TODO: Remove get-size and simply limit the number of items on each stack (per-stack). Also limit the total number of
 # points for Code. The program is spending a huge amount of time determining exactly how many bytes are used.
-get-size = "0.1"
 log = "0.4"
 nom = "7.1"
 pushgp-macros = { path = "../pushgp-macros" }

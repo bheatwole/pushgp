@@ -7,8 +7,8 @@ pub struct NameStack {
 }
 
 impl NameStack {
-    pub fn new() -> NameStack {
-        NameStack { stack: Stack::new(), quote_next_name: false }
+    pub fn new(max_len: usize) -> NameStack {
+        NameStack { stack: Stack::new(max_len), quote_next_name: false }
     }
 
     pub fn clear(&mut self) {
@@ -42,11 +42,6 @@ impl NameStack {
     /// Returns the length of the Stack
     pub fn len(&self) -> usize {
         self.stack.len()
-    }
-
-    /// Returns the total amount of memory used by the Name stack
-    pub fn size_of(&self) -> usize {
-        self.stack.size_of()
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty

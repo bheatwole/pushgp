@@ -10,7 +10,6 @@ pub struct Float {
     inner: Decimal,
 }
 
-impl get_size::GetSize for Float {}
 impl std::ops::Deref for Float {
     type Target = Decimal;
     fn deref(&self) -> &Self::Target {

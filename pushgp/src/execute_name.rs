@@ -9,7 +9,6 @@ pub struct Name {
     inner: SmartString<LazyCompact>,
 }
 
-impl get_size::GetSize for Name {}
 impl std::ops::Deref for Name {
     type Target = SmartString<LazyCompact>;
     fn deref(&self) -> &Self::Target {

@@ -9,8 +9,8 @@ pub fn stack_to_vec(mut stack_index: i64, vec_len: usize) -> usize {
 
     // If the stack index is negative, add however many times the vec_len it takes to make it positive again
     if stack_index < 0 {
-        let times = (stack_index / vec_len as i64).saturating_abs() + 1;
-        stack_index += vec_len as i64 * times;
+        let times = (stack_index / vec_len as i64).saturating_abs().saturating_add(1);
+        stack_index += (vec_len as i64).saturating_mul(times);
     }
 
     // Now that we know stack_index is positive, cast it to the same type as the output to make life easier
@@ -56,5 +56,14 @@ mod tests {
         assert_eq!(stack_to_vec(-3, 5), 2);
         assert_eq!(stack_to_vec(-4, 5), 3);
         assert_eq!(stack_to_vec(-5, 5), 4);
+    }
+
+    #[test]
+    fn test_overflows() {
+        // At one point gave 'attempt to multiply with overflow'
+        assert_eq!(stack_to_vec(i64::MIN + 2, 2), 0);
+
+        // At one point gave 'attempt to add with overflow'
+        assert_eq!(stack_to_vec(i64::MIN + 1, 1), 0);
     }
 }

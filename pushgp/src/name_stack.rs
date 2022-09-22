@@ -1,4 +1,4 @@
-use crate::{Name, Stack};
+use crate::{Name, Stack, ExecutionError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct NameStack {
@@ -35,7 +35,7 @@ impl NameStack {
     }
 
     /// Pushes the specified item onto the top of the stack
-    pub fn push(&mut self, item: Name) {
+    pub fn push(&mut self, item: Name) -> Result<(), ExecutionError> {
         self.stack.push(item)
     }
 
@@ -45,13 +45,13 @@ impl NameStack {
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    pub fn duplicate_top_item(&mut self) {
+    pub fn duplicate_top_item(&mut self) -> Result<(), ExecutionError> {
         self.stack.duplicate_top_item()
     }
 
     /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
     /// modify the stack if there are fewer than three items
-    pub fn rotate(&mut self) {
+    pub fn rotate(&mut self) -> Result<(), ExecutionError> {
         self.stack.rotate()
     }
 
@@ -60,12 +60,12 @@ impl NameStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
     ///
     /// Returns true if a shove was performed (even if it had no effect)
-    pub fn shove(&mut self, position: i64) -> bool {
+    pub fn shove(&mut self, position: i64) -> Result<(), ExecutionError> {
         self.stack.shove(position)
     }
 
     /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    pub fn swap(&mut self) {
+    pub fn swap(&mut self) -> Result<(), ExecutionError>{
         self.stack.swap()
     }
 
@@ -74,7 +74,7 @@ impl NameStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
     ///
     /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank(&mut self, position: i64) -> bool {
+    pub fn yank(&mut self, position: i64) -> Result<(), ExecutionError> {
         self.stack.yank(position)
     }
 
@@ -83,7 +83,7 @@ impl NameStack {
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
     ///
     /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank_duplicate(&mut self, position: i64) -> bool {
+    pub fn yank_duplicate(&mut self, position: i64) -> Result<(), ExecutionError> {
         self.stack.yank_duplicate(position)
     }
 }

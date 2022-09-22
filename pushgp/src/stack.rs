@@ -1,4 +1,4 @@
-use crate::util::stack_to_vec;
+use crate::{util::stack_to_vec, ExecutionError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Stack<T: Clone> {
@@ -26,9 +26,12 @@ impl<T: Clone> Stack<T> {
     }
 
     /// Pushes the specified item onto the top of the stack
-    pub fn push(&mut self, item: T) {
+    pub fn push(&mut self, item: T) -> Result<(), ExecutionError> {
         if self.stack.len() < self.max_len {
-            self.stack.push(item)
+            self.stack.push(item);
+            Ok(())
+        } else {
+            Err(ExecutionError::OutOfMemory)
         }
     }
 
@@ -38,7 +41,7 @@ impl<T: Clone> Stack<T> {
     }
 
     /// Duplicates the top item of the stack. This should not change the Stack or panic if the stack is empty
-    pub fn duplicate_top_item(&mut self) {
+    pub fn duplicate_top_item(&mut self) -> Result<(), ExecutionError> {
         if self.stack.len() < self.max_len {
             let mut duplicate = None;
 
@@ -49,6 +52,9 @@ impl<T: Clone> Stack<T> {
             if let Some(new_item) = duplicate {
                 self.push(new_item);
             }
+            Ok(())
+        } else {
+            Err(ExecutionError::OutOfMemory)
         }
     }
 
@@ -59,7 +65,7 @@ impl<T: Clone> Stack<T> {
 
     /// Rotates the top three items on the stack, pulling the third item out and pushing it on top. This should not
     /// modify the stack if there are fewer than three items
-    pub fn rotate(&mut self) {
+    pub fn rotate(&mut self) -> Result<(), ExecutionError> {
         if self.stack.len() >= 3 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
@@ -67,6 +73,9 @@ impl<T: Clone> Stack<T> {
             self.push(second);
             self.push(first);
             self.push(third);
+            Ok(())
+        } else {
+            Err(ExecutionError::InsufficientInputs)
         }
     }
 
@@ -74,25 +83,28 @@ impl<T: Clone> Stack<T> {
     /// effect. The position is taken modulus the original size of the stack. I.E. `shove(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `shove(2)` or `[ 'A', 'C', 'B' ]`.
     ///
-    /// Returns true if a shove was performed (even if it had no effect)
-    pub fn shove(&mut self, position: i64) -> bool {
+    /// Returns Ok if a shove was performed (even if it had no effect)
+    pub fn shove(&mut self, position: i64) -> Result<(), ExecutionError> {
         if self.stack.len() > 0 {
             let vec_index = stack_to_vec(position, self.stack.len());
             let item = self.pop().unwrap();
             self.stack.insert(vec_index, item);
-            true
+            Ok(())
         } else {
-            false
+            Err(ExecutionError::InsufficientInputs)
         }
     }
 
     /// Reverses the position of the top two items on the stack. No effect if there are not at least two items.
-    pub fn swap(&mut self) {
+    pub fn swap(&mut self) -> Result<(), ExecutionError> {
         if self.stack.len() >= 2 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             self.push(first);
             self.push(second);
+            Ok(())
+        } else {
+            Err(ExecutionError::InsufficientInputs)
         }
     }
 
@@ -100,15 +112,15 @@ impl<T: Clone> Stack<T> {
     /// the original size of the stack. I.E. `yank(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank(2)` or `[ 'B', 'A', 'C' ]`.
     ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank(&mut self, position: i64) -> bool {
+    /// Returns Ok if a yank was performed (even if it had no effect)
+    pub fn yank(&mut self, position: i64) -> Result<(), ExecutionError> {
         if self.stack.len() > 0 {
             let vec_index = stack_to_vec(position, self.stack.len());
             let item = self.stack.remove(vec_index);
             self.push(item);
-            true
+            Ok(())
         } else {
-            false
+            Err(ExecutionError::InsufficientInputs)
         }
     }
 
@@ -116,15 +128,15 @@ impl<T: Clone> Stack<T> {
     /// the original size of the stack. I.E. `yank_duplicate(5)` on a stack consisting of
     /// `[ 'C', 'B', 'A' ]` would result in effectively `yank_duplicate(2)` or `[ 'C', 'B', 'A', 'C' ]`.
     ///
-    /// Returns true if a yank was performed (even if it had no effect)
-    pub fn yank_duplicate(&mut self, position: i64) -> bool {
+    /// Returns Ok if a yank was performed (even if it had no effect)
+    pub fn yank_duplicate(&mut self, position: i64) -> Result<(), ExecutionError> {
         if self.stack.len() < self.max_len && self.stack.len() > 0 {
             let vec_index = stack_to_vec(position, self.stack.len());
             let duplicate = self.stack.get(vec_index).unwrap().clone();
             self.push(duplicate);
-            true
+            Ok(())
         } else {
-            false
+            Err(ExecutionError::InsufficientInputs)
         }
     }
 }
@@ -241,44 +253,44 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Shoving an empty stack returns zero
-        assert_eq!(false, stack.shove(1));
-        assert_eq!(false, stack.shove(500));
-        assert_eq!(false, stack.shove(-1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.shove(1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.shove(500));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.shove(-1));
 
         // Shoving a single value succeeds but has no effect
         let mut stack = Stack::new_from_vec(vec!['A'], 5);
         let expected = Stack::new_from_vec(vec!['A'], 5);
-        assert_eq!(true, stack.shove(1));
+        assert_eq!(Ok(()), stack.shove(1));
         assert_eq!(expected, stack);
-        assert_eq!(true, stack.shove(500));
+        assert_eq!(Ok(()), stack.shove(500));
         assert_eq!(expected, stack);
-        assert_eq!(true, stack.shove(-1));
+        assert_eq!(Ok(()), stack.shove(-1));
         assert_eq!(expected, stack);
 
         // Perform some shoves
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.shove(0));
+        assert_eq!(Ok(()), stack.shove(0));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.shove(1));
+        assert_eq!(Ok(()), stack.shove(1));
         let expected = Stack::new_from_vec(vec!['C', 'A', 'B'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.shove(2));
+        assert_eq!(Ok(()), stack.shove(2));
         let expected = Stack::new_from_vec(vec!['A', 'C', 'B'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.shove(3));
+        assert_eq!(Ok(()), stack.shove(3));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
         assert_eq!(expected, stack);
 
         // Negative works too
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.shove(-1));
+        assert_eq!(Ok(()), stack.shove(-1));
         let expected = Stack::new_from_vec(vec!['A', 'C', 'B'], 5);
         assert_eq!(expected, stack);
     }
@@ -328,44 +340,44 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Yanking an empty stack returns false
-        assert_eq!(false, stack.yank(1));
-        assert_eq!(false, stack.yank(500));
-        assert_eq!(false, stack.yank(-1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank(1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank(500));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank(-1));
 
         // Yanking a single value succeeds but has no effect
         let mut stack = Stack::new_from_vec(vec!['A'], 5);
         let expected = Stack::new_from_vec(vec!['A'], 5);
-        assert_eq!(true, stack.yank(1));
+        assert_eq!(Ok(()), stack.yank(1));
         assert_eq!(expected, stack);
-        assert_eq!(true, stack.yank(500));
+        assert_eq!(Ok(()), stack.yank(500));
         assert_eq!(expected, stack);
-        assert_eq!(true, stack.yank(-1));
+        assert_eq!(Ok(()), stack.yank(-1));
         assert_eq!(expected, stack);
 
         // Perform some yanks
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank(0));
+        assert_eq!(Ok(()), stack.yank(0));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank(1));
+        assert_eq!(Ok(()), stack.yank(1));
         let expected = Stack::new_from_vec(vec!['C', 'A', 'B'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank(2));
+        assert_eq!(Ok(()), stack.yank(2));
         let expected = Stack::new_from_vec(vec!['B', 'A', 'C'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank(3));
+        assert_eq!(Ok(()), stack.yank(3));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
         assert_eq!(expected, stack);
 
         // Negative works too
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank(-1));
+        assert_eq!(Ok(()), stack.yank(-1));
         let expected = Stack::new_from_vec(vec!['B', 'A', 'C'], 5);
         assert_eq!(expected, stack);
     }
@@ -376,45 +388,45 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Yanking an empty stack returns false
-        assert_eq!(false, stack.yank_duplicate(1));
-        assert_eq!(false, stack.yank_duplicate(500));
-        assert_eq!(false, stack.yank_duplicate(-1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank_duplicate(1));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank_duplicate(500));
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.yank_duplicate(-1));
 
         // Yanking a single value is easy
         let mut stack = Stack::new_from_vec(vec!['A'], 5);
-        assert_eq!(true, stack.yank_duplicate(1));
+        assert_eq!(Ok(()), stack.yank_duplicate(1));
         let expected = Stack::new_from_vec(vec!['A', 'A'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['A'], 5);
-        assert_eq!(true, stack.yank_duplicate(500));
+        assert_eq!(Ok(()), stack.yank_duplicate(500));
         let expected = Stack::new_from_vec(vec!['A', 'A'], 5);
         assert_eq!(expected, stack);
 
         // Perform some more complicated yanks
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank_duplicate(0));
+        assert_eq!(Ok(()), stack.yank_duplicate(0));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A', 'A'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank_duplicate(1));
+        assert_eq!(Ok(()), stack.yank_duplicate(1));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A', 'B'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank_duplicate(2));
+        assert_eq!(Ok(()), stack.yank_duplicate(2));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A', 'C'], 5);
         assert_eq!(expected, stack);
 
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank_duplicate(3));
+        assert_eq!(Ok(()), stack.yank_duplicate(3));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A', 'A'], 5);
         assert_eq!(expected, stack);
 
         // Negative works too
         let mut stack = Stack::new_from_vec(vec!['C', 'B', 'A'], 5);
-        assert_eq!(true, stack.yank_duplicate(-1));
+        assert_eq!(Ok(()), stack.yank_duplicate(-1));
         let expected = Stack::new_from_vec(vec!['C', 'B', 'A', 'C'], 5);
         assert_eq!(expected, stack);
     }

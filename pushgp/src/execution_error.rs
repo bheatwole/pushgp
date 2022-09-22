@@ -1,4 +1,5 @@
 /// Used to determine how a program's code performed when run on the virtual machine
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ExecutionError {
     /// The instruction attempted to perform an illegal operation (such as divide by zero). All stack values used by the
     /// instruction were removed.

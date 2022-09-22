@@ -1,6 +1,4 @@
-use crate::{
-    Code, InstructionTable, Opcode, StaticName, VirtualMachine, VirtualMachineEngine, VirtualMachineMustHaveExec,
-};
+use crate::*;
 
 /// The Instruction is a trait that allows use as a trait object. This significantly restricts what kinds of methods
 /// we can include in this trait.

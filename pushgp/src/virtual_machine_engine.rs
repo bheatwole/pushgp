@@ -7,8 +7,6 @@ use rand::{
 
 use crate::*;
 
-pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm);
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct VirtualMachineEngine<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> {
     rng: SmallRng,
@@ -101,7 +99,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         self.clear();
         let (rest, code) = self.parse(input).map_err(|e| ParseError::new(e))?;
         if rest.len() == 0 {
-            self.exec_stack.push(code);
+            self.exec_stack.push(code).map_err(|e| ParseError::new(nom::Err::Error(e.to_owned())))?;
             Ok(())
         } else {
             return Err(ParseError::new_with_message("the code did not finish parsing"));
@@ -110,7 +108,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
 
     pub fn set_code(&mut self, code: Code) {
         self.clear();
-        self.exec_stack.push(code);
+        self.exec_stack.push(code).unwrap();
     }
 
     /// Returns the code for the specified name, or None if the name is not defined

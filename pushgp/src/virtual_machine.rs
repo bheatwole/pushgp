@@ -62,7 +62,7 @@ pub trait VirtualMachine:
 
     /// Calls the execute function for the instruction that is specified using a type parameter. That means you have to
     ///  know the type at compile time.
-    fn execute_immediate<I: Instruction<Self>>(&mut self, code: Code) {
+    fn execute_immediate<I: Instruction<Self>>(&mut self, code: Code) -> Result<(), ExecutionError> {
         I::execute(code, self)
     }
 }

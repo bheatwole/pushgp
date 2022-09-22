@@ -43,17 +43,18 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveBool<Vm>> Instruction<Vm> for Bo
     }
 
     /// Executing a BoolLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         if let Some(value) = code.get_data().bool_value() {
-            vm.bool().push(value);
+            vm.bool().push(value)?;
         }
+        Ok(())
     }
 }
 
 /// Pushes the logical AND of the top two BOOLEANs onto the EXEC stack
 #[stack_instruction(Bool)]
 fn and(vm: &mut Vm, a: Bool, b: Bool) {
-    vm.bool().push(a && b);
+    vm.bool().push(a && b)?;
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the BOOLEAN stack
@@ -67,13 +68,13 @@ fn define(vm: &mut Vm, value: Bool, name: Name) {
 /// effect of the duplication!)
 #[stack_instruction(Bool)]
 fn dup(vm: &mut Vm) {
-    vm.bool().duplicate_top_item();
+    vm.bool().duplicate_top_item()?;
 }
 
 /// Pushes TRUE if the top two BOOLEANs are equal, or FALSE otherwise
 #[stack_instruction(Bool)]
 fn equal(vm: &mut Vm, a: Bool, b: Bool) {
-    vm.bool().push(a == b);
+    vm.bool().push(a == b)?;
 }
 
 /// Empties the BOOLEAN stack
@@ -85,25 +86,25 @@ fn flush(vm: &mut Vm) {
 /// Pushes FALSE if the top FLOAT is 0.0, or TRUE otherwise
 #[stack_instruction(Bool)]
 fn from_float(vm: &mut Vm, f: Float) {
-    vm.bool().push(!f.is_zero());
+    vm.bool().push(!f.is_zero())?;
 }
 
 /// Pushes FALSE if the top INTEGER is 0, or TRUE otherwise
 #[stack_instruction(Bool)]
 fn from_int(vm: &mut Vm, i: Integer) {
-    vm.bool().push(i != 0);
+    vm.bool().push(i != 0)?;
 }
 
 /// Pushes the logical NOT of the top BOOLEAN
 #[stack_instruction(Bool)]
 fn not(vm: &mut Vm, b: Bool) {
-    vm.bool().push(!b);
+    vm.bool().push(!b)?;
 }
 
 /// Pushes the logical OR of the top two BOOLEANs
 #[stack_instruction(Bool)]
 fn or(vm: &mut Vm, a: Bool, b: Bool) {
-    vm.bool().push(a || b);
+    vm.bool().push(a || b)?;
 }
 
 /// Pops the BOOLEAN stack
@@ -114,51 +115,48 @@ fn pop(vm: &mut Vm, _a: Bool) {}
 #[stack_instruction(Bool)]
 fn rand(vm: &mut Vm) {
     let random_value = vm.random_value::<BoolLiteralValue>();
-    vm.execute_immediate::<BoolLiteralValue>(random_value);
+    vm.execute_immediate::<BoolLiteralValue>(random_value)?;
 }
 
 /// Rotates the top three items on the BOOLEAN stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 BOOLEAN.YANK"
 #[stack_instruction(Bool)]
 fn rot(vm: &mut Vm) {
-    vm.bool().rotate();
+    vm.bool().rotate()?;
 }
 
 /// Inserts the top BOOLEAN "deep" in the stack, at the position indexed by the top INTEGER
 #[stack_instruction(Bool)]
 fn shove(vm: &mut Vm, position: Integer) {
-    if !vm.bool().shove(position) {
-        vm.integer().push(position);
-    }
+    vm.bool().shove(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack
 #[stack_instruction(Bool)]
 fn stack_depth(vm: &mut Vm) {
     let len = vm.bool().len() as i64;
-    vm.integer().push(len);
+    vm.integer().push(len)?;
 }
 
 /// Swaps the top two BOOLEANs
 #[stack_instruction(Bool)]
 fn swap(vm: &mut Vm) {
-    vm.bool().swap();
+    vm.bool().swap()?;
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack
 #[stack_instruction(Bool)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
-    if !vm.bool().yank_duplicate(position) {
-        vm.integer().push(position);
-    }
+    vm.bool().yank_duplicate(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from theF
 /// INTEGER stack
 #[stack_instruction(Bool)]
 fn yank(vm: &mut Vm, position: Integer) {
-    if !vm.bool().yank(position) {
-        vm.integer().push(position);
-    }
+    vm.bool().yank(position)?;
+    vm.integer().push(position)?;
 }

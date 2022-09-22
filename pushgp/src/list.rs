@@ -35,14 +35,15 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> Instruction<Vm> for Pu
         Code::new(0, Data::CodeList(vec![]))
     }
 
-    fn execute(mut code: Code, vm: &mut Vm) {
+    fn execute(mut code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         match code.get_data_mut() {
             Data::CodeList(list) => {
                 while let Some(item) = list.pop() {
-                    vm.exec().push(item);
+                    vm.exec().push(item)?;
                 }
+                Ok(())
             }
-            _ => panic!("execute called for PushList with data that is not a CodeList"),
+            _ => Err(ExecutionError::IllegalOperation),
         }
     }
 }

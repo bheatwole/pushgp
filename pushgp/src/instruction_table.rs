@@ -1,13 +1,13 @@
 use fnv::FnvHashMap;
 
-use crate::{Code, CodeParser, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine};
+use crate::{Code, CodeParser, ExecutionError, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine};
 
 pub type NameFn = fn() -> &'static str;
 pub type ParseFn = fn(input: &str, opcode: Opcode) -> nom::IResult<&str, Code>;
 pub type FmtFn<Vm> =
     fn(f: &mut std::fmt::Formatter<'_>, code: &Code, vtable: &InstructionTable<Vm>) -> std::fmt::Result;
 pub type RandomValueFn<Vm> = fn(engine: &mut VirtualMachineEngine<Vm>) -> Code;
-pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm);
+pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm) -> Result<(), ExecutionError>;
 
 /// The instruction table allows a single point of entry for the lookup of the main function that every instruction has.
 /// This is used to convert from opcode to executation and back.

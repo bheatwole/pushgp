@@ -50,7 +50,7 @@ impl<T: Clone> Stack<T> {
                 duplicate = Some(top_item.clone());
             }
             if let Some(new_item) = duplicate {
-                self.push(new_item);
+                self.push(new_item)?;
             }
             Ok(())
         } else {
@@ -70,9 +70,9 @@ impl<T: Clone> Stack<T> {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
             let third = self.pop().unwrap();
-            self.push(second);
-            self.push(first);
-            self.push(third);
+            self.push(second)?;
+            self.push(first)?;
+            self.push(third)?;
             Ok(())
         } else {
             Err(ExecutionError::InsufficientInputs)
@@ -100,8 +100,8 @@ impl<T: Clone> Stack<T> {
         if self.stack.len() >= 2 {
             let first = self.pop().unwrap();
             let second = self.pop().unwrap();
-            self.push(first);
-            self.push(second);
+            self.push(first)?;
+            self.push(second)?;
             Ok(())
         } else {
             Err(ExecutionError::InsufficientInputs)
@@ -117,7 +117,7 @@ impl<T: Clone> Stack<T> {
         if self.stack.len() > 0 {
             let vec_index = stack_to_vec(position, self.stack.len());
             let item = self.stack.remove(vec_index);
-            self.push(item);
+            self.push(item)?;
             Ok(())
         } else {
             Err(ExecutionError::InsufficientInputs)
@@ -133,7 +133,7 @@ impl<T: Clone> Stack<T> {
         if self.stack.len() < self.max_len && self.stack.len() > 0 {
             let vec_index = stack_to_vec(position, self.stack.len());
             let duplicate = self.stack.get(vec_index).unwrap().clone();
-            self.push(duplicate);
+            self.push(duplicate)?;
             Ok(())
         } else {
             Err(ExecutionError::InsufficientInputs)
@@ -153,7 +153,7 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Push an item and ensure it got there
-        stack.push(1);
+        assert_eq!(Ok(()), stack.push(1));
         assert_eq!(1, stack.len());
 
         // Pop the item and confirm the stack is empty
@@ -170,13 +170,13 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Duplicating an empty stack has no effect
-        stack.duplicate_top_item();
+        assert_eq!(Ok(()), stack.duplicate_top_item());
         assert_eq!(0, stack.len());
         assert_eq!(None, stack.pop());
 
         // Push and duplicate an item
-        stack.push(1);
-        stack.duplicate_top_item();
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.duplicate_top_item());
         assert_eq!(2, stack.len());
 
         // Confirm the stack contents
@@ -191,9 +191,9 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Add some items
-        stack.push(1);
-        stack.push(2);
-        stack.push(3);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
+        assert_eq!(Ok(()), stack.push(3));
         assert_eq!(3, stack.len());
 
         // Clear the stack and check that it is empty
@@ -208,38 +208,38 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Add two items
-        stack.push(1);
-        stack.push(2);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
         assert_eq!(2, stack.len());
 
         // Rotate requires three items and so should have no effect here
-        stack.rotate();
+        assert_eq!(Ok(()), stack.rotate());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(None, stack.pop());
 
         // Add three items this time
-        stack.push(1);
-        stack.push(2);
-        stack.push(3);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
+        assert_eq!(Ok(()), stack.push(3));
         assert_eq!(3, stack.len());
 
         // Rotate will pull that third item up to the top
-        stack.rotate();
+        assert_eq!(Ok(()), stack.rotate());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(Some(3), stack.pop());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(None, stack.pop());
 
         // Add four items this time
-        stack.push(1);
-        stack.push(2);
-        stack.push(3);
-        stack.push(4);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
+        assert_eq!(Ok(()), stack.push(3));
+        assert_eq!(Ok(()), stack.push(4));
         assert_eq!(4, stack.len());
 
         // Rotate will pull that third item up to the top
-        stack.rotate();
+        assert_eq!(Ok(()), stack.rotate());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(Some(4), stack.pop());
         assert_eq!(Some(3), stack.pop());
@@ -301,33 +301,33 @@ mod tests {
         assert_eq!(0, stack.len());
 
         // Add an item
-        stack.push(1);
+        assert_eq!(Ok(()), stack.push(1));
         assert_eq!(1, stack.len());
 
         // Swap requires two items and so should have no effect here
-        stack.swap();
+        assert_eq!(Ok(()), stack.swap());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(None, stack.pop());
 
         // Add two items this time
-        stack.push(1);
-        stack.push(2);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
         assert_eq!(2, stack.len());
 
         // Swap will exchange the top two items
-        stack.swap();
+        assert_eq!(Ok(()), stack.swap());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(None, stack.pop());
 
         // Add three items this time
-        stack.push(1);
-        stack.push(2);
-        stack.push(3);
+        assert_eq!(Ok(()), stack.push(1));
+        assert_eq!(Ok(()), stack.push(2));
+        assert_eq!(Ok(()), stack.push(3));
         assert_eq!(3, stack.len());
 
         // Swap will exchange just the top two items
-        stack.swap();
+        assert_eq!(Ok(()), stack.swap());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(Some(3), stack.pop());
         assert_eq!(Some(1), stack.pop());

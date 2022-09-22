@@ -115,17 +115,18 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveFloat<Vm>> Instruction<Vm> for F
     }
 
     /// Executing a FloatLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         if let Some(value) = code.get_data().decimal_value() {
-            vm.float().push(value.into())
+            vm.float().push(value.into())?;
         }
+        Ok(())
     }
 }
 
 /// Pushes the cosine of the top item.F
 #[stack_instruction(Float)]
 fn cos(vm: &mut Vm, value: Float) {
-    vm.float().push(Float { inner: Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap() });
+    vm.float().push(Float { inner: Decimal::from_f64(value.to_f64().unwrap().cos()).unwrap() })?;
 }
 
 /// Defines the name on top of the NAME stack as an instruction that will push the top item of the FLOAT stack onto
@@ -139,20 +140,20 @@ fn define(vm: &mut Vm, value: Float, name: Name) {
 /// Pushes the difference of the top two items; that is, the second item minus the top item.
 #[stack_instruction(Float)]
 fn difference(vm: &mut Vm, right: Float, left: Float) {
-    vm.float().push(left - right);
+    vm.float().push(left - right)?;
 }
 
 /// Duplicates the top item on the FLOAT stack. Does not pop its argument (which, if it did, would negate the effect
 /// of the duplication!).
 #[stack_instruction(Float)]
 fn dup(vm: &mut Vm) {
-    vm.float().duplicate_top_item();
+    vm.float().duplicate_top_item()?;
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the top two items are equal, or FALSE otherwise.
 #[stack_instruction(Float)]
 fn equal(vm: &mut Vm, a: Float, b: Float) {
-    vm.bool().push(a == b);
+    vm.bool().push(a == b)?;
 }
 
 /// Empties the FLOAT stack.
@@ -164,37 +165,37 @@ fn flush(vm: &mut Vm) {
 /// Pushes 1.0 if the top BOOLEAN is TRUE, or 0.0 if the top BOOLEAN is FALSE.
 #[stack_instruction(Float)]
 fn from_boolean(vm: &mut Vm, value: Bool) {
-    vm.float().push(if value { Decimal::new(1, 0).into() } else { Decimal::new(0, 0).into() });
+    vm.float().push(if value { Decimal::new(1, 0).into() } else { Decimal::new(0, 0).into() })?;
 }
 
 /// Pushes a floating point version of the top INTEGER.
 #[stack_instruction(Float)]
 fn from_integer(vm: &mut Vm, value: Integer) {
-    vm.float().push(Decimal::new(value, 0).into());
+    vm.float().push(Decimal::new(value, 0).into())?;
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is greater than the top item, or FALSE otherwise.
 #[stack_instruction(Float)]
 fn greater(vm: &mut Vm, right: Float, left: Float) {
-    vm.bool().push(left > right);
+    vm.bool().push(left > right)?;
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item is less than the top item, or FALSE otherwise.
 #[stack_instruction(Float)]
 fn less(vm: &mut Vm, right: Float, left: Float) {
-    vm.bool().push(left < right);
+    vm.bool().push(left < right)?;
 }
 
 /// Pushes the maximum of the top two items.
 #[stack_instruction(Float)]
 fn max(vm: &mut Vm, a: Float, b: Float) {
-    vm.float().push(if a > b { a } else { b });
+    vm.float().push(if a > b { a } else { b })?;
 }
 
 /// Pushes the minimum of the top two items.
 #[stack_instruction(Float)]
 fn min(vm: &mut Vm, a: Float, b: Float) {
-    vm.float().push(if a < b { a } else { b });
+    vm.float().push(if a < b { a } else { b })?;
 }
 
 /// Pushes the second stack item modulo the top stack item. If the top item is zero this acts as a NOOP. The modulus
@@ -204,7 +205,9 @@ fn min(vm: &mut Vm, a: Float, b: Float) {
 #[stack_instruction(Float)]
 fn modulo(vm: &mut Vm, bottom: Float, top: Float) {
     if bottom != Decimal::ZERO.into() {
-        vm.float().push(top % bottom);
+        vm.float().push(top % bottom)?;
+    } else {
+        return Err(ExecutionError::IllegalOperation);
     }
 }
 
@@ -215,7 +218,7 @@ fn pop(vm: &mut Vm, _popped: Float) {}
 /// Pushes the product of the top two items.
 #[stack_instruction(Float)]
 fn product(vm: &mut Vm, right: Float, left: Float) {
-    vm.float().push(left * right);
+    vm.float().push(left * right)?;
 }
 
 /// Pushes the quotient of the top two items; that is, the second item divided by the top item. If the top item is
@@ -223,7 +226,9 @@ fn product(vm: &mut Vm, right: Float, left: Float) {
 #[stack_instruction(Float)]
 fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
     if bottom != Decimal::ZERO.into() {
-        vm.float().push(top / bottom);
+        vm.float().push(top / bottom)?;
+    } else {
+        return Err(ExecutionError::IllegalOperation);
     }
 }
 
@@ -232,69 +237,66 @@ fn quotient(vm: &mut Vm, bottom: Float, top: Float) {
 #[stack_instruction(Float)]
 fn rand(vm: &mut Vm) {
     let random_value = vm.random_value::<FloatLiteralValue>();
-    vm.execute_immediate::<FloatLiteralValue>(random_value);
+    vm.execute_immediate::<FloatLiteralValue>(random_value)?;
 }
 
 /// Rotates the top three items on the FLOAT stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 FLOAT.YANK".
 #[stack_instruction(Float)]
 fn rot(vm: &mut Vm) {
-    vm.float().rotate();
+    vm.float().rotate()?;
 }
 
 /// Inserts the top FLOAT "deep" in the stack, at the position indexed by the top INTEGER.
 #[stack_instruction(Float)]
 fn shove(vm: &mut Vm, position: Integer) {
-    if !vm.float().shove(position) {
-        vm.integer().push(position);
-    }
+    vm.float().shove(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Pushes the sine of the top item.
 #[stack_instruction(Float)]
 fn sin(vm: &mut Vm, value: Float) {
-    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap().into());
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().sin()).unwrap().into())?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
 #[stack_instruction(Float)]
 fn stack_depth(vm: &mut Vm) {
     let len = vm.float().len() as i64;
-    vm.integer().push(len);
+    vm.integer().push(len)?;
 }
 
 /// Pushes the sum of the top two items.
 #[stack_instruction(Float)]
 fn sum(vm: &mut Vm, right: Float, left: Float) {
-    vm.float().push(left + right);
+    vm.float().push(left + right)?;
 }
 
 /// Swaps the top two BOOLEANs.
 #[stack_instruction(Float)]
 fn swap(vm: &mut Vm) {
-    vm.float().swap();
+    vm.float().swap()?;
 }
 
 /// Pushes the tangent of the top item.
 #[stack_instruction(Float)]
 fn tan(vm: &mut Vm, value: Float) {
-    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap().into());
+    vm.float().push(Decimal::from_f64(value.to_f64().unwrap().tan()).unwrap().into())?;
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack.
 #[stack_instruction(Float)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
-    if !vm.float().yank_duplicate(position) {
-        vm.integer().push(position);
-    }
+    vm.float().yank_duplicate(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack.
 #[stack_instruction(Float)]
 fn yank(vm: &mut Vm, position: Integer) {
-    if !vm.float().yank(position) {
-        vm.integer().push(position);
-    }
+    vm.float().yank(position)?;
+    vm.integer().push(position)?;
 }

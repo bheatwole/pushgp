@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use std::collections::{HashMap, HashSet};
+use std::vec;
 use syn::parse::Result;
 use syn::spanned::Spanned;
 use syn::{Block, Error, Expr, FnArg, Ident, Pat, Path, Stmt, Type, TypeParamBound};
@@ -59,7 +60,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
 
     // Parse the fn body
     let body = parse_body(&inner_fn, &mut parse_results)?;
-    let body = wrap_body(body, &parse_results)?;
+    let body = wrap_body(body, &parse_results, quote!(#pushgp).to_string())?;
 
     // Make the bound types
     let bound_types = make_bound_types(
@@ -102,7 +103,7 @@ pub fn handle_macro(requirements: &RequirementList, inner_fn: &mut ItemFn) -> Re
                 #struct_name::new_code(engine)
             }
             #(#docs)*
-            fn execute(code: #pushgp::Code, vm: &mut Vm) #body
+            fn execute(code: #pushgp::Code, vm: &mut Vm) -> Result<(), #pushgp::ExecutionError> #body
         }
     })
 }
@@ -235,10 +236,8 @@ fn find_stack_in_expr(expr: &Expr, parse_results: &mut FunctionParseResults) {
                     if !(method == "engine"
                         || method == "engine_mut"
                         || method == "clear"
-                        || method == "size_of"
                         || method == "run"
                         || method == "next"
-                        || method == "generate_random_instruction"
                         || method == "get_rng"
                         || method == "fmt"
                         || method == "random_value"
@@ -412,7 +411,11 @@ fn expr_path_ident(expr: &Expr) -> Option<Ident> {
     }
 }
 
-fn wrap_body(original_body: Block, parse_results: &FunctionParseResults) -> Result<Block> {
+fn wrap_body(
+    mut original_body: Block,
+    parse_results: &FunctionParseResults,
+    pushgp: String,
+) -> Result<Block> {
     use syn::{BinOp, ExprBinary, ExprIf, Local, PatIdent};
 
     let mut if_conditions: Option<Box<Expr>> = None;
@@ -467,9 +470,13 @@ fn wrap_body(original_body: Block, parse_results: &FunctionParseResults) -> Resu
     }
 
     if let Some(conditions) = if_conditions {
+        // After the 'let' statements that pop all the code, run the main function body
         for stmt in original_body.stmts {
             let_stmts.push(stmt.clone());
         }
+
+        // Finally, return Ok(()).
+        let_stmts.push(Stmt::Expr(syn::parse_str::<Expr>(&format!("Ok(())"))?));
 
         let mut stmts = vec![];
         stmts.push(Stmt::Expr(Expr::If(ExprIf {
@@ -480,7 +487,20 @@ fn wrap_body(original_body: Block, parse_results: &FunctionParseResults) -> Resu
                 brace_token: syn::token::Brace::default(),
                 stmts: let_stmts,
             },
-            else_branch: None,
+            else_branch: Some((
+                syn::token::Else::default(),
+                Box::new(syn::Expr::Block(syn::ExprBlock {
+                    attrs: vec![],
+                    label: None,
+                    block: Block {
+                        brace_token: syn::token::Brace::default(),
+                        stmts: vec![Stmt::Expr(syn::parse_str::<Expr>(&format!(
+                            "Err({}::ExecutionError::InsufficientInputs)",
+                            pushgp
+                        ))?)],
+                    },
+                })),
+            )),
         })));
 
         Ok(Block {
@@ -488,6 +508,10 @@ fn wrap_body(original_body: Block, parse_results: &FunctionParseResults) -> Resu
             stmts,
         })
     } else {
+        // Append an Ok(()) to the end of the original_body
+        original_body
+            .stmts
+            .push(Stmt::Expr(syn::parse_str::<Expr>(&format!("Ok(())"))?));
         Ok(original_body)
     }
 }

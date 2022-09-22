@@ -122,18 +122,19 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
     /// defined, or pushes the Name onto the Name stack if the Name is not defined yet. However the NAME.QUOTE
     /// instruction can alter this behavior by forcing the next Name to be pushed to the Name stack whether or not it
     /// already has a definition.
-    fn execute(code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         if let Some(value) = code.get_data().name_value() {
             if vm.name().should_quote_next_name() {
-                vm.name().push(value.clone());
+                vm.name().push(value.clone())?;
                 vm.name().set_should_quote_next_name(false);
             } else {
                 match vm.engine().definition_for_name(&value) {
-                    None => vm.name().push(value.clone()),
-                    Some(code) => vm.exec().push(code.clone()),
+                    None => vm.name().push(value.clone())?,
+                    Some(code) => vm.exec().push(code.clone())?,
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -141,19 +142,19 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm> + VirtualMachineMustHav
 /// of the duplication!).
 #[stack_instruction(Name)]
 fn dup(vm: &mut Vm) {
-    vm.name().duplicate_top_item();
+    vm.name().duplicate_top_item()?;
 }
 
 /// Pushes TRUE if the top two NAMEs are equal, or FALSE otherwise.
 #[stack_instruction(Name)]
 fn equal(vm: &mut Vm, a: Name, b: Name) {
-    vm.bool().push(a == b);
+    vm.bool().push(a == b)?;
 }
 
 /// Empties the NAME stack.
 #[stack_instruction(Name)]
 fn flush(vm: &mut Vm) {
-    vm.name().clear()
+    vm.name().clear();
 }
 
 /// Pops the NAME stack.
@@ -166,7 +167,7 @@ fn pop(vm: &mut Vm, _popped: Name) {}
 /// name had a definition).
 #[stack_instruction(Name)]
 fn quote(vm: &mut Vm) {
-    vm.name().set_should_quote_next_name(true)
+    vm.name().set_should_quote_next_name(true);
 }
 
 /// Pushes a randomly selected NAME that already has a definition.
@@ -178,7 +179,7 @@ fn rand_bound_name(vm: &mut Vm) {
     if defined_names.len() > 0 {
         let pick: usize = vm.get_rng().gen_range(0..defined_names.len());
         let random_value = defined_names[pick].clone();
-        vm.name().push(random_value);
+        vm.name().push(random_value)?;
     }
 }
 
@@ -190,52 +191,50 @@ fn rand(vm: &mut Vm) {
     // Executing this random value literal would alter the 'should_quote_next_name' value, so save and restore it
     let should_quote = vm.name().should_quote_next_name();
     vm.name().set_should_quote_next_name(false);
-    vm.execute_immediate::<NameLiteralValue>(random_value);
+    let result = vm.execute_immediate::<NameLiteralValue>(random_value);
     vm.name().set_should_quote_next_name(should_quote);
+    result?;
 }
 
 /// Rotates the top three items on the NAME stack, pulling the third item out and pushing it on top. This is
 /// equivalent to "2 NAME.YANK".
 #[stack_instruction(Name)]
 fn rot(vm: &mut Vm) {
-    vm.name().rotate();
+    vm.name().rotate()?;
 }
 
 /// Inserts the top NAME "deep" in the stack, at the position indexed by the top INTEGER.
 #[stack_instruction(Name)]
 fn shove(vm: &mut Vm, position: Integer) {
-    if !vm.name().shove(position) {
-        vm.integer().push(position);
-    }
+    vm.name().shove(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
 #[stack_instruction(Name)]
 fn stack_depth(vm: &mut Vm) {
     let len = vm.name().len() as i64;
-    vm.integer().push(len);
+    vm.integer().push(len)?;
 }
 
 /// Swaps the top two NAMEs.
 #[stack_instruction(Name)]
 fn swap(vm: &mut Vm) {
-    vm.name().swap();
+    vm.name().swap()?;
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack.
 #[stack_instruction(Name)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
-    if !vm.name().yank_duplicate(position) {
-        vm.integer().push(position);
-    }
+    vm.name().yank_duplicate(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack.
 #[stack_instruction(Name)]
 fn yank(vm: &mut Vm, position: Integer) {
-    if !vm.name().yank(position) {
-        vm.integer().push(position);
-    }
+    vm.name().yank(position)?;
+    vm.integer().push(position)?;
 }

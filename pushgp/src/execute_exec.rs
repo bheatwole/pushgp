@@ -27,8 +27,8 @@ fn do_n_count(vm: &mut Vm, code: Exec, count: Integer) {
     // NOOP if count <= 0
     if count <= 0 {
         // Put the items we popped back to make a NOOP
-        vm.exec().push(code);
-        vm.integer().push(count);
+        vm.exec().push(code)?;
+        vm.integer().push(count)?;
     } else {
         // Turn into DoNRange with (Count - 1) as destination
         let next = Code::new_list(vec![
@@ -37,7 +37,7 @@ fn do_n_count(vm: &mut Vm, code: Exec, count: Integer) {
             ExecDoNRange::new_code(vm),
             code,
         ]);
-        vm.exec().push(next);
+        vm.exec().push(next)?;
     }
 }
 
@@ -65,14 +65,14 @@ fn do_n_range(vm: &mut Vm, code: Exec, dest: Integer, cur: Integer) {
             ExecDoNRange::new_code(vm),
             code.clone(),
         ]);
-        vm.exec().push(next);
+        vm.exec().push(next)?;
     }
 
     // Push the current index onto the int stack so its accessible in the loop
-    vm.integer().push(cur);
+    vm.integer().push(cur)?;
 
     // Push the code to run onto the exec stack
-    vm.exec().push(code);
+    vm.exec().push(code)?;
 }
 
 /// Like EXEC.DO*COUNT but does not push the loop counter. This should be implemented as a macro that expands into
@@ -83,8 +83,8 @@ fn do_n_range(vm: &mut Vm, code: Exec, dest: Integer, cur: Integer) {
 fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
     // NOOP if count <= 0
     if count <= 0 {
-        vm.exec().push(code);
-        vm.integer().push(count);
+        vm.exec().push(code)?;
+        vm.integer().push(count)?;
     } else {
         // The difference between Count and Times is that the 'current index' is not available to
         // the loop body. Pop that value first
@@ -97,7 +97,7 @@ fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
             ExecDoNRange::new_code(vm),
             code,
         ]);
-        vm.exec().push(next);
+        vm.exec().push(next)?;
     }
 }
 
@@ -105,13 +105,13 @@ fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
 /// of the duplication!). This may be thought of as a "DO TWICE" instruction.
 #[stack_instruction(Exec)]
 fn dup(vm: &mut Vm) {
-    vm.exec().duplicate_top_item();
+    vm.exec().duplicate_top_item()?;
 }
 
 /// Pushes TRUE if the top two items on the EXEC stack are equal, or FALSE otherwise.
 #[stack_instruction(Exec)]
 fn equal(vm: &mut Vm, a: Exec, b: Exec) {
-    vm.bool().push(a == b);
+    vm.bool().push(a == b)?;
 }
 
 /// Empties the EXEC stack. This may be thought of as a "HALT" instruction.
@@ -126,13 +126,13 @@ fn flush(vm: &mut Vm) {
 /// least two items on the EXEC stack and one item on the BOOLEAN stack.
 #[stack_instruction(Exec)]
 fn _if(vm: &mut Vm, true_branch: Exec, false_branch: Exec, switch_on: Bool) {
-    vm.exec().push(if switch_on { true_branch } else { false_branch });
+    vm.exec().push(if switch_on { true_branch } else { false_branch })?;
 }
 
 /// The Push implementation of the "K combinator". Removes the second item on the EXEC stack.
 #[stack_instruction(Exec)]
 fn k(vm: &mut Vm, keep: Exec, _discard: Exec) {
-    vm.exec().push(keep);
+    vm.exec().push(keep)?;
 }
 
 /// Pops the EXEC stack. This may be thought of as a "DONT" instruction.
@@ -143,29 +143,28 @@ fn pop(vm: &mut Vm, _popped: Exec) {}
 /// equivalent to "2 EXEC.YANK".
 #[stack_instruction(Exec)]
 fn rot(vm: &mut Vm) {
-    vm.exec().rotate();
+    vm.exec().rotate()?;
 }
 
 /// Inserts the top EXEC item "deep" in the stack, at the position indexed by the top INTEGER. This may be thought
 /// of as a "DO LATER" instruction.
 #[stack_instruction(Exec)]
 fn shove(vm: &mut Vm, position: Integer) {
-    if !vm.exec().shove(position) {
-        vm.integer().push(position);
-    }
+    vm.exec().shove(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
 #[stack_instruction(Exec)]
 fn stack_depth(vm: &mut Vm) {
     let len = vm.exec().len() as i64;
-    vm.integer().push(len);
+    vm.integer().push(len)?;
 }
 
 /// Swaps the top two items on the EXEC stack.
 #[stack_instruction(Exec)]
 fn swap(vm: &mut Vm) {
-    vm.exec().swap();
+    vm.exec().swap()?;
 }
 
 /// The Push implementation of the "S combinator". Pops 3 items from the EXEC stack, which we will call A, B, and C
@@ -173,27 +172,25 @@ fn swap(vm: &mut Vm) {
 /// another instance of C, followed by another instance of A.
 #[stack_instruction(Exec)]
 fn s(vm: &mut Vm, a: Exec, b: Exec, c: Exec) {
-    vm.exec().push(Code::new_list(vec![b, c.clone()]));
-    vm.exec().push(c);
-    vm.exec().push(a);
+    vm.exec().push(Code::new_list(vec![b, c.clone()]))?;
+    vm.exec().push(c)?;
+    vm.exec().push(a)?;
 }
 
 /// Pushes a copy of an indexed item "deep" in the stack onto the top of the stack, without removing the deep item.
 /// The index is taken from the INTEGER stack.
 #[stack_instruction(Exec)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
-    if !vm.exec().yank_duplicate(position) {
-        vm.integer().push(position);
-    }
+    vm.exec().yank_duplicate(position)?;
+    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
 /// INTEGER stack. This may be thought of as a "DO SOONER" instruction.
 #[stack_instruction(Exec)]
 fn yank(vm: &mut Vm, position: Integer) {
-    if !vm.exec().yank(position) {
-        vm.integer().push(position);
-    }
+    vm.exec().yank(position)?;
+    vm.integer().push(position)?;
 }
 
 /// The Push implementation of the "Y combinator". Inserts beneath the top item of the EXEC stack a new item of the
@@ -203,6 +200,6 @@ fn y(vm: &mut Vm, repeat: Exec) {
     // Construct the looping code
     let next_exec = Code::new_list(vec![ExecY::new_code(vm), repeat.clone()]);
     // Push them back so that we DO and the DO AGAIN
-    vm.exec().push(next_exec);
-    vm.exec().push(repeat);
+    vm.exec().push(next_exec)?;
+    vm.exec().push(repeat)?;
 }

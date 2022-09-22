@@ -26,5 +26,5 @@ pub trait Instruction<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>>: Stat
 
     /// Every instruction must be able to execute itself using a Code object to store data. The instruction must never
     /// panic and may only update the state of the virtual machine. The 'Code' object is consumed by this call.
-    fn execute(code: Code, vm: &mut Vm);
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError>;
 }

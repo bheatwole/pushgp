@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(2, stack.len());
 
         // Rotate requires three items and so should have no effect here
-        assert_eq!(Ok(()), stack.rotate());
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.rotate());
         assert_eq!(Some(2), stack.pop());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(None, stack.pop());
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(1, stack.len());
 
         // Swap requires two items and so should have no effect here
-        assert_eq!(Ok(()), stack.swap());
+        assert_eq!(Err(ExecutionError::InsufficientInputs), stack.swap());
         assert_eq!(Some(1), stack.pop());
         assert_eq!(None, stack.pop());
 

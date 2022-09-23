@@ -52,7 +52,10 @@ impl<'a, P: CodeParser> Parser<'a, P> {
         }
         (input, _) = end_list(input)?;
 
-        Ok((input, Code::new_list(list)))
+        match Code::new_list(list) {
+            Err(_) => Err(nom::Err::Error(nom::error::make_error(input, nom::error::ErrorKind::Verify))),
+            Ok(code) => Ok((input, code)),
+        }
     }
 }
 
@@ -208,15 +211,15 @@ mod tests {
         vtable.add_instruction::<IntegerLiteralValue>();
         let parser = Parser::new(&vtable);
 
-        assert_eq!(parser.must_parse("( )"), Code::new_list(vec![]));
+        assert_eq!(parser.must_parse("( )"), Code::new_list(vec![]).unwrap());
 
         let expected = Code::new_list(vec![
             BoolLiteralValue::new_code(&vtable, true),
             IntegerLiteralValue::new_code(&vtable, 123),
-        ]);
+        ]).unwrap();
         assert_eq!(parser.must_parse("( TRUE 123 )"), expected);
 
-        let expected = Code::new_list(vec![BoolAnd::new_code(&vtable)]);
+        let expected = Code::new_list(vec![BoolAnd::new_code(&vtable)]).unwrap();
         assert_eq!(parser.must_parse("( BOOL.AND )"), expected);
 
         // no trailing paren should fail
@@ -239,10 +242,10 @@ mod tests {
                 BoolLiteralValue::new_code(&vtable, true),
                 FloatLiteralValue::new_code(&vtable, Decimal::new(12345, 6).into()),
                 IntegerLiteralValue::new_code(&vtable, -12784),
-            ]),
+            ]).unwrap(),
             BoolAnd::new_code(&vtable),
             NameLiteralValue::new_code(&vtable, "TRUENAME".into()),
-        ]);
+        ]).unwrap();
         assert_eq!(parser.must_parse(code), expected);
     }
 }

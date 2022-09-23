@@ -149,7 +149,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// Creates a newly-generated random chunk of code. The limit for the size of the expression is taken is the points
     /// parameters; to ensure that it is in the appropriate range this is taken modulo the value of the
     /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
-    pub fn rand_code(&mut self, points: Option<usize>) -> Code {
+    pub fn rand_code(&mut self, points: Option<usize>) -> Result<Code, ExecutionError> {
         let shape = self.generate_random_code_shape(points);
         self.fill_code_shape(shape)
     }
@@ -159,7 +159,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn rand_child<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Individual<R> {
+    pub fn rand_child<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Result<Individual<R>, ExecutionError> {
         match self.select_genetic_operation() {
             GeneticOperation::Mutation => self.mutate(left),
             GeneticOperation::Crossover => self.crossover(left, right),
@@ -170,17 +170,17 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     /// size, and replacing the selected point with the new code.
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code.
-    pub fn mutate<R: RunResult>(&mut self, parent: &Individual<R>) -> Individual<R> {
+    pub fn mutate<R: RunResult>(&mut self, parent: &Individual<R>) -> Result<Individual<R>, ExecutionError> {
         let (selected_point, replace_shape) = self.select_operation_point_and_shape(parent.get_code());
-        let replacement_code = self.fill_code_shape(replace_shape);
-        let (child_code, _) = parent.get_code().replace_point(selected_point, &replacement_code);
+        let replacement_code = self.fill_code_shape(replace_shape)?;
+        let (child_code, _) = parent.get_code().replace_point(selected_point, &replacement_code)?;
         let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
         // Ensure the individuals defined_names are correct
         let names = parent.get_code().extract_names();
         child.set_specific_defined_names(&names[..], parent.get_defined_names());
 
-        child
+        Ok(child)
     }
 
     /// Produces a random child that is a crossover of both parents. A random point from the left tree will be selected
@@ -189,12 +189,12 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn crossover<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Individual<R> {
+    pub fn crossover<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Result<Individual<R>, ExecutionError> {
         let left_selected_point = self.select_random_point(left.get_code());
         let left_code = extract_known_point(left.get_code(), left_selected_point);
         let right_selected_point = self.select_random_point(right.get_code());
 
-        let (child_code, _) = right.get_code().replace_point(right_selected_point, &left_code);
+        let (child_code, _) = right.get_code().replace_point(right_selected_point, &left_code)?;
         let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
         // Ensure the individuals defined_names are correct. Do the left parent last so that those defined names will
@@ -204,7 +204,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         let names = left.get_code().extract_names();
         child.set_specific_defined_names(&names[..], left.get_defined_names());
 
-        child
+        Ok(child)
     }
 
     fn select_random_point(&mut self, code: &Code) -> i64 {
@@ -224,7 +224,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     }
 
     // Returns one random atom
-    fn fill_code_shape(&mut self, shape: CodeShape) -> Code {
+    fn fill_code_shape(&mut self, shape: CodeShape) -> Result<Code, ExecutionError> {
         match shape {
             CodeShape::Atom => {
                 // Determine how many total possibilities there are. This shifts depending upon how many defined_names we have.
@@ -240,16 +240,16 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
 
                 // Is it a defined name? For VMs that do not use the name stack, this always be zero
                 if pick < defined_names_total {
-                    self.random_defined_name().unwrap()
+                    Ok(self.random_defined_name().unwrap())
                 } else {
                     // Must be an instruction
-                    self.generate_random_instruction()
+                    Ok(self.generate_random_instruction())
                 }
             }
             CodeShape::List(mut list) => {
                 let mut code = vec![];
                 for s in list.drain(..) {
-                    code.push(self.fill_code_shape(s));
+                    code.push(self.fill_code_shape(s)?);
                 }
                 Code::new_list(code)
             }

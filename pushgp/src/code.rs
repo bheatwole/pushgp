@@ -1,11 +1,13 @@
 use fnv::FnvHashMap;
 
 use crate::{
-    Data, Name, VirtualMachine, VirtualMachineMustHaveBool, VirtualMachineMustHaveCode, VirtualMachineMustHaveExec,
-    VirtualMachineMustHaveFloat, VirtualMachineMustHaveInteger, VirtualMachineMustHaveName,
+    Data, ExecutionError, Name, VirtualMachine, VirtualMachineMustHaveBool, VirtualMachineMustHaveCode,
+    VirtualMachineMustHaveExec, VirtualMachineMustHaveFloat, VirtualMachineMustHaveInteger, VirtualMachineMustHaveName,
 };
 
 pub type Opcode = u32;
+
+pub const MAX_POINTS_IN_CODE: i64 = 1_000;
 
 // Profiling shows that a huge amount of time is spent in a malloc/free cycle created because Code<Vm> is a boxed (heap-
 // allocated) object. The trait object allowed us two things that need to be replaced to improve this significant
@@ -28,8 +30,13 @@ impl Code {
     }
 
     /// Convenience method for constructing a new list
-    pub fn new_list(items: Vec<Code>) -> Code {
-        Code::new(0, items.into())
+    pub fn new_list(items: Vec<Code>) -> Result<Code, ExecutionError> {
+        let code = Code::new(0, items.into());
+        if code.points() > MAX_POINTS_IN_CODE {
+            Err(ExecutionError::OutOfMemory)
+        } else {
+            Ok(code)
+        }
     }
 
     pub fn get_opcode(&self) -> Opcode {
@@ -153,25 +160,29 @@ impl Code {
 
     /// Descends to the specified point in the code tree and swaps the list or atom there with the specified replacement
     /// code. If the replacement point is greater than the number of points in the Code, this has no effect.
-    pub fn replace_point(&self, mut point: i64, replace_with: &Code) -> (Code, i64) {
+    pub fn replace_point(&self, mut point: i64, replace_with: &Code) -> Result<(Code, i64), ExecutionError> {
         // If this is the replacement point, return the replacement
         if 0 == point {
-            (replace_with.clone(), 1)
+            Ok((replace_with.clone(), 1))
         } else if self.is_atom() || point < 1 {
             // If this is an atom or we've performed the replacement, everything gets returned as-is
-            (self.clone(), 1)
+            Ok((self.clone(), 1))
         } else {
             // We need to track both the number of points used and the points remaining until replacement.
             let mut next_list = vec![];
             let mut total_used = 1;
             point -= 1;
             for item in self.data.code_iter().unwrap() {
-                let (next, used) = item.replace_point(point, replace_with);
+                let (next, used) = item.replace_point(point, replace_with)?;
                 point -= used;
                 total_used += used;
                 next_list.push(next);
+
+                if total_used > MAX_POINTS_IN_CODE {
+                    return Err(ExecutionError::OutOfMemory);
+                }
             }
-            (Code::new(0, Data::CodeList(next_list)), total_used)
+            Ok((Code::new(0, Data::CodeList(next_list)), total_used))
         }
     }
 
@@ -239,7 +250,14 @@ impl Code {
     }
 
     /// Replaces the specified search code with the specified replacement code
-    pub fn replace(&self, look_for: &Code, replace_with: &Code) -> Code {
+    pub fn replace(&self, look_for: &Code, replace_with: &Code) -> Result<Code, ExecutionError> {
+        if self.points() - look_for.points() + replace_with.points() > MAX_POINTS_IN_CODE {
+            return Err(ExecutionError::OutOfMemory);
+        }
+        Ok(self.inner_replace(look_for, replace_with))
+    }
+
+    fn inner_replace(&self, look_for: &Code, replace_with: &Code) -> Code {
         if self == look_for {
             replace_with.clone()
         } else if self.is_atom() {
@@ -247,7 +265,7 @@ impl Code {
         } else {
             let mut next_list = vec![];
             for item in self.data.code_iter().unwrap() {
-                next_list.push(item.replace(look_for, replace_with));
+                next_list.push(item.inner_replace(look_for, replace_with));
             }
             Code::new(0, Data::CodeList(next_list))
         }
@@ -481,7 +499,7 @@ mod tests {
     #[test]
     fn code_display() {
         let vm = new_base_vm();
-        let code = Code::new_list(vec![]);
+        let code = Code::new_list(vec![]).unwrap();
         assert_eq!("( )", format!("{}", code.for_display(&vm)));
 
         let (_, code) = vm.engine().parse("( ( TRUE 0.012345 -12784 a_name ) BOOL.AND )").unwrap();
@@ -511,11 +529,11 @@ mod tests {
         let vm = new_base_vm();
         let (_, code) = vm.engine().parse("( A ( B ) )").unwrap();
         let replace_with = vm.engine().must_parse("C");
-        assert_eq!(&code.replace_point(0, &replace_with).0, &vm.engine().must_parse("C"));
-        assert_eq!(&code.replace_point(1, &replace_with).0, &vm.engine().must_parse("( C ( B ) )"));
-        assert_eq!(&code.replace_point(2, &replace_with).0, &vm.engine().must_parse("( A C )"));
-        assert_eq!(&code.replace_point(3, &replace_with).0, &vm.engine().must_parse("( A ( C ) )"));
-        assert_eq!(&code.replace_point(4, &replace_with).0, &vm.engine().must_parse("( A ( B ) )"));
+        assert_eq!(&code.replace_point(0, &replace_with).unwrap().0, &vm.engine().must_parse("C"));
+        assert_eq!(&code.replace_point(1, &replace_with).unwrap().0, &vm.engine().must_parse("( C ( B ) )"));
+        assert_eq!(&code.replace_point(2, &replace_with).unwrap().0, &vm.engine().must_parse("( A C )"));
+        assert_eq!(&code.replace_point(3, &replace_with).unwrap().0, &vm.engine().must_parse("( A ( C ) )"));
+        assert_eq!(&code.replace_point(4, &replace_with).unwrap().0, &vm.engine().must_parse("( A ( B ) )"));
     }
 
     #[test]
@@ -577,31 +595,42 @@ mod tests {
         let vm = new_base_vm();
         assert_eq!(
             &vm.engine().must_parse("B"),
-            &vm.engine().must_parse("A").replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B"))
+            &vm.engine().must_parse("A").replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B")).unwrap()
         );
         assert_eq!(
             &vm.engine().must_parse("( B )"),
-            &vm.engine().must_parse("( A )").replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B"))
+            &vm.engine()
+                .must_parse("( A )")
+                .replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B"))
+                .unwrap()
         );
         assert_eq!(
             &vm.engine().must_parse("( B B )"),
-            &vm.engine().must_parse("( A A )").replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B"))
+            &vm.engine()
+                .must_parse("( A A )")
+                .replace(&vm.engine().must_parse("A"), &vm.engine().must_parse("B"))
+                .unwrap()
         );
         assert_eq!(
             &vm.engine().must_parse("B"),
-            &vm.engine().must_parse("( A )").replace(&vm.engine().must_parse("( A )"), &vm.engine().must_parse("B"))
+            &vm.engine()
+                .must_parse("( A )")
+                .replace(&vm.engine().must_parse("( A )"), &vm.engine().must_parse("B"))
+                .unwrap()
         );
         assert_eq!(
             &vm.engine().must_parse("( B )"),
             &vm.engine()
                 .must_parse("( ( A ) )")
                 .replace(&vm.engine().must_parse("( A )"), &vm.engine().must_parse("B"))
+                .unwrap()
         );
         assert_eq!(
             &vm.engine().must_parse("( A A ( A A ) )"),
             &vm.engine()
                 .must_parse("( A ( B ) ( A ( B ) ) )")
                 .replace(&vm.engine().must_parse("( B )"), &vm.engine().must_parse("A"))
+                .unwrap()
         );
     }
 }

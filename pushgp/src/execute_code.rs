@@ -12,7 +12,7 @@ fn append(vm: &mut Vm, src: Code, dst: Code) {
     let src = src.to_list();
     let mut dst = dst.to_list();
     dst.extend_from_slice(&src[..]);
-    vm.code().push(Code::new_list(dst))?;
+    vm.code().push(Code::new_list(dst)?)?;
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the top piece of code is a single instruction or a literal, and FALSE
@@ -53,12 +53,12 @@ fn cdr(vm: &mut Vm, code: Code) {
         if code.len() > 1 {
             let mut as_vec = code.to_list();
             as_vec.remove(0);
-            Code::new_list(as_vec)
+            Code::new_list(as_vec)?
         } else {
-            Code::new_list(vec![])
+            Code::new_list(vec![])?
         }
     } else {
-        Code::new_list(vec![])
+        Code::new_list(vec![])?
     };
     vm.code().push(rest)?;
 }
@@ -70,7 +70,7 @@ fn cdr(vm: &mut Vm, code: Code) {
 fn cons(vm: &mut Vm, top: Code, push_first: Code) {
     let mut as_vec = top.to_list();
     as_vec.insert(0, push_first);
-    vm.code().push(Code::new_list(as_vec))?;
+    vm.code().push(Code::new_list(as_vec)?)?;
 }
 
 /// Pushes the "container" of the second CODE stack item within the first CODE stack item onto the CODE stack. If
@@ -164,7 +164,7 @@ fn do_n_count(vm: &mut Vm, code: Code, count: Integer) {
             CodeQuote::new_code(vm),
             code,
             CodeDoNRange::new_code(vm),
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 }
@@ -192,7 +192,7 @@ fn do_n_range(vm: &mut Vm, code: Code, dest: Integer, cur: Integer) {
             CodeQuote::new_code(vm),
             code.clone(),
             CodeDoNRange::new_code(vm),
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 
@@ -216,7 +216,7 @@ fn do_n_times(vm: &mut Vm, code: Code, count: Integer) {
     } else {
         // The difference between Count and Times is that the 'current index' is not available to
         // the loop body. Pop that value first
-        let code = Code::new_list(vec![IntegerPop::new_code(vm), code]);
+        let code = Code::new_list(vec![IntegerPop::new_code(vm), code])?;
 
         // Turn into DoNRange with (Count - 1) as destination
         let next = Code::new_list(vec![
@@ -225,7 +225,7 @@ fn do_n_times(vm: &mut Vm, code: Code, count: Integer) {
             CodeQuote::new_code(vm),
             code,
             CodeDoNRange::new_code(vm),
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 }
@@ -331,7 +331,7 @@ fn _if(vm: &mut Vm, false_branch: Code, true_branch: Code, switch_on: Bool) {
 fn insert(vm: &mut Vm, search_in: Code, replace_with: Code, point: Integer) {
     let total_points = search_in.points();
     let point = point.saturating_abs() % total_points;
-    vm.code().push(search_in.replace_point(point, &replace_with).0)?;
+    vm.code().push(search_in.replace_point(point, &replace_with)?.0)?;
 }
 
 /// Pushes the length of the top item on the CODE stack onto the INTEGER stack. If the top item is not a list then
@@ -345,7 +345,7 @@ fn length(vm: &mut Vm, code: Code) {
 /// Pushes a list of the top two items of the CODE stack onto the CODE stack.
 #[stack_instruction(Code)]
 fn list(vm: &mut Vm, a: Code, b: Code) {
-    vm.code().push(Code::new_list(vec![b, a]))?;
+    vm.code().push(Code::new_list(vec![b, a])?)?;
 }
 
 /// Pushes TRUE onto the BOOLEAN stack if the second item of the CODE stack is a member of the first item (which is
@@ -368,11 +368,11 @@ fn nth_cdr(vm: &mut Vm, index: Integer, list: Code) {
     let index = index.saturating_abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
-        vm.code().push(Code::new_list(list))?;
+        vm.code().push(Code::new_list(list)?)?;
     } else {
         let index = index % list.len();
         list.remove(index);
-        vm.code().push(Code::new_list(list))?;
+        vm.code().push(Code::new_list(list)?)?;
     }
 }
 
@@ -384,7 +384,7 @@ fn nth(vm: &mut Vm, index: Integer, list: Code) {
     let index = index.saturating_abs() as usize;
     let mut list = list.to_list();
     if 0 == list.len() {
-        vm.code().push(Code::new_list(list))?;
+        vm.code().push(Code::new_list(list)?)?;
     } else {
         let index = index % list.len();
         list.truncate(index + 1);
@@ -425,7 +425,7 @@ fn quote(vm: &mut Vm, top_exec: Exec) {
 /// MAX-POINTS-IN-RANDOM-EXPRESSIONS parameter and the absolute value of the result is used.
 #[stack_instruction(Code, Name)]
 fn rand(vm: &mut Vm, points: Integer) {
-    let code = vm.engine_mut().rand_code(Some(points as usize));
+    let code = vm.engine_mut().rand_code(Some(points as usize))?;
     vm.code().push(code)?;
 }
 
@@ -459,7 +459,7 @@ fn stack_depth(vm: &mut Vm) {
 /// Pushes the result of substituting the third item on the code stack for the second item in the first item.
 #[stack_instruction(Code)]
 fn substitute(vm: &mut Vm, look_in: Code, look_for: Code, replace_with: Code) {
-    vm.code().push(look_in.replace(&look_for, &replace_with))?;
+    vm.code().push(look_in.replace(&look_for, &replace_with)?)?;
 }
 
 /// Swaps the top two pieces of CODE.

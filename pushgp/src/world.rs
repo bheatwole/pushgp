@@ -5,6 +5,8 @@ use std::vec;
 
 pub type IslandId = usize;
 
+const RETRIES: usize = 5;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct WorldConfiguration {
     /// The number of individuals on each island. Before running a generation, the island will be filled with the
@@ -143,18 +145,22 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
                 self.vm.engine_mut().clear();
 
                 let next = if island.len() == 0 {
-                    let code = self.vm.engine_mut().rand_code(None);
-                    Individual::new(code, FnvHashMap::default(), None)
+                    run_with_retry(|| {
+                        let code = self.vm.engine_mut().rand_code(None)?;
+                        Ok(Individual::new(code, FnvHashMap::default(), None))
+                    }).expect("Unable to generate new code that doesn't use excessive number of Code in list. Check configuration.")
                 } else {
                     if elite_remaining > 0 {
                         elite_remaining -= 1;
                         island.select_one_individual(self.config.select_as_elite, self.vm.get_rng()).unwrap().clone()
                     } else {
-                        let left =
-                            island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
-                        let right =
-                            island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
-                        self.vm.engine_mut().rand_child(left, right)
+                        run_with_retry(|| {
+                            let left =
+                                island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                            let right =
+                                island.select_one_individual(self.config.select_as_parent, self.vm.get_rng()).unwrap();
+                            self.vm.engine_mut().rand_child(left, right)
+                        }).expect("Unable to generate child that doesn't use excessive number of Code in list. Check configuration.")
                     }
                 };
                 island.add_individual_to_future_generation(next);
@@ -376,4 +382,23 @@ impl<R: RunResult, Vm: VirtualMachine> World<R, Vm> {
 fn instruction_frequency(search_for: &str, instructions: &FnvHashMap<&'static str, usize>, max: usize) -> f64 {
     let count = instructions.get(search_for).unwrap_or(&0);
     (*count) as f64 / max as f64
+}
+
+fn run_with_retry<R: RunResult, F: FnMut() -> Result<Individual<R>, ExecutionError>>(
+    mut func: F,
+) -> Option<Individual<R>> {
+    let mut retries = RETRIES;
+    let mut code = None;
+    while retries > 0 {
+        retries -= 1;
+        match func() {
+            Ok(rand_code) => {
+                code = Some(rand_code);
+                break;
+            }
+            Err(_) => {}
+        }
+    }
+
+    code
 }

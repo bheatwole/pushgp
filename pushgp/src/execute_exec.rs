@@ -36,7 +36,7 @@ fn do_n_count(vm: &mut Vm, code: Exec, count: Integer) {
             IntegerLiteralValue::new_code(vm, count - 1),
             ExecDoNRange::new_code(vm),
             code,
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 }
@@ -64,7 +64,7 @@ fn do_n_range(vm: &mut Vm, code: Exec, dest: Integer, cur: Integer) {
             IntegerLiteralValue::new_code(vm, dest),
             ExecDoNRange::new_code(vm),
             code.clone(),
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 
@@ -88,7 +88,7 @@ fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
     } else {
         // The difference between Count and Times is that the 'current index' is not available to
         // the loop body. Pop that value first
-        let code = Code::new_list(vec![IntegerPop::new_code(vm), code]);
+        let code = Code::new_list(vec![IntegerPop::new_code(vm), code])?;
 
         // Turn into DoNRange with (Count - 1) as destination
         let next = Code::new_list(vec![
@@ -96,7 +96,7 @@ fn do_n_times(vm: &mut Vm, code: Exec, count: Integer) {
             IntegerLiteralValue::new_code(vm, count - 1),
             ExecDoNRange::new_code(vm),
             code,
-        ]);
+        ])?;
         vm.exec().push(next)?;
     }
 }
@@ -171,7 +171,7 @@ fn swap(vm: &mut Vm) {
 /// another instance of C, followed by another instance of A.
 #[stack_instruction(Exec)]
 fn s(vm: &mut Vm, a: Exec, b: Exec, c: Exec) {
-    vm.exec().push(Code::new_list(vec![b, c.clone()]))?;
+    vm.exec().push(Code::new_list(vec![b, c.clone()])?)?;
     vm.exec().push(c)?;
     vm.exec().push(a)?;
 }
@@ -195,7 +195,7 @@ fn yank(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Exec)]
 fn y(vm: &mut Vm, repeat: Exec) {
     // Construct the looping code
-    let next_exec = Code::new_list(vec![ExecY::new_code(vm), repeat.clone()]);
+    let next_exec = Code::new_list(vec![ExecY::new_code(vm), repeat.clone()])?;
     // Push them back so that we DO and the DO AGAIN
     vm.exec().push(next_exec)?;
     vm.exec().push(repeat)?;

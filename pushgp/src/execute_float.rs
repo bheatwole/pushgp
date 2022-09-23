@@ -251,7 +251,6 @@ fn rot(vm: &mut Vm) {
 #[stack_instruction(Float)]
 fn shove(vm: &mut Vm, position: Integer) {
     vm.float().shove(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Pushes the sine of the top item.
@@ -290,7 +289,6 @@ fn tan(vm: &mut Vm, value: Float) {
 #[stack_instruction(Float)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
     vm.float().yank_duplicate(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
@@ -298,5 +296,4 @@ fn yank_dup(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Float)]
 fn yank(vm: &mut Vm, position: Integer) {
     vm.float().yank(position)?;
-    vm.integer().push(position)?;
 }

@@ -151,7 +151,6 @@ fn rot(vm: &mut Vm) {
 #[stack_instruction(Exec)]
 fn shove(vm: &mut Vm, position: Integer) {
     vm.exec().shove(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack.
@@ -182,7 +181,6 @@ fn s(vm: &mut Vm, a: Exec, b: Exec, c: Exec) {
 #[stack_instruction(Exec)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
     vm.exec().yank_duplicate(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
@@ -190,7 +188,6 @@ fn yank_dup(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Exec)]
 fn yank(vm: &mut Vm, position: Integer) {
     vm.exec().yank(position)?;
-    vm.integer().push(position)?;
 }
 
 /// The Push implementation of the "Y combinator". Inserts beneath the top item of the EXEC stack a new item of the

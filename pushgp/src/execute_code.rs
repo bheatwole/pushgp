@@ -440,7 +440,6 @@ fn rot(vm: &mut Vm) {
 #[stack_instruction(Code)]
 fn shove(vm: &mut Vm, position: Integer) {
     vm.code().shove(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Pushes the number of "points" in the top piece of CODE onto the INTEGER stack. Each instruction, literal, and
@@ -474,7 +473,6 @@ fn swap(vm: &mut Vm) {
 #[stack_instruction(Code)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
     vm.code().yank_duplicate(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from the
@@ -482,5 +480,4 @@ fn yank_dup(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Code)]
 fn yank(vm: &mut Vm, position: Integer) {
     vm.code().yank(position)?;
-    vm.integer().push(position)?;
 }

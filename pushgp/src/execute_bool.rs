@@ -129,7 +129,6 @@ fn rot(vm: &mut Vm) {
 #[stack_instruction(Bool)]
 fn shove(vm: &mut Vm, position: Integer) {
     vm.bool().shove(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Pushes the stack depth onto the INTEGER stack
@@ -150,7 +149,6 @@ fn swap(vm: &mut Vm) {
 #[stack_instruction(Bool)]
 fn yank_dup(vm: &mut Vm, position: Integer) {
     vm.bool().yank_duplicate(position)?;
-    vm.integer().push(position)?;
 }
 
 /// Removes an indexed item from "deep" in the stack and pushes it on top of the stack. The index is taken from theF
@@ -158,5 +156,4 @@ fn yank_dup(vm: &mut Vm, position: Integer) {
 #[stack_instruction(Bool)]
 fn yank(vm: &mut Vm, position: Integer) {
     vm.bool().yank(position)?;
-    vm.integer().push(position)?;
 }

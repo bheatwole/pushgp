@@ -16,32 +16,41 @@ pub trait VirtualMachine:
     /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> ExitStatus {
         // trace!("{:?}", self);
-        let mut total_count = 0;
-        while let Some(count) = self.next() {
-            total_count += count;
-            if total_count >= max {
-                return ExitStatus::ExceededInstructionCount;
+        let mut stats = ExitStats {
+            total_instruction_count: 0,
+            total_noop_count: 0
+        };
+        loop {
+            match self.next() {
+                Ok(count) => stats.total_instruction_count += count,
+                Err(ExecutionError::ExecStackEmpty) => return ExitStatus::Normal(stats),
+                Err(ExecutionError::IllegalOperation) => {
+                    stats.total_instruction_count += 1;
+                    stats.total_noop_count += 1;
+                },
+                Err(ExecutionError::InsufficientInputs) => {
+                    stats.total_instruction_count += 1;
+                    stats.total_noop_count += 1;
+                },
+                Err(ExecutionError::OutOfMemory) => return ExitStatus::ExceededMemoryLimit(stats),
+                Err(ExecutionError::InvalidOpcode) => return ExitStatus::InvalidOpcode(stats),
+            }
+
+            if stats.total_instruction_count >= max {
+                return ExitStatus::ExceededInstructionCount(stats);
             }
         }
-        
-        ExitStatus::Normal(total_count)
     }
 
     /// Processes the next instruction from the Exec stack. The return type allows for some VirtualMachines to indicate
-    /// how expensive an instruction was. Typically returns Some(1)
-    fn next(&mut self) -> Option<usize> {
+    /// how expensive an instruction was. Typically returns Ok(1)
+    fn next(&mut self) -> Result<usize, ExecutionError> {
         // Pop the top piece of code from the exec stack and execute it.
-        if let Some(exec) = self.engine_mut().exec().pop() {
-            if let Some(execute_fn) = self.engine().execute_fn(exec.get_opcode()) {
-                execute_fn(exec, self);
+        let exec = self.engine_mut().exec().pop().ok_or(ExecutionError::ExecStackEmpty)?;
+        let execute_fn = self.engine().execute_fn(exec.get_opcode()).ok_or(ExecutionError::InvalidOpcode)?;
+        execute_fn(exec, self)?;
 
-                // Return the number of points required to perform that action
-                return Some(1);
-            }
-        }
-
-        // No action was found
-        None
+        Ok(1)
     }
 
     /// Returns the random number generator used by the VirtualMachine.

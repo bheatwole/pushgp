@@ -1,6 +1,6 @@
 use pushgp::{
     parse_code_integer, Code, Instruction, InstructionTable, Opcode, OpcodeConvertor, Stack,
-    StaticName, VirtualMachine, VirtualMachineEngine,
+    StaticName, VirtualMachine, VirtualMachineEngine, ExecutionError,
 };
 
 pub type Weight = u8;
@@ -50,9 +50,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveWeight<Vm>> Instruction<Vm> for 
     }
 
     /// Executing a WeightLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         if let Some(value) = code.get_data().integer_value() {
-            vm.weight().push(value as u8)
+            vm.weight().push(value as u8)?;
         }
+
+        Ok(())
     }
 }

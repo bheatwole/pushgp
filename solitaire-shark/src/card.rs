@@ -256,7 +256,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for Ca
     }
 
     /// Executing a CardLiteralValue pushes the literal value that was part of the data onto the stack
-    fn execute(code: Code, vm: &mut Vm) {
+    fn execute(code: Code, vm: &mut Vm) -> Result<(), ExecutionError> {
         vm.card().push(code.get_data().card_value())
     }
 
@@ -272,7 +272,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveCard<Vm>> Instruction<Vm> for Ca
 #[stack_instruction(Card)]
 fn ready_to_finish(vm: &mut Vm, value: Card) {
     let ready = vm.game().card_is_ready_to_finish(value);
-    vm.bool().push(ready);
+    vm.bool().push(ready)?;
 }
 
 /// Draws the next three cards (if available) from the draw pile onto the play pile. If the draw pile is empty, the play
@@ -281,7 +281,7 @@ fn ready_to_finish(vm: &mut Vm, value: Card) {
 fn draw_next_three(vm: &mut Vm) {
     vm.game().draw_next_three();
     if let Some(top_card_of_play_pile) = vm.game().top_card_of_play_pile() {
-        vm.card().push(top_card_of_play_pile);
+        vm.card().push(top_card_of_play_pile)?;
     }
 }
 
@@ -290,7 +290,7 @@ fn draw_next_three(vm: &mut Vm) {
 #[stack_instruction(Card)]
 fn move_top_play_pile_card_to_finish(vm: &mut Vm) {
     let success = vm.game().move_top_play_pile_card_to_finish();
-    vm.bool().push(success);
+    vm.bool().push(success)?;
 }
 
 /// Pops the Integer stack and uses that value modulus 7 to choose a work pile. The top card of that work pile is moved
@@ -301,7 +301,7 @@ fn move_top_work_pile_card_to_finish(vm: &mut Vm, work_pile: Integer) {
     let success = vm
         .game()
         .move_top_work_pile_card_to_finish(work_pile as usize);
-    vm.bool().push(success);
+    vm.bool().push(success)?;
 }
 
 /// Pops the Integer stack three times. The top value is the number of cards to move. The second value is the index of
@@ -331,25 +331,25 @@ fn move_work_pile_cards_to_another_work_pile(
     } else {
         false
     };
-    vm.bool().push(success);
+    vm.bool().push(success)?;
 }
 
 #[stack_instruction(Card)]
 fn draw_pile_len(vm: &mut Vm) {
     let len = vm.game().number_of_cards_in_draw_pile();
-    vm.integer().push(len as i64);
+    vm.integer().push(len as i64)?;
 }
 
 #[stack_instruction(Card)]
 fn play_pile_len(vm: &mut Vm) {
     let len = vm.game().number_of_cards_in_play_pile();
-    vm.integer().push(len as i64);
+    vm.integer().push(len as i64)?;
 }
 
 #[stack_instruction(Card)]
 fn top_play_pile(vm: &mut Vm) {
     if let Some(card) = vm.game().top_card_of_play_pile() {
-        vm.card().push(card);
+        vm.card().push(card)?;
     }
 }
 
@@ -365,13 +365,13 @@ fn define(vm: &mut Vm, value: Card, name: Name) {
 /// effect of the duplication!).
 #[stack_instruction(Card)]
 fn dup(vm: &mut Vm) {
-    vm.card().duplicate_top_item();
+    vm.card().duplicate_top_item()?;
 }
 
 /// Pushes TRUE if the top two items on the CARD stack are equal, or FALSE otherwise.
 #[stack_instruction(Card)]
 fn equal(vm: &mut Vm, a: Card, b: Card) {
-    vm.bool().push(a == b);
+    vm.bool().push(a == b)?;
 }
 
 /// Empties the Card stack.
@@ -385,7 +385,7 @@ fn flush(vm: &mut Vm) {
 #[stack_instruction(Card)]
 fn from_int(vm: &mut Vm, value: Integer) {
     let value = mod_for_vec_index(value, 52) as u8;
-    vm.card().push(Card::from_repr(value).unwrap());
+    vm.card().push(Card::from_repr(value).unwrap())?;
 }
 
 /// Pops the CARD stack
@@ -396,7 +396,7 @@ fn pop(vm: &mut Vm, _a: Card) {}
 #[stack_instruction(Card)]
 fn rand(vm: &mut Vm) {
     let random_value = vm.random_value::<CardLiteralValue>();
-    vm.execute_immediate::<CardLiteralValue>(random_value);
+    vm.execute_immediate::<CardLiteralValue>(random_value)?;
 }
 
 // "CARD.ROT"

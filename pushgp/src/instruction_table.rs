@@ -1,4 +1,11 @@
+use std::time::Instant;
+
 use fnv::FnvHashMap;
+use lazy_static::lazy_static;
+use prometheus::{
+    core::{AtomicF64, AtomicU64, GenericCounter},
+    register_counter_vec, register_int_counter_vec, CounterVec, IntCounterVec,
+};
 
 use crate::{Code, CodeParser, ExecutionError, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine};
 
@@ -8,6 +15,21 @@ pub type FmtFn<Vm> =
     fn(f: &mut std::fmt::Formatter<'_>, code: &Code, vtable: &InstructionTable<Vm>) -> std::fmt::Result;
 pub type RandomValueFn<Vm> = fn(engine: &mut VirtualMachineEngine<Vm>) -> Code;
 pub type ExecuteFn<Vm> = fn(code: Code, vm: &mut Vm) -> Result<(), ExecutionError>;
+
+lazy_static! {
+    static ref INSTRUCTION_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+        "instruction_executions_total",
+        "The number of times an instruction was executed",
+        &["name"]
+    )
+    .unwrap();
+    static ref INSTRUCTION_TIME_VEC: CounterVec = register_counter_vec!(
+        "instruction_execution_duration_seconds",
+        "The amount of time spent executing each instruction",
+        &["name"]
+    )
+    .unwrap();
+}
 
 /// The instruction table allows a single point of entry for the lookup of the main function that every instruction has.
 /// This is used to convert from opcode to executation and back.
@@ -23,7 +45,7 @@ pub struct InstructionTable<Vm: VirtualMachine> {
     parse_functions: Vec<ParseFn>,
     fmt_functions: Vec<FmtFn<Vm>>,
     random_value_functions: Vec<RandomValueFn<Vm>>,
-    execute_functions: Vec<ExecuteFn<Vm>>,
+    execute_functions: Vec<ExecuteEntry<Vm>>,
     lookup_opcode_by_name: FnvHashMap<&'static str, Opcode>,
 }
 
@@ -59,7 +81,11 @@ impl<Vm: VirtualMachine> InstructionTable<Vm> {
         self.parse_functions.push(I::parse);
         self.fmt_functions.push(I::fmt);
         self.random_value_functions.push(I::random_value);
-        self.execute_functions.push(I::execute);
+        self.execute_functions.push(ExecuteEntry {
+            execute_function: I::execute,
+            instruction_count_metric: INSTRUCTION_COUNTER_VEC.get_metric_with_label_values(&[name]).unwrap(),
+            instruction_duration: INSTRUCTION_TIME_VEC.get_metric_with_label_values(&[name]).unwrap(),
+        });
         self.lookup_opcode_by_name.insert(name, opcode);
 
         opcode
@@ -81,8 +107,11 @@ impl<Vm: VirtualMachine> InstructionTable<Vm> {
     }
 
     /// Returns the execute fn pointer for the specified opcode or None
-    pub fn execute_fn(&self, opcode: Opcode) -> Option<ExecuteFn<Vm>> {
-        self.execute_functions.get(opcode as usize).map(|f| *f)
+    pub fn execute_fn(&self, opcode: Opcode) -> Option<(ExecuteFn<Vm>, InstructionTimer)> {
+        self.execute_functions.get(opcode as usize).map(|f| {
+            f.instruction_count_metric.inc();
+            (f.execute_function, f.instruction_duration.start_timer())
+        })
     }
 }
 
@@ -135,5 +164,34 @@ impl<Vm: VirtualMachine> std::cmp::PartialEq for InstructionTable<Vm> {
         }
 
         true
+    }
+}
+
+#[derive(Clone)]
+struct ExecuteEntry<Vm: VirtualMachine> {
+    pub execute_function: ExecuteFn<Vm>,
+    pub instruction_count_metric: GenericCounter<AtomicU64>,
+    pub instruction_duration: GenericCounter<AtomicF64>,
+}
+
+pub struct InstructionTimer {
+    // The counter for recording the duration. We do not use a histogram because the durations are so small
+    counter: GenericCounter<AtomicF64>,
+    start: Instant,
+}
+
+impl Drop for InstructionTimer {
+    fn drop(&mut self) {
+        self.counter.inc_by(self.start.elapsed().as_secs_f64());
+    }
+}
+
+trait StartTimer {
+    fn start_timer(&self) -> InstructionTimer;
+}
+
+impl StartTimer for GenericCounter<AtomicF64> {
+    fn start_timer(&self) -> InstructionTimer {
+        InstructionTimer { counter: self.clone(), start: Instant::now() }
     }
 }

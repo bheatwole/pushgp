@@ -85,7 +85,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     }
 
     /// Returns the execute fn pointer for the specified opcode or None
-    pub fn execute_fn(&self, opcode: Opcode) -> Option<ExecuteFn<Vm>> {
+    pub fn execute_fn(&self, opcode: Opcode) -> Option<(ExecuteFn<Vm>, InstructionTimer)> {
         self.vtable.execute_fn(opcode)
     }
 
@@ -159,7 +159,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn rand_child<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Result<Individual<R>, ExecutionError> {
+    pub fn rand_child<R: RunResult>(
+        &mut self,
+        left: &Individual<R>,
+        right: &Individual<R>,
+    ) -> Result<Individual<R>, ExecutionError> {
         match self.select_genetic_operation() {
             GeneticOperation::Mutation => self.mutate(left),
             GeneticOperation::Crossover => self.crossover(left, right),
@@ -189,7 +193,11 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     ///
     /// The defined_names of the child will only include the code that is specifically named in the child's code. If
     /// both parents have the same defined_name, the value for that will come from the left individual.
-    pub fn crossover<R: RunResult>(&mut self, left: &Individual<R>, right: &Individual<R>) -> Result<Individual<R>, ExecutionError> {
+    pub fn crossover<R: RunResult>(
+        &mut self,
+        left: &Individual<R>,
+        right: &Individual<R>,
+    ) -> Result<Individual<R>, ExecutionError> {
         let left_selected_point = self.select_random_point(left.get_code());
         let left_code = extract_known_point(left.get_code(), left_selected_point);
         let right_selected_point = self.select_random_point(right.get_code());

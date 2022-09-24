@@ -16,10 +16,7 @@ pub trait VirtualMachine:
     /// processed. The default implementation rarely needs to be overridden.
     fn run(&mut self, max: usize) -> ExitStatus {
         // trace!("{:?}", self);
-        let mut stats = ExitStats {
-            total_instruction_count: 0,
-            total_noop_count: 0
-        };
+        let mut stats = ExitStats { total_instruction_count: 0, total_noop_count: 0 };
         loop {
             match self.next() {
                 Ok(count) => stats.total_instruction_count += count,
@@ -27,11 +24,11 @@ pub trait VirtualMachine:
                 Err(ExecutionError::IllegalOperation) => {
                     stats.total_instruction_count += 1;
                     stats.total_noop_count += 1;
-                },
+                }
                 Err(ExecutionError::InsufficientInputs) => {
                     stats.total_instruction_count += 1;
                     stats.total_noop_count += 1;
-                },
+                }
                 Err(ExecutionError::OutOfMemory) => return ExitStatus::ExceededMemoryLimit(stats),
                 Err(ExecutionError::InvalidOpcode) => return ExitStatus::InvalidOpcode(stats),
             }
@@ -47,7 +44,7 @@ pub trait VirtualMachine:
     fn next(&mut self) -> Result<usize, ExecutionError> {
         // Pop the top piece of code from the exec stack and execute it.
         let exec = self.engine_mut().exec().pop().ok_or(ExecutionError::ExecStackEmpty)?;
-        let execute_fn = self.engine().execute_fn(exec.get_opcode()).ok_or(ExecutionError::InvalidOpcode)?;
+        let (execute_fn, _timer) = self.engine().execute_fn(exec.get_opcode()).ok_or(ExecutionError::InvalidOpcode)?;
         execute_fn(exec, self)?;
 
         Ok(1)

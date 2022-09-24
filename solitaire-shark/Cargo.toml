@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 fnv = "1.0"
 nom = "7.1"
+prometheus_exporter = "0.8"
 pushgp = { path = "../pushgp" }
 pushgp-macros = { path = "../pushgp-macros" }
 pushgp-weights = { path = "../pushgp-weights" }

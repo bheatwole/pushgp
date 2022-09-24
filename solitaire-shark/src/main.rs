@@ -26,6 +26,12 @@ pub use vm::{SolitareVm, VirtualMachineMustHaveGame};
 use crate::{solitaire_result::SolitaireResults, vm::add_instructions};
 
 fn main() {
+    // Starup prometheus exporter
+    prometheus_exporter::start("0.0.0.0:9184".parse().expect(
+    "failed to parse binding",
+    ))
+    .expect("failed to start prometheus exporter");
+
     // Parameters:
     // max_instructions_per_context: 100_000
     // island_population_size: 100

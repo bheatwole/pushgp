@@ -32,8 +32,9 @@ impl<TargetRunResult: RunResult, TargetVm: VirtualMachine> IslandCallbacks<Weigh
         // Reset the target world back to blank state, but with its islands intact
         vm.target().reset_target();
 
-        // Reset our VM
+        // Reset our VM and then add this individual's code
         vm.clear();
+        vm.engine_mut().set_code(individual.get_code().clone());
 
         // Run this VM for a while. This will update the configuration of weights in the target VM.
         vm.run(self.max_instructions);

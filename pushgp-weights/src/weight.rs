@@ -27,6 +27,7 @@ impl WeightLiteralValue {
 
 impl<Vm: VirtualMachine + VirtualMachineMustHaveWeight<Vm>> Instruction<Vm> for WeightLiteralValue {
     fn parse<'a>(input: &'a str, opcode: Opcode) -> nom::IResult<&'a str, Code> {
+        // TODO, parse the literal 'W' in front of number
         let (rest, value) = parse_code_integer(input)?;
         Ok((rest, Code::new(opcode, value.into())))
     }
@@ -37,7 +38,7 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveWeight<Vm>> Instruction<Vm> for 
         _vtable: &InstructionTable<Vm>,
     ) -> std::fmt::Result {
         if let Some(value) = code.get_data().integer_value() {
-            write!(f, "{}", value)
+            write!(f, "W{}", value)
         } else {
             panic!("fmt called for WeightLiteralValue with Code that does not have a integer value stored")
         }

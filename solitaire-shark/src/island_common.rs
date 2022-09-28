@@ -39,7 +39,7 @@ impl IslandCommon {
         // Play 100 games
         for game_index in 0..GAMES_PER_RUN {
             // Clear the stacks and defined functions from any previous runs
-            vm.engine_mut().clear();
+            vm.clear();
 
             // Setup this individuals' code and functions
             vm.engine_mut().set_code(individual.get_code().clone());

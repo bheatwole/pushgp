@@ -198,10 +198,16 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
         left: &Individual<R>,
         right: &Individual<R>,
     ) -> Result<Individual<R>, ExecutionError> {
-        let left_selected_point = self.select_random_point(left.get_code());
-        let left_code = extract_known_point(left.get_code(), left_selected_point);
-        let right_selected_point = self.select_random_point(right.get_code());
+        // Select a chunk of the left parent that is smaller than 80% of the maximum number of points we could have
+        let left_code = self.select_random_code_smaller_than(left.get_code(), crate::code::MAX_POINTS_IN_CODE * 10 / 8);
 
+        // When we select the insertion point of the left_code into the right parent, we must have a spot where taking
+        // out the old code and putting in the new, will not exceed the limit. We can do this by assuring that the spot
+        // we select is 'at least' the amount we would go over the max if we replaced just one atom.
+        let right_selected_point = self
+            .select_random_point_at_least(right.get_code(), (right.get_code().points() + left_code.points()) - 1000);
+
+        // Put in the left_code at the spot where it fits
         let (child_code, _) = right.get_code().replace_point(right_selected_point, &left_code)?;
         let mut child = Individual::new(child_code, FnvHashMap::default(), None);
 
@@ -218,6 +224,26 @@ impl<Vm: VirtualMachine + VirtualMachineMustHaveExec<Vm>> VirtualMachineEngine<V
     fn select_random_point(&mut self, code: &Code) -> i64 {
         let total_points = code.points();
         self.rng.gen_range(0..total_points)
+    }
+
+    fn select_random_code_smaller_than(&mut self, code: &Code, max_point: i64) -> Code {
+        loop {
+            let point = self.select_random_point(code);
+            let code = extract_known_point(code, point);
+            if code.points() <= max_point {
+                return code;
+            }
+        }
+    }
+
+    fn select_random_point_at_least(&mut self, code: &Code, min_point: i64) -> i64 {
+        loop {
+            let point = self.select_random_point(code);
+            let code = extract_known_point(code, point);
+            if code.points() >= min_point {
+                return point;
+            }
+        }
     }
 
     fn select_operation_point_and_shape(&mut self, parent: &Code) -> (i64, CodeShape) {

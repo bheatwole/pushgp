@@ -13,7 +13,7 @@ lazy_static! {
         "The number of times an instruction execution resulted in a NOOP because of insufficient inputs",
     )
     .unwrap();
-    static ref PROGRAM_EXIT_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+    pub static ref PROGRAM_EXIT_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
         "program_exit_total",
         "The number of times a program finished executing",
         &["exit_reason"]

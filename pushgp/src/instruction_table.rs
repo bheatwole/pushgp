@@ -1,11 +1,10 @@
-use std::time::Instant;
-
 use fnv::FnvHashMap;
 use lazy_static::lazy_static;
 use prometheus::{
     core::{AtomicF64, AtomicU64, GenericCounter},
     register_counter_vec, register_int_counter_vec, CounterVec, IntCounterVec,
 };
+use quanta::Clock;
 
 use crate::{Code, CodeParser, ExecutionError, Instruction, Opcode, PushList, VirtualMachine, VirtualMachineEngine};
 
@@ -47,6 +46,7 @@ pub struct InstructionTable<Vm: VirtualMachine> {
     random_value_functions: Vec<RandomValueFn<Vm>>,
     execute_functions: Vec<ExecuteEntry<Vm>>,
     lookup_opcode_by_name: FnvHashMap<&'static str, Opcode>,
+    clock: Clock,
 }
 
 pub trait OpcodeConvertor {
@@ -63,6 +63,7 @@ impl<Vm: VirtualMachine> InstructionTable<Vm> {
             random_value_functions: vec![],
             execute_functions: vec![],
             lookup_opcode_by_name: FnvHashMap::default(),
+            clock: Clock::new(),
         };
 
         instructions.add_instruction::<PushList>();
@@ -110,7 +111,7 @@ impl<Vm: VirtualMachine> InstructionTable<Vm> {
     pub fn execute_fn(&self, opcode: Opcode) -> Option<(ExecuteFn<Vm>, InstructionTimer)> {
         self.execute_functions.get(opcode as usize).map(|f| {
             f.instruction_count_metric.inc();
-            (f.execute_function, f.instruction_duration.start_timer())
+            (f.execute_function, f.instruction_duration.start_timer(self.clock.clone()))
         })
     }
 }
@@ -177,21 +178,23 @@ struct ExecuteEntry<Vm: VirtualMachine> {
 pub struct InstructionTimer {
     // The counter for recording the duration. We do not use a histogram because the durations are so small
     counter: GenericCounter<AtomicF64>,
-    start: Instant,
+    start: u64,
+    clock: Clock,
 }
 
 impl Drop for InstructionTimer {
     fn drop(&mut self) {
-        self.counter.inc_by(self.start.elapsed().as_secs_f64());
+        let end = self.clock.raw();
+        self.counter.inc_by(self.clock.delta(self.start, end).as_secs_f64());
     }
 }
 
 trait StartTimer {
-    fn start_timer(&self) -> InstructionTimer;
+    fn start_timer(&self, clock: Clock) -> InstructionTimer;
 }
 
 impl StartTimer for GenericCounter<AtomicF64> {
-    fn start_timer(&self) -> InstructionTimer {
-        InstructionTimer { counter: self.clone(), start: Instant::now() }
+    fn start_timer(&self, clock: Clock) -> InstructionTimer {
+        InstructionTimer { counter: self.clone(), start: clock.raw(), clock }
     }
 }

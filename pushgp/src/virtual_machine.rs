@@ -1,4 +1,25 @@
 use crate::*;
+use lazy_static::lazy_static;
+use prometheus::{register_int_counter, register_int_counter_vec, IntCounter, IntCounterVec};
+
+lazy_static! {
+    pub static ref NOOP_ILLEGAL_OPERATION_COUNTER: IntCounter = register_int_counter!(
+        "noop_executions_illegal_operation_total",
+        "The number of times an instruction execution resulted in a NOOP because of illegal operation",
+    )
+    .unwrap();
+    pub static ref NOOP_INSUFFICIENT_INPUTS_COUNTER: IntCounter = register_int_counter!(
+        "noop_executions_insufficient_inputs_total",
+        "The number of times an instruction execution resulted in a NOOP because of insufficient inputs",
+    )
+    .unwrap();
+    static ref PROGRAM_EXIT_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+        "program_exit_total",
+        "The number of times a program finished executing",
+        &["exit_reason"]
+    )
+    .unwrap();
+}
 
 pub trait VirtualMachine:
     Clone + Sized + DoesVirtualMachineHaveName + VirtualMachineMustHaveExec<Self> + 'static + OpcodeConvertor
@@ -20,20 +41,32 @@ pub trait VirtualMachine:
         loop {
             match self.next() {
                 Ok(count) => stats.total_instruction_count += count,
-                Err(ExecutionError::ExecStackEmpty) => return ExitStatus::Normal(stats),
+                Err(ExecutionError::ExecStackEmpty) => {
+                    PROGRAM_EXIT_COUNTER_VEC.get_metric_with_label_values(&["normal"]).unwrap().inc();
+                    return ExitStatus::Normal(stats);
+                }
                 Err(ExecutionError::IllegalOperation) => {
                     stats.total_instruction_count += 1;
+                    NOOP_ILLEGAL_OPERATION_COUNTER.inc();
                     stats.total_noop_count += 1;
                 }
                 Err(ExecutionError::InsufficientInputs) => {
                     stats.total_instruction_count += 1;
+                    NOOP_INSUFFICIENT_INPUTS_COUNTER.inc();
                     stats.total_noop_count += 1;
                 }
-                Err(ExecutionError::OutOfMemory) => return ExitStatus::ExceededMemoryLimit(stats),
-                Err(ExecutionError::InvalidOpcode) => return ExitStatus::InvalidOpcode(stats),
+                Err(ExecutionError::OutOfMemory) => {
+                    PROGRAM_EXIT_COUNTER_VEC.get_metric_with_label_values(&["exceeded_memory_limit"]).unwrap().inc();
+                    return ExitStatus::ExceededMemoryLimit(stats);
+                }
+                Err(ExecutionError::InvalidOpcode) => {
+                    PROGRAM_EXIT_COUNTER_VEC.get_metric_with_label_values(&["exceeded_invalid_opcode"]).unwrap().inc();
+                    return ExitStatus::InvalidOpcode(stats);
+                }
             }
 
             if stats.total_instruction_count >= max {
+                PROGRAM_EXIT_COUNTER_VEC.get_metric_with_label_values(&["exceeded_instruction_count"]).unwrap().inc();
                 return ExitStatus::ExceededInstructionCount(stats);
             }
         }
